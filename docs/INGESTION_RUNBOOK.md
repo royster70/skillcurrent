@@ -50,7 +50,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all 8 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all 10 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -59,7 +59,9 @@ This applies all 8 migrations in order, creating all tables documented in `docs/
 **Required order:**
 1. O*NET (must be first — other datasets have foreign keys to `onet_occupations`)
 2. Eloundou, Microsoft AI, AEI labor market, AEI temporal, BLS OEWS (any order)
-3. Eloundou DWA derivation (must be last — depends on O*NET + Eloundou data)
+3. Eloundou DWA derivation (depends on O*NET + Eloundou data)
+4. Drift computation (depends on AEI temporal data)
+5. Industry profiles computation (depends on OEWS + Eloundou + Microsoft AI + AEI + drift data)
 
 ---
 
@@ -290,6 +292,59 @@ SELECT AVG(importance_weight) FROM eloundou_dwa_scores;
 -- Should be a small fraction (weights sum to 1.0 per occupation)
 ```
 
+### 4.8 Drift Computation (FR-8.2/8.3)
+
+**Source**: Derived from already-loaded data (no external files). Uses `aei_task_snapshots` temporal data.
+
+**Command**:
+```bash
+python -m scripts.compute_drift
+python -m scripts.compute_drift --platform 1p_api  # optional: specific platform
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| task_drift_metrics | 4,605 |
+
+**Verification**:
+```bash
+python -m scripts.verify_drift
+```
+```sql
+SELECT classification, COUNT(*) FROM task_drift_metrics GROUP BY classification ORDER BY classification;
+-- departing: 558, enduring: 2,971, below_threshold: 4, unclassified (NULL): 1,072
+```
+
+### 4.9 Industry Profiles Computation (FR-8.4)
+
+**Source**: Derived from already-loaded data (no external files). Uses `oews_employment`, `eloundou_occ_scores`, `ms_ai_applicability_scores`, `aei_job_exposure`, and `task_drift_metrics`.
+
+**Command**:
+```bash
+python -m scripts.compute_industry_profiles
+python -m scripts.compute_industry_profiles --year 2024  # optional: specific release year
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| industry_occupation_profiles | 7,935 |
+
+(20 NAICS sectors, ~153M total workers)
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM industry_occupation_profiles;
+-- Should be 7,935
+SELECT COUNT(DISTINCT naics_code) FROM industry_occupation_profiles;
+-- Should be 20
+SELECT COUNT(*) FROM industry_occupation_profiles WHERE eloundou_beta IS NOT NULL;
+-- Majority should have multi-source scoring populated
+```
+
 ---
 
 ## 5. Full Rebuild Sequence
@@ -311,11 +366,13 @@ python -m scripts.ingest_aei --path "C:\Users\royst\Projects\Data\AEI"
 python -m scripts.ingest_aei_temporal --path "C:\Users\royst\Projects\Data\AEI\AEI-full"
 python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4"
 
-# Step 3: Derived data (must be last)
+# Step 3: Derived data (must be after ingestion, in this order)
 python -m scripts.derive_eloundou_dwas
+python -m scripts.compute_drift
+python -m scripts.compute_industry_profiles
 ```
 
-**Total expected rows across all tables: ~442,703**
+**Total expected rows across all tables: ~455,200**
 
 ---
 
@@ -344,5 +401,23 @@ UNION ALL SELECT 'aei_job_exposure', COUNT(*) FROM aei_job_exposure
 UNION ALL SELECT 'aei_task_penetration', COUNT(*) FROM aei_task_penetration
 UNION ALL SELECT 'aei_task_snapshots', COUNT(*) FROM aei_task_snapshots
 UNION ALL SELECT 'oews_employment', COUNT(*) FROM oews_employment
+UNION ALL SELECT 'task_drift_metrics', COUNT(*) FROM task_drift_metrics
+UNION ALL SELECT 'industry_occupation_profiles', COUNT(*) FROM industry_occupation_profiles
 ORDER BY tbl;
 ```
+
+---
+
+## 7. Start API Server
+
+After data is loaded, start the Tier 1 API:
+
+```bash
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+- API: http://localhost:8000
+- OpenAPI docs: http://localhost:8000/docs
+- Health check: http://localhost:8000/health
+
+10 Tier 1 endpoints available — see `README.md` for the full endpoint table.

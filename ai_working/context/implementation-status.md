@@ -18,11 +18,26 @@ Last updated: 2026-03-23
 - **FR-8.3 Task Classification**: 558 departing, 2,971 enduring, 4 below_threshold, 1,072 unclassified (single snapshot)
 - **task_drift_metrics** table populated with velocity, R², p-value, classification per task
 
+### Tier 1 Computation (FR-8.4)
+- **FR-8.4 Industry Profiles**: 7,935 profiles across 20 NAICS sectors (~153M workers)
+- Multi-source scoring: eloundou_beta, ms_ai_applicability, aei_exposure, drift_velocity, drift_classification
+- Computed via `python -m scripts.compute_industry_profiles`
+- **industry_occupation_profiles** table populated with multi-source scoring columns (migration 010)
+
+### Tier 1 API (11 endpoints, live)
+- **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
+- **Sectors**: `GET /api/v1/sectors`, `GET /api/v1/sectors/{code}/occupations`
+- **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy`, `GET /api/v1/occupations/{soc}`, `GET /api/v1/occupations/{soc}/tasks`
+- **Drift**: `GET /api/v1/drift/summary`, `GET /api/v1/drift/departing`, `GET /api/v1/drift/enduring`, `GET /api/v1/drift/below-threshold`
+- No auth required (Tier 1 = public data only)
+- OpenAPI docs at http://localhost:8000/docs
+- 22 API endpoint tests in `tests/test_api.py`
+
 ### Infrastructure
 - **dataset_versions**: Central version registry (ADR-002)
 - **dataset_version_deltas**: Pre-computed diffs between dataset versions (ADR-002)
 - **transformation_log**: Lineage tracking for derived computations (ADR-001)
-- **9 Alembic migrations**: All applied
+- **10 Alembic migrations**: All applied
 
 ### Database Schema
 - All 20+ tables created and populated
@@ -37,7 +52,6 @@ Last updated: 2026-03-23
 ## Not Started
 
 ### Tier 1 — Industry Intelligence (remaining)
-- **FR-8.4**: Industry Profiles computation (table exists, data not computed)
 - **FR-8.5**: Tier 1 Dashboard
 - **FR-8.7**: Longitudinal Waterline Tracking
 - **FR-8.9**: Industry Crosswalk AU data load (table exists, NAICS-to-ANZSIC mappings not loaded)
@@ -52,17 +66,12 @@ Last updated: 2026-03-23
 - **FR-7**: Privacy Controls (N>=5, RBAC, anonymisation)
 - **FR-6**: Org Dashboards
 
-### API Layer
-- No API endpoints built yet
-- FastAPI app scaffold exists
-
 ### Frontend
 - No frontend beyond initial scaffold
 - TypeScript/React 18 stack selected
 
 ### Tests
-- 33 tests passing (data invariants, cross-dataset joins, drift velocity, classification, ingestion utilities, transformation decorator)
-- No API endpoint tests yet (no endpoints built)
+- 63 tests passing (data invariants, cross-dataset joins, drift velocity, classification, ingestion utilities, transformation decorator, 22 API endpoint tests)
 - No frontend tests yet (no components built)
 
 ## Success Metrics Progress
@@ -74,7 +83,7 @@ Last updated: 2026-03-23
 | O*NET matching automation | >=95% | 0% |
 | Hierarchy build (10k employees) | <5s | -- |
 | N>=5 enforcement | 100% | -- |
-| Backend test coverage | >=80% | 33 tests passing (coverage % not yet measured) |
+| Backend test coverage | >=80% | 63 tests passing (coverage % not yet measured) |
 
 ## Technical Debt
 - Eloundou DWA Strategy B (LLM rubric for uncovered DWAs) not yet implemented

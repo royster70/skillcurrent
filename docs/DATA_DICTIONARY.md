@@ -491,7 +491,7 @@ BLS Occupational Employment and Wage Statistics. 8,573 rows. US headcount by occ
 
 ### industry_occupation_profiles
 
-Pre-computed industry profiles. Table exists but computation not yet implemented (FR-8.4).
+Pre-computed industry profiles. 7,935 profiles across 20 NAICS sectors (FR-8.4). Multi-source scoring from Eloundou, Microsoft AI, AEI, and drift computation.
 
 | Column | Type | Nullable | Description |
 |--------|------|----------|-------------|
@@ -505,6 +505,11 @@ Pre-computed industry profiles. Table exists but computation not yet implemented
 | avg_automation_pct | FLOAT | YES | Average automation percentage |
 | avg_augmentation_pct | FLOAT | YES | Average augmentation percentage |
 | dominant_zone | TEXT | YES | Exposure zone classification |
+| eloundou_beta | FLOAT | YES | Eloundou Beta score (E1 + 0.5*E2) for this occupation |
+| ms_ai_applicability | FLOAT | YES | Microsoft AI applicability score for this occupation |
+| aei_exposure | FLOAT | YES | AEI observed exposure for this occupation |
+| drift_velocity | FLOAT | YES | Task drift velocity from FR-8.2 linregress |
+| drift_classification | TEXT | YES | Drift classification (departing/enduring/emerging/below_threshold) |
 | profile_date | DATE | NO | Profile computation date |
 | release_year | INTEGER | NO | Source data year |
 | created_at | TIMESTAMP | NO | Server default NOW() |
@@ -513,7 +518,8 @@ Pre-computed industry profiles. Table exists but computation not yet implemented
 - **Primary key**: `id`
 - **Unique constraint**: (`naics_code`, `onet_soc`, `release_year`)
 - **Indexes**: `ix_industry_occupation_profiles_naics_code`, `ix_industry_occupation_profiles_onet_soc`, `ix_industry_occupation_profiles_dominant_zone`
-- **Migration**: 002
+- **Migration**: 002, columns `eloundou_beta`, `ms_ai_applicability`, `aei_exposure`, `drift_velocity`, `drift_classification` added in 010
+- **Populated by**: `compute_industry_profiles` script (FR-8.4)
 
 ### industry_crosswalk
 
@@ -669,3 +675,5 @@ WHERE aei_task_snapshots.onet_soc_codes @> ARRAY['11-1011.00']
 | 006 | aei_job_exposure, aei_task_penetration |
 | 007 | Add task_pct column to aei_task_snapshots |
 | 008 | eloundou_dwa_scores |
+| 009 | task_drift_metrics (FR-8.2/8.3 drift velocity and classification) |
+| 010 | Add eloundou_beta, ms_ai_applicability, aei_exposure, drift_velocity, drift_classification to industry_occupation_profiles |

@@ -56,7 +56,7 @@ npm install && npm run dev
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | Derived products | 12,540 | Drift metrics (4,605) + industry profiles (7,935) |
 
-### Tier 1 API (10 endpoints, live)
+### Tier 1 API (11 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
@@ -76,7 +76,7 @@ OpenAPI docs: http://localhost:8000/docs
 
 ### Tests
 
-41 tests passing — data invariants, cross-dataset joins, drift computation, transformation decorator, ingestion utilities.
+63 tests passing — data invariants, cross-dataset joins, drift computation, transformation decorator, ingestion utilities, 22 API endpoint tests.
 
 ```powershell
 cd src/backend
@@ -120,7 +120,7 @@ workforce-ai-platform/
         services/              # Ingestion, computation, transformations
       migrations/versions/     # Alembic migrations (001-010)
       scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (41 tests)
+      tests/                   # pytest suite (63 tests)
     frontend/
       src/                     # React 18 + TypeScript
 ```
