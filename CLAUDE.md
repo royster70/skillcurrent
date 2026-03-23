@@ -54,26 +54,59 @@ Based on Eloundou Beta scores (E1 + 0.5×E2). Occupation-level data is loaded (9
 ## Build Dependency Chain
 ```
 Tier 1 (parallel track — no blockers):
-  FR-8.1 AEI Ingestion → FR-8.2 Drift Calculation → FR-8.3 Task Classification
-  FR-8.4 OEWS Industry Profiles → FR-8.5 Tier 1 Dashboard
-  FR-8.6 GPTVal Integration → FR-8.7 Longitudinal Waterline Tracking
-  FR-8.9 Industry Crosswalk (NAICS↔ANZSIC via ISIC)
+  [x] Data Ingestion: O*NET, Eloundou, Microsoft AI, AEI, AEI Temporal, OEWS
+  [x] Eloundou DWA Derivation (Strategy A)
+  [x] Infrastructure: dataset_versions, transformation_log
+  [ ] FR-8.2 Drift Calculation
+  [ ] FR-8.3 Task Classification (departing/enduring/emerging)
+  [ ] FR-8.4 OEWS Industry Profiles (table exists, computation not done)
+  [ ] FR-8.5 Tier 1 Dashboard
+  [ ] FR-8.7 Longitudinal Waterline Tracking
+  [ ] FR-8.9 Industry Crosswalk (table exists, AU data not loaded)
 
 Tier 2 (sequential — each stage blocks the next):
-  FR-1 (Org Hierarchy) → FR-7 (Privacy Controls) → FR-6 (Dashboards)
-  FR-1 (Matching) → FR-2 → FR-3 (Tasks) → FR-4 (Scoring) → FR-5 (Analytics)
+  [ ] FR-1 (Org Hierarchy) → FR-7 (Privacy Controls) → FR-6 (Dashboards)
+  [ ] FR-1 (Matching) → FR-2 → FR-3 (Tasks) → FR-4 (Scoring) → FR-5 (Analytics)
 ```
 
 **Critical blockers**: FR-7 cannot start until FR-1.3/FR-1.4 (hierarchy_path) complete. FR-6 must use FR-7 privacy views.
 
 ## Data Sources Quick Reference
 - **O*NET 28.1**: Tab-delimited files from onetcenter.org (1,016 occupations, ~19,500 tasks, 65k+ titles). LOADED.
-- **Eloundou 2024**: Occupation-level exposure scores (923 occupations, dual GPT-4 + human raters). LOADED. DWA-level derivation pending.
+- **Eloundou 2024**: Occupation-level exposure scores (923 occupations, dual GPT-4 + human raters). LOADED. DWA-level derivation LOADED (17,537 rows).
 - **Microsoft "Working with AI"**: CC-BY 4.0, empirical Copilot usage (Jan–Sept 2024). 785 SOC scores, 332 IWA metrics, 13,698 SOC-to-IWA mappings. LOADED.
-- **AEI**: HuggingFace CC-BY, 4+ releases — append-only temporal store, new snapshots ingested on release
-- **BLS OEWS**: US headcount weighting by occupation × industry (NAICS)
-- **ABS/JSA**: Australian headcount weighting (ANZSIC), loaded per engagement
-- **GPTVal**: Longitudinal AI capability benchmarks; versioned by model era (sonnet-3.5, 3.7, 4, 4.5...)
+- **AEI**: HuggingFace CC-BY — labor market (756 jobs, 17,998 tasks) + temporal (16,976 snapshots across 4 model eras). LOADED.
+- **BLS OEWS**: US headcount weighting by occupation × industry (NAICS). 8,573 rows. LOADED.
+- **ABS/JSA**: Australian headcount weighting (ANZSIC), loaded per engagement. NOT LOADED.
+- **GPTVal**: Longitudinal AI capability benchmarks; versioned by model era (sonnet-3.5, 3.7, 4, 4.5...). NOT LOADED.
+
+## Data Load Status
+
+All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebuild instructions.
+
+| Table | Rows | Source |
+|-------|------|--------|
+| onet_occupations | 1,016 | O*NET 28.1 |
+| onet_task_statements | 18,796 | O*NET 28.1 |
+| onet_task_ratings | 161,559 | O*NET 28.1 |
+| onet_work_activities | 73,308 | O*NET 28.1 |
+| onet_dwa_references | 2,087 | O*NET 28.1 |
+| onet_tasks_to_dwas | 23,850 | O*NET 28.1 |
+| onet_sample_titles | 7,953 | O*NET 28.1 |
+| onet_alternate_titles | 57,543 | O*NET 28.1 |
+| onet_emerging_tasks | 328 | O*NET 28.1 |
+| eloundou_occ_scores | 923 | Eloundou 2024 |
+| eloundou_dwa_scores | 17,537 | Derived (Strategy A) |
+| ms_ai_applicability_scores | 785 | Microsoft Working with AI |
+| ms_ai_soc_metrics | 785 | Microsoft Working with AI |
+| ms_ai_iwa_metrics | 332 | Microsoft Working with AI |
+| ms_ai_soc_to_iwas | 13,698 | Microsoft Working with AI |
+| ms_ai_physical_tasks | 18,796 | Microsoft Working with AI |
+| aei_job_exposure | 756 | AEI (Anthropic) |
+| aei_task_penetration | 17,998 | AEI (Anthropic) |
+| aei_task_snapshots | 16,976 | AEI Temporal (4 model eras) |
+| oews_employment | 8,573 | BLS OEWS May 2024 |
+| **TOTAL** | **~442,700** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector, Alembic, SQLAlchemy

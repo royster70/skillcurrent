@@ -116,37 +116,10 @@ Use temperature=0.0. Budget ~500 calls/day (well within FR-4 LLM rate limit).
 
 ## Database Tables
 
-```sql
--- Occupation-level scores (ingested directly from CSV)
-CREATE TABLE eloundou_occ_scores (
-    occ_soc_6        VARCHAR(10) NOT NULL,  -- SOC 2018, e.g. "15-1252"
-    occ_title        VARCHAR(255),
-    e1_human         NUMERIC(5,4),
-    e1_gpt4          NUMERIC(5,4),
-    e2_human         NUMERIC(5,4),
-    e2_gpt4          NUMERIC(5,4),
-    beta_human       NUMERIC(5,4),
-    beta_gpt4        NUMERIC(5,4),          -- preferred: use this for scoring
-    dataset_version  VARCHAR(30) NOT NULL,  -- "eloundou_2024_science"
-    ingested_at      TIMESTAMPTZ DEFAULT NOW(),
-    PRIMARY KEY (occ_soc_6, dataset_version)
-);
+See `docs/DATA_DICTIONARY.md` for the current schema. The tables are:
 
--- DWA-level scores (derived via Strategy A, gaps filled via Strategy B)
-CREATE TABLE eloundou_dwa_scores (
-    occ_soc_6        VARCHAR(10) NOT NULL,
-    dwa_id           VARCHAR(20) NOT NULL,
-    dwa_title        VARCHAR(500),
-    beta             NUMERIC(5,4) NOT NULL,  -- E1 + 0.5*E2
-    e1               NUMERIC(5,4),
-    e2               NUMERIC(5,4),
-    source           VARCHAR(20) NOT NULL,   -- "derived" | "llm_rubric"
-    importance_weight NUMERIC(5,4),          -- O*NET task importance weight used
-    dataset_version  VARCHAR(30) NOT NULL,
-    onet_version     VARCHAR(10) NOT NULL,   -- "28.0"
-    PRIMARY KEY (occ_soc_6, dwa_id, dataset_version)
-);
-```
+- **eloundou_occ_scores** (migration 005) — 923 occupation-level scores with dual GPT-4 (`dv_`) and human rater columns, 8-digit O*NET SOC codes as FK to `onet_occupations`.
+- **eloundou_dwa_scores** (migration 008) — 17,537 DWA-level derived scores via Strategy A, with importance weights and task counts per occupation-DWA pair.
 
 ---
 
