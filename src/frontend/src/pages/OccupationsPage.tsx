@@ -1,4 +1,5 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
@@ -7,8 +8,19 @@ import { TaskMatrix, DOT_COLORS, TaskSparkline } from "../components/TaskMatrix"
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
-  const [selectedSoc, setSelectedSoc] = useState<string | null>(null);
+  const [searchParams] = useSearchParams();
+  const initialSoc = searchParams.get("selected");
+  const [selectedSoc, setSelectedSoc] = useState<string | null>(initialSoc);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+
+  // Auto-expand the major group containing the selected occupation
+  useEffect(() => {
+    if (initialSoc && hierarchy) {
+      const majorCode = initialSoc.substring(0, 2) + "-0000";
+      setSelectedSoc(initialSoc);
+      setExpandedGroup(majorCode);
+    }
+  }, [initialSoc, hierarchy]);
 
   if (loading) return <div>Loading occupations...</div>;
   if (!hierarchy) return null;
