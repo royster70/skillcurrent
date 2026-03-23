@@ -1,0 +1,57 @@
+# External Data Sources Registry
+
+## Local Data Directory
+All datasets stored at: `C:\Projects\data\`
+(outside repo — not committed to git)
+
+## Anthropic Economic Index (AEI)
+- HuggingFace: https://huggingface.co/datasets/Anthropic/aei
+- Local path: `C:\Projects\data\aei\`
+- Current release: 2025-03-27
+- Used by: FR-8.1 (ingestion), FR-8.2 (drift)
+
+## O*NET 28.1
+- Source: https://www.onetcenter.org/database.html
+- Local path: `C:\Projects\data\onet\28.1\`
+- Used by: FR-2 (matching), FR-3 (tasks), FR-4 (scoring)
+
+## Eloundou 2023 Exposure Scores
+- Paper: https://doi.org/10.1126/science.adj0998
+- Local path: `C:\Projects\data\eloundou\`
+- Used by: FR-4.1 (pre-computed scores)
+
+## BLS OEWS
+- Source: https://www.bls.gov/oes/
+- Local path: `C:\Projects\data\oews\2025\`
+- Used by: FR-8.4 (industry profiles)
+```
+
+The key things this gives you:
+
+**Separation of concerns** — data lives at `C:\Projects\data\`, code lives at `C:\Projects\workforce-ai-platform\`. Claude Code knows the path, can reference files in ingestion scripts, but the data isn't cluttering or bloating the repo.
+
+**Version tracking without the data** — when O*NET bumps to 28.2 or a new AEI snapshot drops, you update one line in the registry. Claude Code picks up the new path automatically when building ingestion scripts.
+
+**ADR support** — when Claude Code writes an ADR explaining why Beta = E1 + 0.5×E2, it can cite the exact paper URL and note which local file contains the pre-computed scores it's implementing against.
+
+**Research notes alongside** — you'd add a `docs/research/` folder with short methodology notes per source (the implementable facts extracted from each paper), with the registry pointing to both the notes and the local data path.
+
+So your eventual structure would be:
+```
+C:\User\royst\Projects\
+├── workforce-ai-platform\    ← git repo
+│   ├── CLAUDE.md
+│   ├── docs\
+│   │   ├── research\
+│   │   │   ├── data-sources.md     ← registry (committed)
+│   │   │   ├── eloundou-notes.md   ← methodology notes (committed)
+│   │   │   ├── aei-notes.md
+│   │   │   └── gptval-notes.md
+│   │   └── ...
+│   └── ...
+└── data\                     ← not in git (.gitignore)
+    ├── aei\
+    ├── onet\28.1\
+    ├── eloundou\
+    ├── oews\2025\
+    └── research-papers\      ← PDFs
