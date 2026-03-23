@@ -150,6 +150,31 @@ export interface SearchResponse {
   total: number;
 }
 
+export interface PriorityRole {
+  soc_code: string;
+  occupation_title: string;
+  headcount: number | null;
+  employment_share: number | null;
+  location_quotient: number | null;
+  eloundou_beta: number | null;
+  ms_ai_applicability: number | null;
+  aei_exposure: number | null;
+  dominant_zone: string | null;
+  drift_velocity: number | null;
+  drift_classification: string | null;
+  impact_score: number | null;
+  risk_factors: string[];
+}
+
+export interface SectorPrioritiesResponse {
+  naics_code: string;
+  naics_title: string;
+  total_employment: number | null;
+  occupation_count: number;
+  priority_roles: PriorityRole[];
+  full_mix: PriorityRole[];
+}
+
 // ── API functions ──
 
 export const api = {
@@ -157,6 +182,7 @@ export const api = {
   datasets: () => get<DatasetsResponse>("/datasets"),
   sectors: () => get<SectorsResponse>("/sectors"),
   sectorOccupations: (code: string) => get<OccupationSummary[]>(`/sectors/${code}/occupations`),
+  sectorPriorities: (code: string, topN = 10) => get<SectorPrioritiesResponse>(`/sectors/${code}/priorities?top_n=${topN}`),
   occupations: (params?: string) => get<{ occupations: OccupationSummary[]; total: number }>(`/occupations${params ? `?${params}` : ""}`),
   hierarchy: () => get<SocHierarchyResponse>("/occupations/hierarchy"),
   occupation: (soc: string) => get<OccupationDetail>(`/occupations/${soc}`),
