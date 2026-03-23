@@ -60,8 +60,8 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.2 Drift Calculation (4,605 tasks, velocity via linregress)
   [x] FR-8.3 Task Classification (558 departing, 2,971 enduring, 4 below_threshold)
   [x] FR-8.4 OEWS Industry Profiles (7,935 profiles, 20 sectors, 153M workers)
-  [x] FR-8.5 Tier 1 Dashboard (5 pages: Sectors, Sector Detail, Occupations, Drift, Search)
-  [ ] FR-8.7 Longitudinal Waterline Tracking
+  [x] FR-8.5 Tier 1 Dashboard (5 pages: Sectors, Sector Detail, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards
+  [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores
   [ ] FR-8.9 Industry Crosswalk (table exists, AU data not loaded)
 
 Tier 2 (sequential — each stage blocks the next):
@@ -79,6 +79,7 @@ Tier 2 (sequential — each stage blocks the next):
 - **BLS OEWS**: US headcount weighting by occupation × industry (NAICS). 8,573 rows. LOADED.
 - **ABS/JSA**: Australian headcount weighting (ANZSIC), loaded per engagement. NOT LOADED.
 - **GPTVal**: Longitudinal AI capability benchmarks; versioned by model era (sonnet-3.5, 3.7, 4, 4.5...). NOT LOADED.
+- **OpenAI GDPval**: MIT license — 220 real-world knowledge tasks across 44 occupations and 9 NAICS sectors. Tasks mapped to O*NET SOC codes (43 exact + 1 contextual match). Rubric-graded evaluations (10,453 items). gdpval_evaluations table ready for model-era scores to enable FR-8.7 waterline velocity. LOADED.
 
 ## Data Load Status
 
@@ -109,7 +110,10 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | task_drift_metrics | 4,605 | Derived (FR-8.2 linregress + FR-8.3 classification) |
 | industry_occupation_profiles | 7,935 | Derived (FR-8.4 OEWS × multi-source scoring) |
 | onet_title_embeddings | 66,512 | Derived (sentence-transformers, Layer 2 semantic search) |
-| **TOTAL** | **~521,700** | |
+| gdpval_tasks | 220 | OpenAI GDPval |
+| gdpval_rubric_items | 10,453 | OpenAI GDPval |
+| gdpval_evaluations | 0 | (future model-era scores for FR-8.7) |
+| **TOTAL** | **~532,400** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy

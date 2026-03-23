@@ -591,6 +591,80 @@ Per-task drift velocity and classification from FR-8.2/FR-8.3. Computed via line
 
 ---
 
+## GDPval Benchmark
+
+### gdpval_tasks
+
+OpenAI GDPval real-world knowledge tasks. 220 tasks across 44 occupations and 9 NAICS sectors. Each task has a detailed evaluation rubric. Mapped to O*NET SOC codes for cross-referencing with exposure and drift data. Supports FR-8.7 longitudinal waterline tracking when model evaluation scores are added.
+
+Source: https://huggingface.co/datasets/openai/gdpval (MIT license)
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| task_id | TEXT | NO | GDPval task identifier (unique) |
+| occupation_title | TEXT | NO | Occupation title as given in GDPval |
+| onet_soc | TEXT | YES | Mapped O*NET-SOC code (8-digit); NULL if no mapping found |
+| sector | TEXT | NO | NAICS sector label from GDPval |
+| prompt | TEXT | NO | Full task prompt text |
+| rubric_item_count | INTEGER | NO | Number of rubric criteria for this task |
+| max_score | INTEGER | YES | Sum of positive rubric scores (best-case total) |
+| min_score | INTEGER | YES | Sum of negative rubric scores (worst-case total) |
+| reference_file_count | INTEGER | NO | Number of reference files attached; default 0 |
+| deliverable_file_count | INTEGER | NO | Number of deliverable files attached; default 0 |
+
+- **Primary key**: `id`
+- **Unique constraint**: `task_id`
+- **Indexes**: `ix_gdpval_tasks_onet_soc`, `ix_gdpval_tasks_sector`, `ix_gdpval_tasks_occupation`
+- **Migration**: 013
+- **Populated by**: `python -m scripts.ingest_gdpval` (220 tasks, 44 occupations, SOC mapping in `gdpval_ingestion.SOC_MAPPING`)
+- **Join**: `gdpval_tasks.onet_soc` -> `onet_occupations.onet_soc` (soft reference — nullable, no FK constraint)
+
+### gdpval_rubric_items
+
+Evaluation rubric criteria for GDPval tasks. 10,453 items. Each row is one scored criterion for one task.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| task_id | TEXT | NO | FK to gdpval_tasks.task_id |
+| rubric_item_id | TEXT | NO | GDPval rubric item identifier |
+| score | INTEGER | NO | Point value (positive = reward, negative = penalty) |
+| criterion | TEXT | NO | Rubric criterion description |
+| required | BOOLEAN | NO | Whether criterion must be satisfied; default false |
+| author_type | TEXT | NO | Annotation author type; default "human" |
+| tags | TEXT | YES | JSON array of category tags stored as text |
+
+- **Primary key**: `id`
+- **Foreign keys**: `task_id` -> `gdpval_tasks.task_id`
+- **Indexes**: `ix_gdpval_rubric_items_task_id`
+- **Migration**: 013
+
+### gdpval_evaluations
+
+Model evaluation scores per task per era for FR-8.7 longitudinal waterline tracking. 0 rows — table is ready; scores are populated when models are evaluated against GDPval rubrics.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| task_id | TEXT | NO | FK to gdpval_tasks.task_id |
+| model_era | TEXT | NO | Model generation label (e.g., "sonnet-3.5", "sonnet-4") |
+| model_name | TEXT | YES | Specific model identifier |
+| evaluation_date | DATE | YES | Date evaluation was run |
+| total_score | FLOAT | YES | Aggregate rubric score achieved |
+| max_possible_score | FLOAT | YES | Maximum achievable score for this task |
+| completion_pct | FLOAT | YES | total_score / max_possible_score × 100 |
+| notes | TEXT | YES | Free-text evaluation notes |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`task_id`, `model_era`) — one score per task per model era
+- **Foreign keys**: `task_id` -> `gdpval_tasks.task_id`
+- **Indexes**: `ix_gdpval_evaluations_task_id`, `ix_gdpval_evaluations_model_era`
+- **Migration**: 013
+- **Populated by**: future model evaluation pipeline (FR-8.7)
+
+---
+
 ## Join Paths
 
 O*NET 8-digit SOC codes are the anchor for the entire data model. Different datasets use different SOC granularities and join strategies.
@@ -697,3 +771,4 @@ WHERE aei_task_snapshots.onet_soc_codes @> ARRAY['11-1011.00']
 | 010 | Add eloundou_beta, ms_ai_applicability, aei_exposure, drift_velocity, drift_classification to industry_occupation_profiles |
 | 011 | Add pg_trgm extension + GIN trigram indexes on onet_sample_titles and onet_alternate_titles for fuzzy search |
 | 012 | onet_title_embeddings table with pgvector HNSW index for Layer 2 semantic search (66,512 embeddings) |
+| 013 | gdpval_tasks, gdpval_rubric_items, gdpval_evaluations — OpenAI GDPval benchmark for FR-8.7 waterline tracking |

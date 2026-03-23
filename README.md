@@ -45,7 +45,7 @@ npm install && npm run dev
 
 ## Current Status
 
-### Data loaded (~521,700 rows)
+### Data loaded (~532,400 rows)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -56,12 +56,13 @@ npm install && npm run dev
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | Derived products | 12,540 | Drift metrics (4,605) + industry profiles (7,935) |
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
+| OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 
 ### Tier 1 API (16 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/v1/sectors` | 20 NAICS sectors with aggregate exposure stats |
+| `GET /api/v1/sectors` | 20 NAICS sectors with aggregate and employment-weighted exposure stats (weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers per zone) |
 | `GET /api/v1/sectors/{code}/occupations` | Occupations within a sector |
 | `GET /api/v1/sectors/{code}/priorities` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
 | `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
@@ -85,9 +86,9 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 
 | Page | Route | Visualisations |
 |------|-------|----------------|
-| Sectors | `/` | Zone distribution donut, three-tier evidence bar chart, metric cards, sector table |
-| Sector Detail | `/sectors/:code` | Priority roles view (composite impact ranking with risk badges), toggle to full occupation mix, score comparison |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage (mini sparklines), task positioning matrix with 2 temporal views (Baseline, By Era) and 3 overlay modes (None, Usage Level, Usage Trend) |
+| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table |
+| Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with ContextualScoreCards, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
 | Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
 
@@ -141,13 +142,13 @@ workforce-ai-platform/
         api/v1/                # FastAPI endpoints + Pydantic schemas
         models/                # SQLAlchemy ORM models (25+ tables)
         services/              # Ingestion, computation, transformations
-      migrations/versions/     # Alembic migrations (001-012)
+      migrations/versions/     # Alembic migrations (001-013)
       scripts/                 # CLI tools for ingestion + computation
       tests/                   # pytest suite (90 tests)
     frontend/
       src/
         pages/               # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
-        components/          # Layout (collapsible sidebar), TaskMatrix (overlay modes), MetricCard
+        components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
       e2e/                   # Playwright E2E tests (4 suites, 18 tests)

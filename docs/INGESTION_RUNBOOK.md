@@ -50,7 +50,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all 12 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all 13 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -63,6 +63,7 @@ This applies all 12 migrations in order, creating all tables documented in `docs
 4. Drift computation (depends on AEI temporal data)
 5. Industry profiles computation (depends on OEWS + Eloundou + Microsoft AI + AEI + drift data)
 6. Title embeddings (depends on O*NET sample + alternate titles being loaded)
+7. GDPval ingestion (independent — no dependencies on other datasets)
 
 ---
 
@@ -346,6 +347,39 @@ SELECT COUNT(*) FROM industry_occupation_profiles WHERE eloundou_beta IS NOT NUL
 -- Majority should have multi-source scoring populated
 ```
 
+### 4.11 GDPval Benchmark (FR-8.7 Waterline Tracking)
+
+**Source**: https://huggingface.co/datasets/openai/gdpval (MIT license)
+
+**Local path**: `C:\Users\royst\Projects\Data\GDPval`
+
+**Files**: `data/train-00000-of-00001.parquet`
+
+**Command**:
+```bash
+python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| gdpval_tasks | 220 |
+| gdpval_rubric_items | 10,453 |
+| gdpval_evaluations | 0 (future model-era scores) |
+
+220 tasks, 44 occupations, 9 NAICS sectors. SOC codes mapped via exact O*NET title match (43/44 exact + 1 contextual). Registered in `dataset_versions` under name "gdpval".
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM gdpval_tasks;
+-- Should be 220
+SELECT COUNT(*) FROM gdpval_rubric_items;
+-- Should be 10,453
+SELECT occupation_title, onet_soc FROM gdpval_tasks GROUP BY occupation_title, onet_soc ORDER BY occupation_title;
+-- Should show 44 distinct occupations, all with non-NULL onet_soc
+```
+
 ---
 
 ## 5. Full Rebuild Sequence
@@ -374,6 +408,9 @@ python -m scripts.compute_industry_profiles
 
 # Step 4: Embeddings (must be after O*NET titles are loaded)
 python -m scripts.embed_titles
+
+# Step 5: GDPval (independent — can run at any point after migrations)
+python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
 ```
 
 ## 4.10 Title Embeddings (Layer 2 Semantic Search)
@@ -403,7 +440,7 @@ SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
 
 ---
 
-**Total expected rows across all tables: ~521,700** (455,200 + 66,512 embeddings)
+**Total expected rows across all tables: ~532,400** (455,200 + 66,512 embeddings + 10,673 GDPval)
 
 ---
 
@@ -435,6 +472,9 @@ UNION ALL SELECT 'oews_employment', COUNT(*) FROM oews_employment
 UNION ALL SELECT 'task_drift_metrics', COUNT(*) FROM task_drift_metrics
 UNION ALL SELECT 'industry_occupation_profiles', COUNT(*) FROM industry_occupation_profiles
 UNION ALL SELECT 'onet_title_embeddings', COUNT(*) FROM onet_title_embeddings
+UNION ALL SELECT 'gdpval_tasks', COUNT(*) FROM gdpval_tasks
+UNION ALL SELECT 'gdpval_rubric_items', COUNT(*) FROM gdpval_rubric_items
+UNION ALL SELECT 'gdpval_evaluations', COUNT(*) FROM gdpval_evaluations
 ORDER BY tbl;
 ```
 
@@ -452,4 +492,4 @@ python -m uvicorn app.main:app --reload --port 8000
 - OpenAPI docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-16 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search) — see `README.md` for the full endpoint table.
+16 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search; GET /api/v1/sectors now returns employment-weighted scores and workers-per-zone) — see `README.md` for the full endpoint table.
