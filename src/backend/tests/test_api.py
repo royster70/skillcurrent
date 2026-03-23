@@ -39,6 +39,45 @@ async def client():
     await engine.dispose()
 
 
+# ── Search ──
+
+
+class TestSearch:
+    @pytest.mark.asyncio
+    async def test_search_by_title(self, client):
+        """Search for a common job title returns results."""
+        r = await client.get("/api/v1/search?q=software developer")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] > 0
+        assert any("Software" in res["occupation_title"] for res in data["results"])
+
+    @pytest.mark.asyncio
+    async def test_search_returns_scores(self, client):
+        """Search results include three-tier scores."""
+        r = await client.get("/api/v1/search?q=accountant")
+        assert r.status_code == 200
+        data = r.json()
+        if data["total"] > 0:
+            result = data["results"][0]
+            assert "soc_code" in result
+            assert "dominant_zone" in result
+            assert "eloundou_beta" in result
+
+    @pytest.mark.asyncio
+    async def test_search_no_results(self, client):
+        """Gibberish query returns empty results, not an error."""
+        r = await client.get("/api/v1/search?q=xyzqwerty99")
+        assert r.status_code == 200
+        assert r.json()["total"] == 0
+
+    @pytest.mark.asyncio
+    async def test_search_min_length(self, client):
+        """Single character query returns 422 validation error."""
+        r = await client.get("/api/v1/search?q=x")
+        assert r.status_code == 422
+
+
 # ── Health ──
 
 

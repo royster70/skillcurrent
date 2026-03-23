@@ -131,9 +131,28 @@ export interface DriftListResponse {
   page_size: number;
 }
 
+export interface SearchResult {
+  matched_title: string;
+  source: string;
+  soc_code: string;
+  occupation_title: string;
+  eloundou_beta: number | null;
+  ms_ai_applicability: number | null;
+  aei_exposure: number | null;
+  dominant_zone: string | null;
+  total_employment: number | null;
+}
+
+export interface SearchResponse {
+  query: string;
+  results: SearchResult[];
+  total: number;
+}
+
 // ── API functions ──
 
 export const api = {
+  search: (q: string) => get<SearchResponse>(`/search?q=${encodeURIComponent(q)}`),
   datasets: () => get<DatasetsResponse>("/datasets"),
   sectors: () => get<SectorsResponse>("/sectors"),
   sectorOccupations: (code: string) => get<OccupationSummary[]>(`/sectors/${code}/occupations`),

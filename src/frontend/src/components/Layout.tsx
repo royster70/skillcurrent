@@ -4,6 +4,7 @@ import { api } from "../lib/api";
 
 const navItems = [
   { to: "/", label: "Sectors", icon: "📊" },
+  { to: "/search", label: "Role Search", icon: "🔍" },
   { to: "/occupations", label: "Occupations", icon: "👥" },
   { to: "/drift", label: "Drift Analysis", icon: "📈" },
 ];
