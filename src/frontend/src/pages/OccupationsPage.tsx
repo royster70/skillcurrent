@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
@@ -9,10 +9,23 @@ import { ContextualScoreCard } from "../components/ContextualScoreCard";
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
+  const { data: gdpvalData } = useApi(() => api.gdpvalSummary(), []);
   const [searchParams] = useSearchParams();
   const initialSoc = searchParams.get("selected");
   const [selectedSoc, setSelectedSoc] = useState<string | null>(initialSoc);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
+  const [gdpvalFilter, setGdpvalFilter] = useState(false);
+
+  // GDPval SOC lookup — both 8-digit and 7-digit forms
+  const gdpvalSocs = useMemo(() => {
+    if (!gdpvalData) return new Set<string>();
+    const set = new Set<string>();
+    gdpvalData.occupations.forEach((o) => {
+      set.add(o.soc_code);
+      set.add(o.soc_code.replace(/\.00$/, ""));
+    });
+    return set;
+  }, [gdpvalData]);
 
   // Auto-expand the major group containing the selected occupation
   useEffect(() => {
@@ -30,16 +43,35 @@ export function OccupationsPage() {
     <div style={{ display: "flex", gap: 24 }}>
       {/* Hierarchy panel */}
       <div style={{ width: 420, minWidth: 420, display: "flex", flexDirection: "column", gap: 8 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Occupations</h1>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "0 0 12px" }}>
-          {hierarchy.total_occupations.toLocaleString()} occupations across {hierarchy.total_major_groups} groups
-        </p>
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
+          <div>
+            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Occupations</h1>
+            <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+              {gdpvalFilter
+                ? `${gdpvalSocs.size / 2} occupations with GDPval benchmarks`
+                : `${hierarchy.total_occupations.toLocaleString()} occupations across ${hierarchy.total_major_groups} groups`}
+            </p>
+          </div>
+          <button
+            onClick={() => setGdpvalFilter(!gdpvalFilter)}
+            style={{
+              fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 8, marginBottom: 2,
+              border: gdpvalFilter ? "1px solid #C2410C" : "1px solid #E4E4E7",
+              backgroundColor: gdpvalFilter ? "#FFF7ED" : "#fff", cursor: "pointer",
+              color: gdpvalFilter ? "#C2410C" : "#71717A",
+            }}
+          >
+            GDPval
+          </button>
+        </div>
 
         <div style={{
           background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7",
-          overflow: "auto", maxHeight: "calc(100vh - 180px)",
+          overflow: "auto", maxHeight: "calc(100vh - 200px)",
         }}>
-          {hierarchy.hierarchy.map((group) => (
+          {hierarchy.hierarchy.filter((group) =>
+            !gdpvalFilter || group.children.some((occ) => gdpvalSocs.has(occ.code))
+          ).map((group) => (
             <div key={group.code}>
               <div
                 onClick={() => setExpandedGroup(expandedGroup === group.code ? null : group.code)}
@@ -52,8 +84,10 @@ export function OccupationsPage() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{group.title}</div>
                   <div style={{ fontSize: 12, color: "#71717A" }}>
-                    {group.occupation_count} occupations
-                    {group.total_employment ? ` · ${(group.total_employment / 1_000_000).toFixed(1)}M workers` : ""}
+                    {gdpvalFilter
+                      ? `${group.children.filter((o) => gdpvalSocs.has(o.code)).length} with GDPval`
+                      : `${group.occupation_count} occupations`}
+                    {!gdpvalFilter && group.total_employment ? ` · ${(group.total_employment / 1_000_000).toFixed(1)}M workers` : ""}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -70,7 +104,9 @@ export function OccupationsPage() {
                 </div>
               </div>
 
-              {expandedGroup === group.code && group.children.map((occ) => (
+              {expandedGroup === group.code && group.children.filter((occ) =>
+                !gdpvalFilter || gdpvalSocs.has(occ.code)
+              ).map((occ) => (
                 <div
                   key={occ.code}
                   onClick={() => setSelectedSoc(occ.code)}

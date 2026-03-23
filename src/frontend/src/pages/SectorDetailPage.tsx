@@ -10,6 +10,7 @@ export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
   const navigate = useNavigate();
   const [showFullMix, setShowFullMix] = useState(false);
+  const [gdpvalFilter, setGdpvalFilter] = useState(false);
 
   const { data, loading, error } = useApi(
     () => api.sectorPriorities(code!, 10), [code]
@@ -49,7 +50,8 @@ export function SectorDetailPage() {
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
   if (!data || !code) return null;
 
-  const displayRoles = showFullMix ? data.full_mix : data.priority_roles;
+  const baseRoles = showFullMix ? data.full_mix : data.priority_roles;
+  const displayRoles = gdpvalFilter ? baseRoles.filter((r) => gdpvalSocs.has(r.soc_code)) : baseRoles;
 
   // Impact score chart for priority roles — include headcount label
   const impactBars = data.priority_roles.map((r) => ({
@@ -185,19 +187,34 @@ export function SectorDetailPage() {
               {showFullMix ? "All Occupations" : "Priority Roles"}
             </span>
             <span style={{ fontSize: 13, color: "#71717A", marginLeft: 8 }}>
-              {showFullMix ? `${data.full_mix.length} occupations` : `Top ${data.priority_roles.length} by impact`}
+              {gdpvalFilter
+                ? `${displayRoles.length} with GDPval benchmarks`
+                : showFullMix ? `${data.full_mix.length} occupations` : `Top ${data.priority_roles.length} by impact`}
             </span>
           </div>
-          <button
-            onClick={() => setShowFullMix(!showFullMix)}
-            style={{
-              fontSize: 13, fontWeight: 500, padding: "6px 14px", borderRadius: 8,
-              border: "1px solid #E4E4E7", backgroundColor: "#fff", cursor: "pointer",
-              color: "#2563EB",
-            }}
-          >
-            {showFullMix ? "Show Priority Only" : `Show All ${data.occupation_count} Roles`}
-          </button>
+          <div style={{ display: "flex", gap: 8 }}>
+            <button
+              onClick={() => { setGdpvalFilter(!gdpvalFilter); if (!showFullMix) setShowFullMix(true); }}
+              style={{
+                fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8,
+                border: gdpvalFilter ? "1px solid #C2410C" : "1px solid #E4E4E7",
+                backgroundColor: gdpvalFilter ? "#FFF7ED" : "#fff", cursor: "pointer",
+                color: gdpvalFilter ? "#C2410C" : "#71717A",
+              }}
+            >
+              GDPval Only ({gdpvalSocs.size > 0 ? data.full_mix.filter((r) => gdpvalSocs.has(r.soc_code)).length : "..."})
+            </button>
+            <button
+              onClick={() => setShowFullMix(!showFullMix)}
+              style={{
+                fontSize: 13, fontWeight: 500, padding: "6px 14px", borderRadius: 8,
+                border: "1px solid #E4E4E7", backgroundColor: "#fff", cursor: "pointer",
+                color: "#2563EB",
+              }}
+            >
+              {showFullMix ? "Show Priority Only" : `Show All ${data.occupation_count} Roles`}
+            </button>
+          </div>
         </div>
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
