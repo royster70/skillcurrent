@@ -141,6 +141,16 @@ npm run dev
 - Dev server: http://localhost:5173
 - API proxy: `/api` routes to `http://localhost:8000` (configured in `vite.config.ts`)
 
+### Dashboard pages (5 pages, all functional)
+
+| Page | Route | What it shows |
+|------|-------|---------------|
+| Sectors | `/` | Zone distribution donut chart, three-tier evidence bar chart, metric cards, interactive sector table |
+| Sector Detail | `/sectors/:code` | Employment by occupation (zone-coloured bars), three-tier score comparison, occupation table |
+| Occupations | `/occupations` | SOC hierarchy tree (23 major groups, expandable), detail panel with score chips, tasks by AI usage |
+| Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter plot, alert panel, departing/enduring lists |
+| Role Search | `/search` | Search 65,496 O\*NET titles, results with zone badges and three-tier score pills |
+
 ---
 
 ## 5. Load data
@@ -269,7 +279,11 @@ workforce-ai-platform/
       pyproject.toml     # Python dependencies + tool config
       alembic.ini        # Alembic config
     frontend/
-      src/               # React components
+      src/
+        pages/           # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
+        components/      # Layout (dark sidebar), MetricCard
+        hooks/           # useApi (data fetching hook)
+        lib/             # api client, constants (zone colours, thresholds)
       package.json       # Node dependencies
       vite.config.ts     # Vite build + dev proxy config
 ```

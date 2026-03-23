@@ -60,7 +60,7 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.2 Drift Calculation (4,605 tasks, velocity via linregress)
   [x] FR-8.3 Task Classification (558 departing, 2,971 enduring, 4 below_threshold)
   [x] FR-8.4 OEWS Industry Profiles (7,935 profiles, 20 sectors, 153M workers)
-  [ ] FR-8.5 Tier 1 Dashboard
+  [x] FR-8.5 Tier 1 Dashboard (5 pages: Sectors, Sector Detail, Occupations, Drift, Search)
   [ ] FR-8.7 Longitudinal Waterline Tracking
   [ ] FR-8.9 Industry Crosswalk (table exists, AU data not loaded)
 

@@ -56,7 +56,7 @@ npm install && npm run dev
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | Derived products | 12,540 | Drift metrics (4,605) + industry profiles (7,935) |
 
-### Tier 1 API (11 endpoints, live)
+### Tier 1 API (12 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
@@ -70,13 +70,28 @@ npm install && npm run dev
 | `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
 | `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
 | `GET /api/v1/drift/enduring` | Stable/declining AI usage tasks |
+| `GET /api/v1/search?q=...` | Search 65,496 O\*NET titles, returns occupations with scores |
 | `GET /api/v1/datasets` | Data vintage for dashboard footers |
 
 OpenAPI docs: http://localhost:8000/docs
 
+### Tier 1 Dashboard (5 pages, functional)
+
+Built with React 18, React Router, and Recharts. Dark sidebar design system with zone colours (orange E0, blue E1, green E2).
+
+| Page | Route | Visualisations |
+|------|-------|----------------|
+| Sectors | `/` | Zone distribution donut, three-tier evidence bar chart, metric cards, sector table |
+| Sector Detail | `/sectors/:code` | Employment by occupation (zone-coloured bars), score comparison, occupation table |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage |
+| Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
+| Role Search | `/search` | Search 65,496 titles, zone badges, three-tier score pills |
+
+Frontend dev server: http://localhost:5173
+
 ### Tests
 
-63 tests passing — data invariants, cross-dataset joins, drift computation, transformation decorator, ingestion utilities, 22 API endpoint tests.
+67 tests passing — data invariants, cross-dataset joins, drift computation, transformation decorator, ingestion utilities, 26 API endpoint tests.
 
 ```powershell
 cd src/backend
@@ -120,7 +135,11 @@ workforce-ai-platform/
         services/              # Ingestion, computation, transformations
       migrations/versions/     # Alembic migrations (001-010)
       scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (63 tests)
+      tests/                   # pytest suite (67 tests)
     frontend/
-      src/                     # React 18 + TypeScript
+      src/
+        pages/               # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
+        components/          # Layout, MetricCard
+        hooks/               # useApi (data fetching)
+        lib/                 # api client, constants
 ```

@@ -420,4 +420,4 @@ python -m uvicorn app.main:app --reload --port 8000
 - OpenAPI docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-10 Tier 1 endpoints available — see `README.md` for the full endpoint table.
+12 Tier 1 endpoints available — see `README.md` for the full endpoint table.
