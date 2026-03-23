@@ -207,6 +207,15 @@ export interface TaskMatrixResponse {
 
 export const api = {
   search: (q: string) => get<SearchResponse>(`/search?q=${encodeURIComponent(q)}`),
+  semanticSearch: async (q: string, description?: string) => {
+    const res = await fetch(`${BASE}/search/semantic`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ query: q, description, limit: 20 }),
+    });
+    if (!res.ok) throw new Error(`API error ${res.status}`);
+    return res.json() as Promise<SearchResponse>;
+  },
   datasets: () => get<DatasetsResponse>("/datasets"),
   sectors: () => get<SectorsResponse>("/sectors"),
   sectorOccupations: (code: string) => get<OccupationSummary[]>(`/sectors/${code}/occupations`),

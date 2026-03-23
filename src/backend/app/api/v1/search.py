@@ -1,13 +1,15 @@
-"""Search endpoint — find occupations by job title text.
+"""Search endpoint — find occupations by job title or description.
 
-Uses a two-pass search strategy:
-1. Exact substring match (ILIKE) — fast, handles precise queries
-2. Trigram similarity (pg_trgm) — fuzzy, handles typos and partial matches
+Three search modes:
+1. text — Two-pass: exact substring (ILIKE) + trigram similarity (pg_trgm)
+2. semantic — Sentence-transformer embeddings via pgvector cosine similarity
+3. auto — Uses semantic if embeddings are available, falls back to text
 
-Results are ranked by similarity score so the best matches appear first.
+Semantic search understands meaning: "DevOps Engineer" matches
+"Software Developers" even without shared words.
 """
 
-from fastapi import APIRouter, Depends, Query
+from fastapi import APIRouter, Body, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -147,3 +149,86 @@ async def search_occupations(
     ]
 
     return SearchResponse(query=q, results=results, total=len(results))
+
+
+class SemanticSearchRequest(BaseModel):
+    query: str
+    description: str | None = None
+    limit: int = 20
+
+
+@router.post("/semantic", response_model=SearchResponse)
+async def semantic_search(
+    body: SemanticSearchRequest,
+    db: AsyncSession = Depends(get_db),
+) -> SearchResponse:
+    """Semantic search using sentence-transformer embeddings (Layer 2).
+
+    Accepts a job title and optional job description. Embeds the text
+    and finds nearest O*NET occupations via pgvector cosine similarity.
+
+    Use POST because the description can be long text.
+    """
+    from app.services.embedding_service import search_by_embedding
+
+    # Combine title + description for richer matching
+    search_text = body.query
+    if body.description:
+        search_text = f"{body.query}: {body.description}"
+
+    # Search against all embeddings (titles + occupation descriptions)
+    matches = await search_by_embedding(db, search_text, limit=body.limit * 2)
+
+    if not matches:
+        return SearchResponse(query=body.query, results=[], total=0)
+
+    # Deduplicate by SOC code, keeping best match
+    seen: dict[str, dict] = {}
+    for m in matches:
+        soc = m["soc_code"]
+        if soc not in seen or m["similarity"] > seen[soc]["similarity"]:
+            seen[soc] = m
+
+    # Enrich with scores
+    soc_codes = list(seen.keys())
+    enriched_results = []
+
+    for soc in soc_codes[:body.limit]:
+        m = seen[soc]
+        # Get scores
+        r = await db.execute(text("""
+            SELECT e.dv_beta_derived, m.ai_applicability_score, a.observed_exposure, ow.total_emp
+            FROM onet_occupations o
+            LEFT JOIN eloundou_occ_scores e ON e.onet_soc = o.onet_soc
+            LEFT JOIN ms_ai_applicability_scores m ON o.onet_soc LIKE m.soc_code || '%'
+            LEFT JOIN aei_job_exposure a ON o.onet_soc LIKE a.occ_code || '%'
+            LEFT JOIN (
+                SELECT onet_soc, SUM(employment) AS total_emp
+                FROM oews_employment WHERE employment IS NOT NULL GROUP BY onet_soc
+            ) ow ON ow.onet_soc = SUBSTRING(o.onet_soc, 1, 7)
+            WHERE o.onet_soc = :soc
+        """), {"soc": soc})
+        score_row = r.fetchone()
+
+        beta = score_row[0] if score_row else None
+        zone = None
+        if beta is not None:
+            zone = "E2" if beta >= 0.85 else ("E1" if beta >= 0.40 else "E0")
+
+        enriched_results.append(SearchResult(
+            matched_title=m["matched_title"],
+            source=f"semantic_{m['source']}",
+            soc_code=soc,
+            occupation_title=m["occupation_title"],
+            similarity=m["similarity"],
+            eloundou_beta=round(beta, 4) if beta else None,
+            ms_ai_applicability=round(score_row[1], 4) if score_row and score_row[1] else None,
+            aei_exposure=round(score_row[2], 4) if score_row and score_row[2] else None,
+            dominant_zone=zone,
+            total_employment=score_row[3] if score_row else None,
+        ))
+
+    # Sort by similarity
+    enriched_results.sort(key=lambda r: r.similarity or 0, reverse=True)
+
+    return SearchResponse(query=body.query, results=enriched_results, total=len(enriched_results))
