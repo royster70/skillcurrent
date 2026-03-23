@@ -153,6 +153,104 @@ npm run dev
 
 ---
 
+## Daily Operations — Startup & Shutdown
+
+### Starting everything (in order)
+
+**Step 1 — Database** (if not already running):
+```powershell
+docker start workforce-pg
+```
+
+Verify: `docker ps` should show `workforce-pg` on port 5432.
+
+**Step 2 — API server** (from `src/backend/`):
+```powershell
+cd src\backend
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Verify: http://localhost:8000/health should return `{"status":"ok"}`
+
+**Step 3 — Frontend** (new terminal, from `src/frontend/`):
+```powershell
+cd src\frontend
+npm run dev
+```
+
+Verify: http://localhost:5173 should show the dashboard.
+
+### Stopping everything
+
+**Frontend**: `Ctrl+C` in the frontend terminal.
+
+**API server**: `Ctrl+C` in the backend terminal.
+
+**Database** (optional — can leave running):
+```powershell
+docker stop workforce-pg
+```
+
+### Restarting after code changes
+
+| What changed | What to restart |
+|-------------|----------------|
+| Frontend code (`.tsx`, `.ts`, `.css`) | Nothing — Vite HMR auto-reloads |
+| Backend code (`.py` in `app/`) | Nothing if `--reload` flag is set — uvicorn auto-restarts |
+| New migration added | Run `python -m alembic upgrade head` from `src/backend/` |
+| New Python package | Run `pip install -e ".[dev]"` from `src/backend/` |
+| New npm package | Run `npm install` from `src/frontend/` |
+| Database schema conflict | Stop API, run `alembic upgrade head`, restart API |
+
+### Quick health checks
+
+```powershell
+# Database running?
+docker ps | findstr workforce-pg
+
+# API responding?
+curl http://localhost:8000/health
+
+# API data loaded?
+curl http://localhost:8000/api/v1/datasets
+
+# Frontend proxy working?
+curl http://localhost:5173/api/v1/drift/summary
+
+# Port in use? Find what's using it:
+netstat -ano | findstr :8000
+# Kill by PID:
+taskkill /PID <number> /F
+```
+
+### Full restart from scratch
+
+If something is broken and you need a clean restart:
+
+```powershell
+# Stop everything
+docker stop workforce-pg
+
+# Remove and recreate database container (WARNING: deletes all data)
+docker rm workforce-pg
+docker run -d --name workforce-pg -e POSTGRES_USER=workforce -e POSTGRES_PASSWORD=dev_only -e POSTGRES_DB=workforce_ai -p 5432:5432 pgvector/pgvector:pg16
+
+# Wait a few seconds for PostgreSQL to initialise, then:
+cd src\backend
+python -m alembic upgrade head
+
+# Re-ingest all data (see docs/INGESTION_RUNBOOK.md for full sequence)
+python -m scripts.ingest_onet
+# ... (remaining ingestion scripts)
+
+# Restart servers
+python -m uvicorn app.main:app --reload --port 8000
+# (new terminal)
+cd src\frontend && npm run dev
+```
+
+---
+
 ## 5. Load data
 
 See `docs/INGESTION_RUNBOOK.md` for the full data loading procedure. Summary:
