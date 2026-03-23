@@ -136,6 +136,7 @@ export interface SearchResult {
   source: string;
   soc_code: string;
   occupation_title: string;
+  similarity: number | null;
   eloundou_beta: number | null;
   ms_ai_applicability: number | null;
   aei_exposure: number | null;

@@ -94,6 +94,15 @@ export function SearchPage() {
                 <div style={{ fontSize: 16, fontWeight: 600 }}>{r.occupation_title}</div>
                 <div style={{ fontSize: 13, color: "#71717A", marginTop: 2 }}>
                   {r.soc_code} · Matched: "{r.matched_title}"
+                  {r.similarity != null && r.similarity < 1.0 && (
+                    <span style={{
+                      marginLeft: 8, fontSize: 11, padding: "1px 6px", borderRadius: 4,
+                      backgroundColor: r.similarity > 0.5 ? "#F0FDF4" : "#FFF7ED",
+                      color: r.similarity > 0.5 ? "#16A34A" : "#F97316",
+                    }}>
+                      {Math.round(r.similarity * 100)}% match
+                    </span>
+                  )}
                 </div>
                 {r.total_employment && (
                   <div style={{ fontSize: 12, color: "#A1A1AA", marginTop: 2 }}>
