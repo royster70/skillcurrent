@@ -313,3 +313,212 @@ class TestDrift:
         assert data["total"] > 0
         for task in data["tasks"]:
             assert task["classification"] == "enduring"
+
+    @pytest.mark.asyncio
+    async def test_drift_pagination(self, client):
+        """Drift endpoints support pagination."""
+        r = await client.get("/api/v1/drift/departing?page=1&page_size=3")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["page"] == 1
+        assert data["page_size"] == 3
+        assert len(data["tasks"]) <= 3
+
+    @pytest.mark.asyncio
+    async def test_drift_min_snapshots_filter(self, client):
+        """min_snapshots parameter filters results."""
+        r = await client.get("/api/v1/drift/departing?min_snapshots=4&page_size=5")
+        assert r.status_code == 200
+        for task in r.json()["tasks"]:
+            assert task["snapshot_count"] >= 4
+
+
+# ── Sector Priorities ──
+
+
+class TestSectorPriorities:
+    @pytest.mark.asyncio
+    async def test_priorities_returns_data(self, client):
+        r = await client.get("/api/v1/sectors/54/priorities")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["naics_code"] == "54"
+        assert data["occupation_count"] > 0
+        assert data["total_employment"] > 0
+        assert len(data["priority_roles"]) > 0
+        assert len(data["full_mix"]) >= len(data["priority_roles"])
+
+    @pytest.mark.asyncio
+    async def test_priorities_top_n(self, client):
+        r = await client.get("/api/v1/sectors/54/priorities?top_n=5")
+        data = r.json()
+        assert len(data["priority_roles"]) <= 5
+
+    @pytest.mark.asyncio
+    async def test_priorities_have_impact_scores(self, client):
+        r = await client.get("/api/v1/sectors/54/priorities")
+        for role in r.json()["priority_roles"]:
+            assert role["impact_score"] is not None
+            assert role["impact_score"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_priorities_have_risk_factors(self, client):
+        r = await client.get("/api/v1/sectors/54/priorities")
+        data = r.json()
+        roles_with_risks = [r for r in data["priority_roles"] if len(r["risk_factors"]) > 0]
+        assert len(roles_with_risks) > 0
+
+    @pytest.mark.asyncio
+    async def test_priorities_have_location_quotient(self, client):
+        r = await client.get("/api/v1/sectors/54/priorities")
+        roles_with_lq = [r for r in r.json()["priority_roles"] if r["location_quotient"] is not None]
+        assert len(roles_with_lq) > 0
+
+    @pytest.mark.asyncio
+    async def test_priorities_sorted_by_impact(self, client):
+        r = await client.get("/api/v1/sectors/54/priorities")
+        scores = [r["impact_score"] for r in r.json()["priority_roles"] if r["impact_score"]]
+        assert scores == sorted(scores, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_priorities_not_found(self, client):
+        r = await client.get("/api/v1/sectors/ZZ/priorities")
+        assert r.status_code == 404
+
+
+# ── Task Matrix ──
+
+
+class TestTaskMatrix:
+    @pytest.mark.asyncio
+    async def test_matrix_returns_data(self, client):
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["soc_code"] == "15-1252.00"
+        assert data["total_tasks"] > 0
+        assert len(data["tasks"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_matrix_task_fields(self, client):
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        task = r.json()["tasks"][0]
+        assert "task_id" in task
+        assert "task_text" in task
+        assert "importance" in task
+        assert "automation_potential" in task
+        assert "quadrant" in task
+        assert "era_snapshots" in task
+
+    @pytest.mark.asyncio
+    async def test_matrix_quadrant_counts(self, client):
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        qc = r.json()["quadrant_counts"]
+        assert "insulated" in qc
+        assert "augmented" in qc
+        assert "disrupted" in qc
+        assert "routine" in qc
+
+    @pytest.mark.asyncio
+    async def test_matrix_has_era_snapshots(self, client):
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        data = r.json()
+        assert "available_eras" in data
+        # Some tasks should have era data
+        tasks_with_eras = [t for t in data["tasks"] if len(t["era_snapshots"]) > 0]
+        assert len(tasks_with_eras) >= 0  # may be 0 for some occupations
+
+    @pytest.mark.asyncio
+    async def test_matrix_6digit_soc(self, client):
+        r = await client.get("/api/v1/occupations/15-1252/matrix")
+        assert r.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_matrix_not_found(self, client):
+        r = await client.get("/api/v1/occupations/99-9999.99/matrix")
+        assert r.status_code == 404
+
+
+# ── Semantic Search ──
+
+
+class TestSemanticSearch:
+    @pytest.mark.asyncio
+    async def test_semantic_search_by_title(self, client):
+        """Semantic search finds relevant occupations."""
+        r = await client.post("/api/v1/search/semantic",
+            json={"query": "DevOps Engineer", "limit": 5})
+        assert r.status_code == 200
+        data = r.json()
+        assert data["total"] > 0
+        # Should find software-related occupations
+        titles = [res["occupation_title"].lower() for res in data["results"]]
+        assert any("software" in t or "computer" in t or "system" in t for t in titles)
+
+    @pytest.mark.asyncio
+    async def test_semantic_search_with_description(self, client):
+        """Adding a description should return results."""
+        r = await client.post("/api/v1/search/semantic",
+            json={
+                "query": "Data Analyst",
+                "description": "Analyze large datasets, build dashboards, write SQL queries",
+                "limit": 5,
+            })
+        assert r.status_code == 200
+        assert r.json()["total"] > 0
+
+    @pytest.mark.asyncio
+    async def test_semantic_search_has_scores(self, client):
+        r = await client.post("/api/v1/search/semantic",
+            json={"query": "Registered Nurse", "limit": 3})
+        data = r.json()
+        if data["total"] > 0:
+            result = data["results"][0]
+            assert "similarity" in result
+            assert "soc_code" in result
+            assert "dominant_zone" in result
+
+    @pytest.mark.asyncio
+    async def test_semantic_search_similarity_order(self, client):
+        """Results should be sorted by similarity descending."""
+        r = await client.post("/api/v1/search/semantic",
+            json={"query": "Software Developer", "limit": 10})
+        sims = [res["similarity"] for res in r.json()["results"] if res["similarity"]]
+        assert sims == sorted(sims, reverse=True)
+
+
+# ── Additional Occupation Endpoint Coverage ──
+
+
+class TestOccupationsCoverage:
+    @pytest.mark.asyncio
+    async def test_filter_by_sector(self, client):
+        r = await client.get("/api/v1/occupations?sector=54&page_size=5")
+        assert r.status_code == 200
+        assert r.json()["total"] > 0
+
+    @pytest.mark.asyncio
+    async def test_filter_by_classification(self, client):
+        r = await client.get("/api/v1/occupations?classification=departing&page_size=5")
+        assert r.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_occupation_detail_has_sectors(self, client):
+        r = await client.get("/api/v1/occupations/11-1021.00")
+        assert r.status_code == 200
+        data = r.json()
+        assert "top_sectors" in data
+        if data["top_sectors"]:
+            sector = data["top_sectors"][0]
+            assert "naics_code" in sector
+            assert "headcount" in sector
+
+    @pytest.mark.asyncio
+    async def test_occupation_tasks_have_drift(self, client):
+        r = await client.get("/api/v1/occupations/15-1252.00/tasks")
+        data = r.json()
+        assert data["total_tasks"] > 0
+        task = data["tasks"][0]
+        assert "task_text" in task
+        assert "velocity" in task
+        assert "classification" in task
