@@ -25,6 +25,10 @@ node_modules/
 *.tsbuildinfo
 *.config.d.ts
 
+# Playwright
+test-results/
+playwright-report/
+
 # IDE
 .vscode/
 .idea/
