@@ -347,10 +347,23 @@ docker run -d --name workforce-pg -p 5433:5432 ...
 # Then update .env: postgresql+asyncpg://workforce:dev_only@localhost:5433/workforce_ai
 ```
 
-### Port 8000 already in use
-Another process on port 8000. Use a different port:
+### Port 8000 already in use / WinError 10013
+A previous uvicorn process is still holding the port. This commonly happens when the server was started in the background or a terminal was closed without stopping it.
+
 ```powershell
-python -m uvicorn app.main:app --port 8001
+# Find the process holding port 8000:
+Get-NetTCPConnection -LocalPort 8000 | Select-Object LocalPort,OwningProcess,State
+
+# Kill it by PID (replace 12345 with the OwningProcess number from above):
+Stop-Process -Id 12345 -Force
+
+# Then start the server normally:
+python -m uvicorn app.main:app --reload --port 8000
+```
+
+Alternative — use a different port (but you'll need to update `vite.config.ts` proxy target too):
+```powershell
+python -m uvicorn app.main:app --reload --port 8001
 ```
 
 ---
