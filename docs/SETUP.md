@@ -147,7 +147,7 @@ npm run dev
 |------|-------|---------------|
 | Sectors | `/` | Zone distribution donut chart, three-tier evidence bar chart, metric cards, interactive sector table |
 | Sector Detail | `/sectors/:code` | Employment by occupation (zone-coloured bars), three-tier score comparison, occupation table |
-| Occupations | `/occupations` | SOC hierarchy tree (23 major groups, expandable), detail panel with score chips, tasks by AI usage |
+| Occupations | `/occupations` | SOC hierarchy tree (23 major groups, expandable), detail panel with score chips, tasks by AI usage, task positioning matrix with 3 temporal views (Baseline, By Era, Drift Arrows) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter plot, alert panel, departing/enduring lists |
 | Role Search | `/search` | Search 65,496 O\*NET titles, results with zone badges and three-tier score pills |
 
@@ -392,7 +392,7 @@ workforce-ai-platform/
     frontend/
       src/
         pages/           # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
-        components/      # Layout (dark sidebar), MetricCard
+        components/      # Layout (collapsible dark sidebar), TaskMatrix (3 temporal views), MetricCard
         hooks/           # useApi (data fetching hook)
         lib/             # api client, constants (zone colours, thresholds)
       package.json       # Node dependencies

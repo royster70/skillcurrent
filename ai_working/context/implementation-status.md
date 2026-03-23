@@ -38,9 +38,10 @@ Last updated: 2026-03-23
 - **Sectors page** (`/`): Zone distribution donut chart, three-tier evidence bar chart, metric cards, interactive sector table
 - **Sector detail page** (`/sectors/:code`): Redesigned with priority view showing top-N occupations ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity), risk factor badges, toggle to full occupation mix
 - **Occupations page** (`/occupations`): SOC hierarchy tree (23 major groups, expandable), occupation detail panel with score chips, employment by sector bar chart, top tasks by AI usage (colour-coded by drift classification)
-- **Occupation detail page** (`/occupations/:soc`): Includes TaskMatrix chart plotting tasks by importance (Y) vs automation potential (X) across four quadrants: insulated, augmented, disrupted, routine
+- **Occupation detail page** (`/occupations/:soc`): Includes TaskMatrix chart plotting tasks by importance (Y) vs automation potential (X) across four quadrants: insulated, augmented, disrupted, routine. Three temporal view modes: Baseline (Eloundou DWA Beta), By Era (toggle Sonnet 3.5/3.7/4/4.5), and Drift Arrows (red/green arrows showing movement direction across model eras). API returns era_snapshots[] per task and available_eras[].
 - **Drift analysis page** (`/drift`): Classification pie chart, usage vs velocity scatter plot, below-threshold alert panel, fastest departing tasks bar chart, top enduring tasks list
 - **Role search page** (`/search`): Search 65,496 O*NET titles with fuzzy matching (pg_trgm trigram similarity), results with zone badges, three-tier score pills, and similarity percentage
+- **Collapsible sidebar**: Layout sidebar toggles between 260px expanded (full labels, data sources) and 64px collapsed (icons only) with smooth CSS transition
 - **Tech**: React 18, React Router, Recharts for all charts, Inter font, dark sidebar design system (zone colours: orange E0, blue E1, green E2, red alerts)
 
 ### Infrastructure

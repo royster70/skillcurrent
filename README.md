@@ -67,7 +67,7 @@ npm install && npm run dev
 | `GET /api/v1/occupations/hierarchy` | SOC major group tree with scores |
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
-| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs automation potential (X), four quadrants (insulated, augmented, disrupted, routine) |
+| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs automation potential (X), four quadrants (insulated, augmented, disrupted, routine). Returns era_snapshots[] per task and available_eras[] for temporal views |
 | `GET /api/v1/drift/summary` | Classification distribution |
 | `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
 | `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
@@ -79,13 +79,13 @@ OpenAPI docs: http://localhost:8000/docs
 
 ### Tier 1 Dashboard (5 pages, functional)
 
-Built with React 18, React Router, and Recharts. Dark sidebar design system with zone colours (orange E0, blue E1, green E2).
+Built with React 18, React Router, and Recharts. Dark sidebar design system with zone colours (orange E0, blue E1, green E2). Collapsible sidebar toggles between 260px expanded (full labels, data sources) and 64px collapsed (icons only) with smooth CSS transition.
 
 | Page | Route | Visualisations |
 |------|-------|----------------|
 | Sectors | `/` | Zone distribution donut, three-tier evidence bar chart, metric cards, sector table |
 | Sector Detail | `/sectors/:code` | Priority roles view (composite impact ranking with risk badges), toggle to full occupation mix, score comparison |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage, task positioning matrix (importance vs automation potential) |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage, task positioning matrix with 3 temporal views: Baseline (Eloundou DWA Beta), By Era (toggle Sonnet 3.5/3.7/4/4.5), Drift Arrows (red/green arrows showing movement direction) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
 | Role Search | `/search` | Fuzzy search 65,496 titles (pg\_trgm), similarity percentage, zone badges, three-tier score pills |
 
@@ -141,7 +141,7 @@ workforce-ai-platform/
     frontend/
       src/
         pages/               # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
-        components/          # Layout, MetricCard
+        components/          # Layout (collapsible sidebar), TaskMatrix (3 view modes), MetricCard
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
 ```
