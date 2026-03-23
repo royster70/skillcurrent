@@ -56,21 +56,23 @@ npm install && npm run dev
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | Derived products | 12,540 | Drift metrics (4,605) + industry profiles (7,935) |
 
-### Tier 1 API (12 endpoints, live)
+### Tier 1 API (15 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/v1/sectors` | 20 NAICS sectors with aggregate exposure stats |
 | `GET /api/v1/sectors/{code}/occupations` | Occupations within a sector |
+| `GET /api/v1/sectors/{code}/priorities` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
 | `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
 | `GET /api/v1/occupations/hierarchy` | SOC major group tree with scores |
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
+| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs automation potential (X), four quadrants (insulated, augmented, disrupted, routine) |
 | `GET /api/v1/drift/summary` | Classification distribution |
 | `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
 | `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
 | `GET /api/v1/drift/enduring` | Stable/declining AI usage tasks |
-| `GET /api/v1/search?q=...` | Search 65,496 O\*NET titles, returns occupations with scores |
+| `GET /api/v1/search?q=...` | Fuzzy search 65,496 O\*NET titles via pg\_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage) |
 | `GET /api/v1/datasets` | Data vintage for dashboard footers |
 
 OpenAPI docs: http://localhost:8000/docs
@@ -82,10 +84,10 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 | Page | Route | Visualisations |
 |------|-------|----------------|
 | Sectors | `/` | Zone distribution donut, three-tier evidence bar chart, metric cards, sector table |
-| Sector Detail | `/sectors/:code` | Employment by occupation (zone-coloured bars), score comparison, occupation table |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage |
+| Sector Detail | `/sectors/:code` | Priority roles view (composite impact ranking with risk badges), toggle to full occupation mix, score comparison |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage, task positioning matrix (importance vs automation potential) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
-| Role Search | `/search` | Search 65,496 titles, zone badges, three-tier score pills |
+| Role Search | `/search` | Fuzzy search 65,496 titles (pg\_trgm), similarity percentage, zone badges, three-tier score pills |
 
 Frontend dev server: http://localhost:5173
 
@@ -133,7 +135,7 @@ workforce-ai-platform/
         api/v1/                # FastAPI endpoints + Pydantic schemas
         models/                # SQLAlchemy ORM models (25+ tables)
         services/              # Ingestion, computation, transformations
-      migrations/versions/     # Alembic migrations (001-010)
+      migrations/versions/     # Alembic migrations (001-011)
       scripts/                 # CLI tools for ingestion + computation
       tests/                   # pytest suite (67 tests)
     frontend/

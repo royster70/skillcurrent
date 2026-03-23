@@ -677,3 +677,4 @@ WHERE aei_task_snapshots.onet_soc_codes @> ARRAY['11-1011.00']
 | 008 | eloundou_dwa_scores |
 | 009 | task_drift_metrics (FR-8.2/8.3 drift velocity and classification) |
 | 010 | Add eloundou_beta, ms_ai_applicability, aei_exposure, drift_velocity, drift_classification to industry_occupation_profiles |
+| 011 | Add pg_trgm extension + GIN trigram indexes on onet_sample_titles and onet_alternate_titles for fuzzy search |

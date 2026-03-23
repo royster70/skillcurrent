@@ -50,7 +50,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all 10 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all 11 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -420,4 +420,4 @@ python -m uvicorn app.main:app --reload --port 8000
 - OpenAPI docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-12 Tier 1 endpoints available — see `README.md` for the full endpoint table.
+15 Tier 1 endpoints available — see `README.md` for the full endpoint table.

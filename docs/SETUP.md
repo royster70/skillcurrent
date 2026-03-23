@@ -116,7 +116,7 @@ DATABASE_URL=postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai
 python -m alembic upgrade head
 ```
 
-This creates all tables (migrations 001-010).
+This creates all tables (migrations 001-011).
 
 ### Start the API server
 
@@ -384,7 +384,7 @@ workforce-ai-platform/
         db/              # Database session, base model
         models/          # SQLAlchemy ORM models (all tables)
         services/        # Ingestion, computation, transformation logic
-      migrations/        # Alembic migration files (001-010)
+      migrations/        # Alembic migration files (001-011)
       scripts/           # CLI scripts for ingestion + computation
       tests/             # pytest test suite
       pyproject.toml     # Python dependencies + tool config

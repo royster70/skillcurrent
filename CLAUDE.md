@@ -111,7 +111,7 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | **TOTAL** | **~455,200** | |
 
 ## Tech Stack
-- **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector, Alembic, SQLAlchemy
+- **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
 - **Matching**: sentence-transformers (all-MiniLM-L6-v2), pgvector cosine similarity
 - **Frontend**: TypeScript, React 18, Recharts / D3
 - **Dev tools**: black (line 100), ruff, mypy --strict, pytest, vitest

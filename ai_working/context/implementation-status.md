@@ -24,29 +24,30 @@ Last updated: 2026-03-23
 - Computed via `python -m scripts.compute_industry_profiles`
 - **industry_occupation_profiles** table populated with multi-source scoring columns (migration 010)
 
-### Tier 1 API (12 endpoints, live)
+### Tier 1 API (15 endpoints, live)
 - **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
-- **Sectors**: `GET /api/v1/sectors`, `GET /api/v1/sectors/{code}/occupations`
-- **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy`, `GET /api/v1/occupations/{soc}`, `GET /api/v1/occupations/{soc}/tasks`
+- **Sectors**: `GET /api/v1/sectors`, `GET /api/v1/sectors/{code}/occupations`, `GET /api/v1/sectors/{code}/priorities`
+- **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy`, `GET /api/v1/occupations/{soc}`, `GET /api/v1/occupations/{soc}/tasks`, `GET /api/v1/occupations/{soc}/matrix`
 - **Drift**: `GET /api/v1/drift/summary`, `GET /api/v1/drift/departing`, `GET /api/v1/drift/enduring`, `GET /api/v1/drift/below-threshold`
-- **Search**: `GET /api/v1/search?q=...` — searches 65,496 O*NET sample + alternate titles, returns occupations with scores
+- **Search**: `GET /api/v1/search?q=...` — searches 65,496 O*NET sample + alternate titles using pg_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage)
 - No auth required (Tier 1 = public data only)
 - OpenAPI docs at http://localhost:8000/docs
 - 26 API endpoint tests in `tests/test_api.py` (22 original + 4 search)
 
 ### Tier 1 Dashboard (FR-8.5)
 - **Sectors page** (`/`): Zone distribution donut chart, three-tier evidence bar chart, metric cards, interactive sector table
-- **Sector detail page** (`/sectors/:code`): Employment by occupation (zone-coloured bars), three-tier score comparison, occupation table
+- **Sector detail page** (`/sectors/:code`): Redesigned with priority view showing top-N occupations ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity), risk factor badges, toggle to full occupation mix
 - **Occupations page** (`/occupations`): SOC hierarchy tree (23 major groups, expandable), occupation detail panel with score chips, employment by sector bar chart, top tasks by AI usage (colour-coded by drift classification)
+- **Occupation detail page** (`/occupations/:soc`): Includes TaskMatrix chart plotting tasks by importance (Y) vs automation potential (X) across four quadrants: insulated, augmented, disrupted, routine
 - **Drift analysis page** (`/drift`): Classification pie chart, usage vs velocity scatter plot, below-threshold alert panel, fastest departing tasks bar chart, top enduring tasks list
-- **Role search page** (`/search`): Search 65,496 O*NET titles, results with zone badges and three-tier score pills
+- **Role search page** (`/search`): Search 65,496 O*NET titles with fuzzy matching (pg_trgm trigram similarity), results with zone badges, three-tier score pills, and similarity percentage
 - **Tech**: React 18, React Router, Recharts for all charts, Inter font, dark sidebar design system (zone colours: orange E0, blue E1, green E2, red alerts)
 
 ### Infrastructure
 - **dataset_versions**: Central version registry (ADR-002)
 - **dataset_version_deltas**: Pre-computed diffs between dataset versions (ADR-002)
 - **transformation_log**: Lineage tracking for derived computations (ADR-001)
-- **10 Alembic migrations**: All applied
+- **11 Alembic migrations**: All applied (migration 011: pg_trgm extension + GIN indexes for fuzzy search)
 
 ### Database Schema
 - All 20+ tables created and populated
