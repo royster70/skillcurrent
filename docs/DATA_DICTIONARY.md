@@ -537,6 +537,36 @@ Industry classification crosswalk (NAICS to ANZSIC via ISIC). Table exists but A
 
 ---
 
+## Drift & Classification
+
+### task_drift_metrics
+
+Per-task drift velocity and classification from FR-8.2/FR-8.3. Computed via linear regression of `task_pct` over AEI temporal snapshots.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| task_text | TEXT | NO | O\*NET task text (unique) |
+| first_seen_date | DATE | YES | Earliest AEI snapshot date |
+| latest_date | DATE | YES | Most recent AEI snapshot date |
+| snapshot_count | INTEGER | YES | Number of AEI snapshots |
+| velocity | FLOAT | YES | Linregress slope (positive = departing) |
+| r_squared | FLOAT | YES | Regression fit quality |
+| p_value | FLOAT | YES | Statistical significance |
+| classification | TEXT | YES | departing, enduring, emerging, below_threshold |
+| latest_task_pct | FLOAT | YES | Most recent task_pct value |
+| peak_task_pct | FLOAT | YES | Maximum task_pct across snapshots |
+| mean_task_pct | FLOAT | YES | Average task_pct across snapshots |
+| platform | TEXT | NO | Default 'claude_ai' |
+
+- **Primary key**: `id`
+- **Unique constraint**: `task_text`
+- **Indexes**: `ix_task_drift_metrics_velocity`, `ix_task_drift_metrics_classification`, `ix_task_drift_metrics_latest_task_pct`
+- **Migration**: 009
+- **Populated by**: `@tracked_transformation compute_task_drift` (FR-8.2)
+
+---
+
 ## Join Paths
 
 O*NET 8-digit SOC codes are the anchor for the entire data model. Different datasets use different SOC granularities and join strategies.

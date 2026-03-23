@@ -13,11 +13,16 @@ Last updated: 2026-03-23
 - **AEI Temporal**: 16,976 task snapshots across 6 releases and 4 model eras
 - **BLS OEWS**: 8,573 employment rows (May 2024 release)
 
+### Tier 1 Computation (FR-8.2/8.3)
+- **FR-8.2 Drift Calculation**: 4,605 tasks processed, velocity via scipy.stats.linregress across 4 AEI model eras
+- **FR-8.3 Task Classification**: 558 departing, 2,971 enduring, 4 below_threshold, 1,072 unclassified (single snapshot)
+- **task_drift_metrics** table populated with velocity, R², p-value, classification per task
+
 ### Infrastructure
 - **dataset_versions**: Central version registry (ADR-002)
 - **dataset_version_deltas**: Pre-computed diffs between dataset versions (ADR-002)
 - **transformation_log**: Lineage tracking for derived computations (ADR-001)
-- **8 Alembic migrations**: All applied
+- **9 Alembic migrations**: All applied
 
 ### Database Schema
 - All 20+ tables created and populated
@@ -31,9 +36,7 @@ Last updated: 2026-03-23
 
 ## Not Started
 
-### Tier 1 — Industry Intelligence (computation + dashboards)
-- **FR-8.2**: Task Drift Calculation
-- **FR-8.3**: Task Classification (departing/enduring/emerging)
+### Tier 1 — Industry Intelligence (remaining)
 - **FR-8.4**: Industry Profiles computation (table exists, data not computed)
 - **FR-8.5**: Tier 1 Dashboard
 - **FR-8.7**: Longitudinal Waterline Tracking
@@ -58,18 +61,20 @@ Last updated: 2026-03-23
 - TypeScript/React 18 stack selected
 
 ### Tests
-- No tests yet (being built separately)
+- 33 tests passing (data invariants, cross-dataset joins, drift velocity, classification, ingestion utilities, transformation decorator)
+- No API endpoint tests yet (no endpoints built)
+- No frontend tests yet (no components built)
 
 ## Success Metrics Progress
 
 | Metric | Target | Current |
 |--------|--------|---------|
 | Data ingestion | All reference datasets | Complete |
-| AEI drift computed | >=3,000 tasks | 0 |
+| AEI drift computed | >=3,000 tasks | 4,605 (target exceeded) |
 | O*NET matching automation | >=95% | 0% |
 | Hierarchy build (10k employees) | <5s | -- |
 | N>=5 enforcement | 100% | -- |
-| Backend test coverage | >=80% | 0% |
+| Backend test coverage | >=80% | 33 tests passing (coverage % not yet measured) |
 
 ## Technical Debt
 - Eloundou DWA Strategy B (LLM rubric for uncovered DWAs) not yet implemented
