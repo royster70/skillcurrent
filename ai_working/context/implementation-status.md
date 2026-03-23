@@ -27,10 +27,10 @@ Last updated: 2026-03-23
 ### Tier 1 API (16 endpoints, live)
 - **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
 - **Sectors**: `GET /api/v1/sectors`, `GET /api/v1/sectors/{code}/occupations`, `GET /api/v1/sectors/{code}/priorities`
-- **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy`, `GET /api/v1/occupations/{soc}`, `GET /api/v1/occupations/{soc}/tasks`, `GET /api/v1/occupations/{soc}/matrix`
+- **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy` (923 occupations — 93 residual "All Other" and military SOC-55 occupations filtered from hierarchy as they lack task data), `GET /api/v1/occupations/{soc}`, `GET /api/v1/occupations/{soc}/tasks`, `GET /api/v1/occupations/{soc}/matrix`
 - **Drift**: `GET /api/v1/drift/summary`, `GET /api/v1/drift/departing`, `GET /api/v1/drift/enduring`, `GET /api/v1/drift/below-threshold`
-- **Search**: `GET /api/v1/search?q=...` — searches 65,496 O*NET sample + alternate titles using pg_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage)
-- **Semantic Search**: `POST /api/v1/search/semantic` — Layer 2 semantic search using sentence-transformers (all-MiniLM-L6-v2) + pgvector HNSW index over 66,512 title embeddings. Accepts query text and optional job description textarea. Returns nearest O*NET occupations by cosine similarity.
+- **Search**: `GET /api/v1/search?q=...` — searches 65,496 O*NET sample + alternate titles using pg_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage). Results include `has_tasks` boolean and `category` field (`'residual'`, `'military'`, or `null`) so filtered occupations are flagged in search results even though they are excluded from the hierarchy.
+- **Semantic Search**: `POST /api/v1/search/semantic` — Layer 2 semantic search using sentence-transformers (all-MiniLM-L6-v2) + pgvector HNSW index over 66,512 title embeddings. Accepts query text and optional job description textarea. Returns nearest O*NET occupations by cosine similarity. Results include `has_tasks` and `category` fields.
 - No auth required (Tier 1 = public data only)
 - OpenAPI docs at http://localhost:8000/docs
 

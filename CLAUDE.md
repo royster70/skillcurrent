@@ -72,7 +72,7 @@ Tier 2 (sequential — each stage blocks the next):
 **Critical blockers**: FR-7 cannot start until FR-1.3/FR-1.4 (hierarchy_path) complete. FR-6 must use FR-7 privacy views.
 
 ## Data Sources Quick Reference
-- **O*NET 28.1**: Tab-delimited files from onetcenter.org (1,016 occupations, ~19,500 tasks, 65k+ titles). LOADED.
+- **O*NET 28.1**: Tab-delimited files from onetcenter.org (1,016 occupations total; 923 in hierarchy after filtering 93 residual "All Other" + military SOC-55 occupations that lack task data). ~19,500 tasks, 65k+ titles. LOADED.
 - **Eloundou 2024**: Occupation-level exposure scores (923 occupations, dual GPT-4 + human raters). LOADED. DWA-level derivation LOADED (17,537 rows).
 - **Microsoft "Working with AI"**: CC-BY 4.0, empirical Copilot usage (Jan–Sept 2024). 785 SOC scores, 332 IWA metrics, 13,698 SOC-to-IWA mappings. LOADED.
 - **AEI**: HuggingFace CC-BY — labor market (756 jobs, 17,998 tasks) + temporal (16,976 snapshots across 4 model eras). LOADED.

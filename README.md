@@ -49,7 +49,7 @@ npm install && npm run dev
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
-| O\*NET 28.1 | 346,440 | 1,016 occupations, 19k tasks, 65k titles, 2k DWAs |
+| O\*NET 28.1 | 346,440 | 1,016 occupations (923 in hierarchy after filtering 93 residual/military), 19k tasks, 65k titles, 2k DWAs |
 | Eloundou 2024 | 18,460 | 923 occupation + 17,537 DWA-level exposure scores |
 | Microsoft "Working with AI" | 34,396 | Empirical Copilot applicability (785 SOCs, 332 IWAs) |
 | AEI (Anthropic) | 35,730 | Empirical Claude usage + 4-era temporal snapshots |
@@ -65,7 +65,7 @@ npm install && npm run dev
 | `GET /api/v1/sectors/{code}/occupations` | Occupations within a sector |
 | `GET /api/v1/sectors/{code}/priorities` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
 | `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
-| `GET /api/v1/occupations/hierarchy` | SOC major group tree with scores |
+| `GET /api/v1/occupations/hierarchy` | SOC major group tree (923 occupations, 93 residual/military filtered) |
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
 | `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings). Returns era_snapshots[] per task and available_eras[] for temporal views |
