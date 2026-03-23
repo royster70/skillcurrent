@@ -175,6 +175,26 @@ export interface SectorPrioritiesResponse {
   full_mix: PriorityRole[];
 }
 
+export interface TaskMatrixPoint {
+  task_id: number;
+  task_text: string;
+  importance: number | null;
+  automation_potential: number | null;
+  eloundou_dwa_beta: number | null;
+  drift_velocity: number | null;
+  drift_classification: string | null;
+  aei_penetration: number | null;
+  quadrant: string | null;
+}
+
+export interface TaskMatrixResponse {
+  soc_code: string;
+  occupation_title: string;
+  tasks: TaskMatrixPoint[];
+  total_tasks: number;
+  quadrant_counts: Record<string, number>;
+}
+
 // ── API functions ──
 
 export const api = {
@@ -187,6 +207,7 @@ export const api = {
   hierarchy: () => get<SocHierarchyResponse>("/occupations/hierarchy"),
   occupation: (soc: string) => get<OccupationDetail>(`/occupations/${soc}`),
   occupationTasks: (soc: string) => get<OccupationTasksResponse>(`/occupations/${soc}/tasks`),
+  taskMatrix: (soc: string) => get<TaskMatrixResponse>(`/occupations/${soc}/matrix`),
   driftSummary: () => get<DriftSummary>("/drift/summary"),
   driftDeparting: (page = 1, size = 20) => get<DriftListResponse>(`/drift/departing?page=${page}&page_size=${size}`),
   driftBelowThreshold: () => get<DriftListResponse>("/drift/below-threshold"),

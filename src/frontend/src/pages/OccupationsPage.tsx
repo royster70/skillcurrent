@@ -3,6 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { ZONE_COLORS, ZONE_LABELS, CLASSIFICATION_COLORS } from "../lib/constants";
+import { TaskMatrix } from "../components/TaskMatrix";
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
@@ -198,6 +199,9 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           </div>
         )}
       </div>
+
+      {/* Task Positioning Matrix */}
+      <TaskMatrix socCode={occ.soc_code} />
     </div>
   );
 }
