@@ -146,17 +146,32 @@ export function SearchPage() {
           {results.map((r) => (
             <div
               key={r.soc_code}
-              onClick={() => navigate(`/occupations?selected=${r.soc_code}`)}
+              onClick={() => r.has_tasks ? navigate(`/occupations?selected=${r.soc_code}`) : undefined}
               style={{
-                background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7",
-                padding: 16, cursor: "pointer", display: "flex", justifyContent: "space-between",
+                background: r.category ? "#F9FAFB" : "#fff",
+                borderRadius: 12, border: `1.5px solid ${r.category ? "#E4E4E7" : "#E4E4E7"}`,
+                padding: 16, cursor: r.has_tasks ? "pointer" : "default",
+                display: "flex", justifyContent: "space-between",
                 alignItems: "center", transition: "border-color 0.15s",
+                opacity: r.category ? 0.75 : 1,
               }}
-              onMouseEnter={(e) => (e.currentTarget.style.borderColor = "#2563EB")}
+              onMouseEnter={(e) => r.has_tasks && (e.currentTarget.style.borderColor = "#2563EB")}
               onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#E4E4E7")}
             >
               <div style={{ flex: 1 }}>
-                <div style={{ fontSize: 16, fontWeight: 600 }}>{r.occupation_title}</div>
+                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                  <span style={{ fontSize: 16, fontWeight: 600 }}>{r.occupation_title}</span>
+                  {r.category === "residual" && (
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, backgroundColor: "#FFF7ED", color: "#F97316", fontWeight: 600 }}>
+                      Catch-all category
+                    </span>
+                  )}
+                  {r.category === "military" && (
+                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, backgroundColor: "#EFF6FF", color: "#2563EB", fontWeight: 600 }}>
+                      Military
+                    </span>
+                  )}
+                </div>
                 <div style={{ fontSize: 13, color: "#71717A", marginTop: 2 }}>
                   {r.soc_code} · Matched: "{r.matched_title}"
                   {r.similarity != null && r.similarity < 1.0 && (
@@ -169,7 +184,14 @@ export function SearchPage() {
                     </span>
                   )}
                 </div>
-                {r.total_employment && (
+                {r.category && (
+                  <div style={{ fontSize: 11, color: "#A1A1AA", marginTop: 4, fontStyle: "italic" }}>
+                    {r.category === "residual"
+                      ? "This is an \"All Other\" residual category — task-level data is not available in O*NET for this classification."
+                      : "Military occupation — task-level data is not collected by O*NET."}
+                  </div>
+                )}
+                {!r.category && r.total_employment && (
                   <div style={{ fontSize: 12, color: "#A1A1AA", marginTop: 2 }}>
                     {(r.total_employment / 1000).toFixed(0)}K workers nationally
                   </div>

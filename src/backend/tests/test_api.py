@@ -243,9 +243,9 @@ class TestHierarchy:
         r = await client.get("/api/v1/occupations/hierarchy")
         assert r.status_code == 200
         data = r.json()
-        assert data["total_major_groups"] >= 22  # 22 standard SOC groups + possible extras
-        assert data["total_occupations"] > 1000
-        assert len(data["hierarchy"]) >= 22
+        assert data["total_major_groups"] >= 20  # filtered: no military (55) or residual-only groups
+        assert data["total_occupations"] > 900  # 923 with tasks (93 residual/military filtered)
+        assert len(data["hierarchy"]) >= 20
 
     @pytest.mark.asyncio
     async def test_hierarchy_node_structure(self, client):

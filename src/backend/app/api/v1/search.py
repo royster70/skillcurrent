@@ -29,6 +29,8 @@ class SearchResult(BaseModel):
     ms_ai_applicability: float | None = None
     aei_exposure: float | None = None
     dominant_zone: str | None = None
+    has_tasks: bool = True
+    category: str | None = None  # 'residual', 'military', or None
     total_employment: int | None = None
 
 
@@ -117,7 +119,13 @@ async def search_occupations(
                 WHEN e.dv_beta_derived IS NOT NULL THEN 'E0'
                 ELSE NULL
             END AS dominant_zone,
-            ow_total.total_emp
+            ow_total.total_emp,
+            EXISTS (SELECT 1 FROM onet_task_statements ts WHERE ts.onet_soc = o.onet_soc) AS has_tasks,
+            CASE
+                WHEN SUBSTRING(o.onet_soc, 1, 2) = '55' THEN 'military'
+                WHEN o.title LIKE '%All Other%' THEN 'residual'
+                ELSE NULL
+            END AS category
         FROM best_match bm
         JOIN onet_occupations o ON o.onet_soc = bm.soc_code
         LEFT JOIN eloundou_occ_scores e ON e.onet_soc = o.onet_soc
@@ -144,6 +152,8 @@ async def search_occupations(
             aei_exposure=round(row[7], 4) if row[7] else None,
             dominant_zone=row[8],
             total_employment=row[9],
+            has_tasks=row[10] if row[10] is not None else False,
+            category=row[11],
         )
         for row in r.fetchall()
     ]
@@ -197,7 +207,13 @@ async def semantic_search(
         m = seen[soc]
         # Get scores
         r = await db.execute(text("""
-            SELECT e.dv_beta_derived, m.ai_applicability_score, a.observed_exposure, ow.total_emp
+            SELECT e.dv_beta_derived, m.ai_applicability_score, a.observed_exposure, ow.total_emp,
+                   EXISTS (SELECT 1 FROM onet_task_statements ts WHERE ts.onet_soc = o.onet_soc) AS has_tasks,
+                   CASE
+                       WHEN SUBSTRING(o.onet_soc, 1, 2) = '55' THEN 'military'
+                       WHEN o.title LIKE '%All Other%' THEN 'residual'
+                       ELSE NULL
+                   END AS category
             FROM onet_occupations o
             LEFT JOIN eloundou_occ_scores e ON e.onet_soc = o.onet_soc
             LEFT JOIN ms_ai_applicability_scores m ON o.onet_soc LIKE m.soc_code || '%'
@@ -226,6 +242,8 @@ async def semantic_search(
             aei_exposure=round(score_row[2], 4) if score_row and score_row[2] else None,
             dominant_zone=zone,
             total_employment=score_row[3] if score_row else None,
+            has_tasks=score_row[4] if score_row and score_row[4] is not None else False,
+            category=score_row[5] if score_row else None,
         ))
 
     # Sort by similarity

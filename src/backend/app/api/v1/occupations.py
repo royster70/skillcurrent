@@ -66,6 +66,9 @@ async def get_soc_hierarchy(
             FROM oews_employment WHERE employment IS NOT NULL
             GROUP BY onet_soc
         ) ow_total ON ow_total.onet_soc = SUBSTRING(o.onet_soc, 1, 7)
+        WHERE EXISTS (
+            SELECT 1 FROM onet_task_statements ts WHERE ts.onet_soc = o.onet_soc
+        )
         ORDER BY o.onet_soc
     """))
 

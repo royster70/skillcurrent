@@ -142,6 +142,8 @@ export interface SearchResult {
   aei_exposure: number | null;
   dominant_zone: string | null;
   total_employment: number | null;
+  has_tasks: boolean;
+  category: string | null;
 }
 
 export interface SearchResponse {
