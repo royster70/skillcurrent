@@ -370,6 +370,12 @@ python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
 
 220 tasks, 44 occupations, 9 NAICS sectors. SOC codes mapped via exact O*NET title match (43/44 exact + 1 contextual). Registered in `dataset_versions` under name "gdpval".
 
+Once ingested, GDPval data is served immediately by two API endpoints with no additional computation step required:
+- `GET /api/v1/gdpval/summary` — portfolio overview (task counts, rubric items, sector list, per-occupation counts)
+- `GET /api/v1/gdpval/occupations/{soc_code}` — full task + rubric detail for one occupation
+
+The `GET /api/v1/occupations/{soc}` endpoint also returns `gdpval_task_count` and `gdpval_available` fields derived from a live COUNT subquery. Future model evaluation scores are written to `gdpval_evaluations` by a separate model-era scoring pipeline (FR-8.7, not yet built).
+
 **Verification**:
 ```sql
 SELECT COUNT(*) FROM gdpval_tasks;

@@ -58,7 +58,7 @@ npm install && npm run dev
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 
-### Tier 1 API (16 endpoints, live)
+### Tier 1 API (18 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
@@ -67,9 +67,11 @@ npm install && npm run dev
 | `GET /api/v1/sectors/{code}/priorities` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
 | `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
 | `GET /api/v1/occupations/hierarchy` | SOC major group tree (923 occupations, 93 residual/military filtered) |
-| `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift |
+| `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift + GDPval availability (gdpval_task_count, gdpval_available fields) |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
 | `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings). Returns era_snapshots[] per task and available_eras[] for temporal views |
+| `GET /api/v1/gdpval/summary` | GDPval benchmark overview: total tasks (220), occupations (44), rubric items (10,453), sectors list, per-occupation task counts |
+| `GET /api/v1/gdpval/occupations/{soc_code}` | Full GDPval benchmark detail for one occupation: tasks with prompts + complete rubric items (criterion, score, required flag, tags) |
 | `GET /api/v1/drift/summary` | Classification distribution |
 | `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
 | `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
@@ -87,8 +89,8 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 | Page | Route | Visualisations |
 |------|-------|----------------|
 | Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table |
-| Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with ContextualScoreCards, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend) |
+| Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC; GDPval coverage indicators on role rows; "GDPval Only" filter to show only benchmark occupations |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + GDPval badge when available, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
 | Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
 

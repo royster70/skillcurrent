@@ -753,6 +753,18 @@ AEI temporal snapshots store an array of associated SOC codes:
 WHERE aei_task_snapshots.onet_soc_codes @> ARRAY['11-1011.00']
 ```
 
+### GDPval benchmarks to occupations
+
+GDPval tasks join to O*NET occupations via a soft reference (nullable, no FK constraint). 43 of 44 occupations matched exactly; 1 matched contextually. The `gdpval/occupations/{soc_code}` API endpoint accepts 8-digit O*NET-SOC codes and the UI normalises 7-digit vs 8-digit SOC codes on the frontend before querying:
+
+```sql
+gdpval_tasks.onet_soc = onet_occupations.onet_soc  -- nullable, no FK enforced
+gdpval_rubric_items.task_id = gdpval_tasks.task_id  -- FK enforced
+gdpval_evaluations.task_id = gdpval_tasks.task_id   -- FK enforced (future scores)
+```
+
+The `OccupationDetail` schema exposes `gdpval_task_count` and `gdpval_available` derived from a COUNT subquery on `gdpval_tasks` filtered by `onet_soc`.
+
 ---
 
 ## Migration History
