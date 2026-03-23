@@ -43,6 +43,11 @@ node_modules/
 !.claude/agents/
 !.claude/commands/
 
+# Binary docs (presentations, PDFs — keep in local docs, not in git)
+*.pptx
+*.pdf
+~$*
+
 # OS
 .DS_Store
 Thumbs.db
