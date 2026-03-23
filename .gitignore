@@ -22,6 +22,8 @@ env/
 # Node
 node_modules/
 .tsc-output/
+*.tsbuildinfo
+*.config.d.ts
 
 # IDE
 .vscode/
