@@ -3,7 +3,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { ZONE_COLORS, ZONE_LABELS, CLASSIFICATION_COLORS } from "../lib/constants";
-import { TaskMatrix, DOT_COLORS } from "../components/TaskMatrix";
+import { TaskMatrix, DOT_COLORS, TaskSparkline } from "../components/TaskMatrix";
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
@@ -205,6 +205,7 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
                         auto: {(t.automation_potential * 100).toFixed(0)}%
                       </span>
                     )}
+                    <TaskSparkline task={t} />
                     {t.drift_classification && (
                       <span style={{
                         fontSize: 9, padding: "1px 6px", borderRadius: 4, fontWeight: 600,
