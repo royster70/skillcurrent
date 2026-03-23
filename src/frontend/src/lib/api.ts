@@ -91,6 +91,8 @@ export interface OccupationDetail {
   ms_ai_population: number | null;
   aei_population: number | null;
   aei_era_snapshots: OccupationEraSnapshot[];
+  gdpval_task_count: number;
+  gdpval_available: boolean;
 }
 
 export interface TaskWithDrift {
@@ -228,6 +230,49 @@ export interface TaskMatrixResponse {
   available_eras: string[];
 }
 
+// ── GDPval Benchmarks ──
+
+export interface GDPvalRubricItem {
+  criterion: string;
+  score: number;
+  required: boolean;
+  tags: string[] | null;
+}
+
+export interface GDPvalTaskDetail {
+  task_id: string;
+  prompt_summary: string;
+  rubric_item_count: number;
+  max_score: number | null;
+  min_score: number | null;
+  reference_file_count: number;
+  deliverable_file_count: number;
+  rubric_items: GDPvalRubricItem[];
+}
+
+export interface GDPvalOccupationResponse {
+  soc_code: string;
+  occupation_title: string;
+  sector: string;
+  task_count: number;
+  tasks: GDPvalTaskDetail[];
+}
+
+export interface GDPvalOccupationSummary {
+  soc_code: string;
+  title: string;
+  sector: string;
+  task_count: number;
+}
+
+export interface GDPvalSummaryResponse {
+  total_tasks: number;
+  total_occupations: number;
+  total_rubric_items: number;
+  sectors: string[];
+  occupations: GDPvalOccupationSummary[];
+}
+
 // ── API functions ──
 
 export const api = {
@@ -254,4 +299,6 @@ export const api = {
   driftDeparting: (page = 1, size = 20) => get<DriftListResponse>(`/drift/departing?page=${page}&page_size=${size}`),
   driftBelowThreshold: () => get<DriftListResponse>("/drift/below-threshold"),
   driftEnduring: (page = 1, size = 20) => get<DriftListResponse>(`/drift/enduring?page=${page}&page_size=${size}`),
+  gdpvalSummary: () => get<GDPvalSummaryResponse>("/gdpval/summary"),
+  gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
 };

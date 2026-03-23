@@ -16,6 +16,8 @@ export function SectorDetailPage() {
   );
   // Fetch all sectors for percentile ranking
   const { data: allSectorsData } = useApi(() => api.sectors(), []);
+  // Fetch GDPval summary for benchmark coverage indicators
+  const { data: gdpvalData } = useApi(() => api.gdpvalSummary(), []);
 
   // Compute sector-level percentiles from all sectors (must be before early returns — Rules of Hooks)
   const sectorContext = useMemo(() => {
@@ -30,6 +32,18 @@ export function SectorDetailPage() {
       aei: computePercentile(sectors, current, (s) => s.weighted_aei_exposure),
     };
   }, [allSectorsData, code]);
+
+  // GDPval SOC lookup set — must be before early returns (Rules of Hooks)
+  // Include both 8-digit (15-1252.00) and 7-digit (15-1252) forms for cross-dataset matching
+  const gdpvalSocs = useMemo(() => {
+    if (!gdpvalData) return new Set<string>();
+    const set = new Set<string>();
+    gdpvalData.occupations.forEach((o) => {
+      set.add(o.soc_code);
+      set.add(o.soc_code.replace(/\.00$/, ""));
+    });
+    return set;
+  }, [gdpvalData]);
 
   if (loading) return <div>Loading sector...</div>;
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
@@ -202,7 +216,7 @@ export function SectorDetailPage() {
           </thead>
           <tbody>
             {displayRoles.map((r) => (
-              <RoleRow key={r.soc_code} role={r} navigate={navigate} />
+              <RoleRow key={r.soc_code} role={r} navigate={navigate} hasGdpval={gdpvalSocs.has(r.soc_code)} />
             ))}
           </tbody>
         </table>
@@ -252,7 +266,7 @@ function generateNarrative(data: {
   return sentences;
 }
 
-function RoleRow({ role: r, navigate }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate> }) {
+function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate>; hasGdpval?: boolean }) {
   const zoneColor = r.dominant_zone ? ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] : "#71717A";
   const driftColor = r.drift_classification ? CLASSIFICATION_COLORS[r.drift_classification as keyof typeof CLASSIFICATION_COLORS] : "#71717A";
 
@@ -264,7 +278,17 @@ function RoleRow({ role: r, navigate }: { role: PriorityRole; navigate: ReturnTy
     >
       <td style={td}>
         <div style={{ fontWeight: 500 }}>{r.occupation_title}</div>
-        <div style={{ fontSize: 11, color: "#A1A1AA" }}>{r.soc_code}</div>
+        <div style={{ fontSize: 11, color: "#A1A1AA", display: "flex", alignItems: "center", gap: 6 }}>
+          {r.soc_code}
+          {hasGdpval && (
+            <span style={{
+              fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 4,
+              backgroundColor: "#FFF7ED", color: "#C2410C",
+            }}>
+              GDPval
+            </span>
+          )}
+        </div>
       </td>
       <td style={{ ...td, textAlign: "right" }}>{fmtNum(r.headcount)}</td>
       <td style={{ ...td, textAlign: "right", fontWeight: r.location_quotient && r.location_quotient > 2 ? 600 : 400, color: r.location_quotient && r.location_quotient > 2 ? "#DC2626" : "#18181B" }}>

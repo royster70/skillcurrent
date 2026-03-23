@@ -342,6 +342,12 @@ async def get_occupation(
         for row in era_rows
     ]
 
+    # GDPval benchmark availability
+    r = await db.execute(text("""
+        SELECT COUNT(*) FROM gdpval_tasks WHERE onet_soc = :soc
+    """), {"soc": onet_soc})
+    gdpval_count = r.scalar() or 0
+
     return OccupationDetail(
         soc_code=onet_soc,
         title=occ[1],
@@ -368,6 +374,8 @@ async def get_occupation(
         ms_ai_population=pct_row[5] if pct_row and pct_row[5] is not None else None,
         aei_population=pct_row[8] if pct_row and pct_row[8] is not None else None,
         aei_era_snapshots=aei_era_snapshots,
+        gdpval_task_count=gdpval_count,
+        gdpval_available=gdpval_count > 0,
     )
 
 

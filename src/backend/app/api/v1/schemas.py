@@ -104,6 +104,9 @@ class OccupationDetail(BaseModel):
     aei_population: int | None = None
     # AEI temporal trend (occupation-level aggregation across model eras)
     aei_era_snapshots: list[OccupationEraSnapshot] = []
+    # GDPval benchmark availability
+    gdpval_task_count: int = 0
+    gdpval_available: bool = False
 
 
 class OccupationSectorProfile(BaseModel):
@@ -188,3 +191,47 @@ class DriftListResponse(BaseModel):
     total: int
     page: int
     page_size: int
+
+
+# ── GDPval Benchmarks ──
+
+
+class GDPvalRubricItem(BaseModel):
+    criterion: str
+    score: int
+    required: bool = False
+    tags: list[str] | None = None
+
+
+class GDPvalTaskDetail(BaseModel):
+    task_id: str
+    prompt_summary: str
+    rubric_item_count: int
+    max_score: int | None = None
+    min_score: int | None = None
+    reference_file_count: int = 0
+    deliverable_file_count: int = 0
+    rubric_items: list[GDPvalRubricItem] = []
+
+
+class GDPvalOccupationResponse(BaseModel):
+    soc_code: str
+    occupation_title: str
+    sector: str
+    task_count: int
+    tasks: list[GDPvalTaskDetail]
+
+
+class GDPvalOccupationSummary(BaseModel):
+    soc_code: str
+    title: str
+    sector: str
+    task_count: int
+
+
+class GDPvalSummaryResponse(BaseModel):
+    total_tasks: int
+    total_occupations: int
+    total_rubric_items: int
+    sectors: list[str]
+    occupations: list[GDPvalOccupationSummary]

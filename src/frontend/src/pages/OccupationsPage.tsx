@@ -153,6 +153,14 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
               {ZONE_LABELS[occ.dominant_zone as keyof typeof ZONE_LABELS] || occ.dominant_zone}
             </span>
           )}
+          {occ.gdpval_available && (
+            <span style={{
+              fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 16,
+              backgroundColor: "#FFF7ED", color: "#C2410C", border: "1px solid #FDBA7440",
+            }}>
+              {occ.gdpval_task_count} GDPval tasks
+            </span>
+          )}
         </div>
       </div>
 
