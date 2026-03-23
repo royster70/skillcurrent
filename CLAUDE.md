@@ -118,6 +118,7 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 - **Windows terminal**: Claude Code via `claude` command in PowerShell or WSL2
 
 ## Key Reference Docs (read when working in these areas)
+- Development setup: `docs/SETUP.md`
 - Microsoft AI applicability data: `docs/MICROSOFT_AI_APPLICABILITY.md`
 - Domain rules & data contracts: `docs/domain-model.md`
 - FR-1 hierarchy (Tier 2 foundation): `docs/fr1-hierarchy.md`
