@@ -36,8 +36,10 @@ node_modules/
 .env.*.local
 **/.env
 
-# Claude Code
-.claude/
+# Claude Code (session files excluded, agents/commands included)
+.claude/*
+!.claude/agents/
+!.claude/commands/
 
 # OS
 .DS_Store
