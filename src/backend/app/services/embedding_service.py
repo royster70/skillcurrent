@@ -155,12 +155,12 @@ async def search_by_embedding(
 
     r = await session.execute(text(f"""
         SELECT te.title, te.onet_soc, te.source,
-               1 - (te.embedding <=> :embedding::vector) AS similarity,
+               1 - (te.embedding <=> CAST(:embedding AS vector)) AS similarity,
                o.title AS occupation_title
         FROM onet_title_embeddings te
         JOIN onet_occupations o ON o.onet_soc = te.onet_soc
         WHERE te.embedding IS NOT NULL {source_clause}
-        ORDER BY te.embedding <=> :embedding::vector
+        ORDER BY te.embedding <=> CAST(:embedding AS vector)
         LIMIT :limit
     """), params)
 
