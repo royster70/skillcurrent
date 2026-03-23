@@ -24,31 +24,39 @@ Last updated: 2026-03-23
 - Computed via `python -m scripts.compute_industry_profiles`
 - **industry_occupation_profiles** table populated with multi-source scoring columns (migration 010)
 
-### Tier 1 API (15 endpoints, live)
+### Tier 1 API (16 endpoints, live)
 - **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
 - **Sectors**: `GET /api/v1/sectors`, `GET /api/v1/sectors/{code}/occupations`, `GET /api/v1/sectors/{code}/priorities`
 - **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy`, `GET /api/v1/occupations/{soc}`, `GET /api/v1/occupations/{soc}/tasks`, `GET /api/v1/occupations/{soc}/matrix`
 - **Drift**: `GET /api/v1/drift/summary`, `GET /api/v1/drift/departing`, `GET /api/v1/drift/enduring`, `GET /api/v1/drift/below-threshold`
 - **Search**: `GET /api/v1/search?q=...` — searches 65,496 O*NET sample + alternate titles using pg_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage)
+- **Semantic Search**: `POST /api/v1/search/semantic` — Layer 2 semantic search using sentence-transformers (all-MiniLM-L6-v2) + pgvector HNSW index over 66,512 title embeddings. Accepts query text and optional job description textarea. Returns nearest O*NET occupations by cosine similarity.
 - No auth required (Tier 1 = public data only)
 - OpenAPI docs at http://localhost:8000/docs
-- 26 API endpoint tests in `tests/test_api.py` (22 original + 4 search)
 
 ### Tier 1 Dashboard (FR-8.5)
 - **Sectors page** (`/`): Zone distribution donut chart, three-tier evidence bar chart, metric cards, interactive sector table
 - **Sector detail page** (`/sectors/:code`): Redesigned with priority view showing top-N occupations ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity), risk factor badges, toggle to full occupation mix
 - **Occupations page** (`/occupations`): SOC hierarchy tree (23 major groups, expandable), occupation detail panel with score chips, employment by sector bar chart, top tasks by AI usage (colour-coded by drift classification)
-- **Occupation detail page** (`/occupations/:soc`): Includes TaskMatrix chart plotting tasks by importance (Y) vs automation potential (X) across four quadrants: insulated, augmented, disrupted, routine. Three temporal view modes: Baseline (Eloundou DWA Beta), By Era (toggle Sonnet 3.5/3.7/4/4.5), and Drift Arrows (red/green arrows showing movement direction across model eras). API returns era_snapshots[] per task and available_eras[].
+- **Occupation detail page** (`/occupations/:soc`): Includes TaskMatrix chart plotting tasks by importance (Y) vs AI capability (Eloundou, X-axis) across four quadrants: insulated, augmented, disrupted, routine. Two temporal view modes: Baseline (Eloundou DWA Beta) and By Era (toggle Sonnet 3.5/3.7/4/4.5). Three overlay modes: None, Usage Level (dot size reflects AEI penetration), Usage Trend (concentric rings indicate trend direction). Mini sparklines in task list show temporal usage. API returns era_snapshots[] per task and available_eras[]. (Drift arrows removed — AI capability doesn't go backward, so arrows were conceptually wrong.)
 - **Drift analysis page** (`/drift`): Classification pie chart, usage vs velocity scatter plot, below-threshold alert panel, fastest departing tasks bar chart, top enduring tasks list
-- **Role search page** (`/search`): Search 65,496 O*NET titles with fuzzy matching (pg_trgm trigram similarity), results with zone badges, three-tier score pills, and similarity percentage
+- **Role search page** (`/search`): Two search modes — Text (pg_trgm trigram similarity over 65,496 titles) and Semantic (sentence-transformer embeddings over 66,512 titles via pgvector HNSW). Optional job description textarea for semantic mode. Results with zone badges, three-tier score pills, and similarity percentage. Clicking a result navigates to OccupationsPage with ?selected= URL param, auto-expanding the correct hierarchy group.
 - **Collapsible sidebar**: Layout sidebar toggles between 260px expanded (full labels, data sources) and 64px collapsed (icons only) with smooth CSS transition
 - **Tech**: React 18, React Router, Recharts for all charts, Inter font, dark sidebar design system (zone colours: orange E0, blue E1, green E2, red alerts)
+
+### Layer 2 Semantic Search
+- **onet_title_embeddings** table: 66,512 embeddings (384-dim, all-MiniLM-L6-v2) covering sample titles and alternate titles
+- **pgvector HNSW index** for fast cosine similarity search
+- **POST /api/v1/search/semantic** endpoint with optional job description input
+- **Search page** updated with Semantic/Text mode toggle
+- **Migration 012**: onet_title_embeddings table
+- **asyncpg vector cast fix**: Changed `::vector` to `CAST(:embedding AS vector)` in embedding_service.py
 
 ### Infrastructure
 - **dataset_versions**: Central version registry (ADR-002)
 - **dataset_version_deltas**: Pre-computed diffs between dataset versions (ADR-002)
 - **transformation_log**: Lineage tracking for derived computations (ADR-001)
-- **11 Alembic migrations**: All applied (migration 011: pg_trgm extension + GIN indexes for fuzzy search)
+- **12 Alembic migrations**: All applied (migration 012: onet_title_embeddings for Layer 2 semantic search)
 
 ### Database Schema
 - All 20+ tables created and populated
@@ -77,8 +85,10 @@ Last updated: 2026-03-23
 - **FR-6**: Org Dashboards
 
 ### Tests
-- 67 tests passing (data invariants, cross-dataset joins, drift velocity, classification, ingestion utilities, transformation decorator, 26 API endpoint tests)
-- No frontend tests yet
+- **90 backend API tests** at 83% coverage (data invariants, cross-dataset joins, drift velocity, classification, ingestion utilities, transformation decorator, API endpoint tests)
+- **18 Playwright E2E browser tests** across 4 suites (sectors, search-to-occupation navigation, occupations, drift)
+- **Total: 108 tests** (90 backend + 18 E2E)
+- E2E config: `playwright.config.ts`, test files in `e2e/` directory, run via `npm run test:e2e`
 
 ## Success Metrics Progress
 
@@ -89,7 +99,7 @@ Last updated: 2026-03-23
 | O*NET matching automation | >=95% | 0% |
 | Hierarchy build (10k employees) | <5s | -- |
 | N>=5 enforcement | 100% | -- |
-| Backend test coverage | >=80% | 67 tests passing (coverage % not yet measured) |
+| Backend test coverage | >=80% | 83% (90 backend tests + 18 E2E = 108 total) |
 
 ## Technical Debt
 - Eloundou DWA Strategy B (LLM rubric for uncovered DWAs) not yet implemented

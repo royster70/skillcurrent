@@ -45,7 +45,7 @@ npm install && npm run dev
 
 ## Current Status
 
-### Data loaded (~455,000 rows)
+### Data loaded (~521,700 rows)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -55,8 +55,9 @@ npm install && npm run dev
 | AEI (Anthropic) | 35,730 | Empirical Claude usage + 4-era temporal snapshots |
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | Derived products | 12,540 | Drift metrics (4,605) + industry profiles (7,935) |
+| Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 
-### Tier 1 API (15 endpoints, live)
+### Tier 1 API (16 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
@@ -67,12 +68,13 @@ npm install && npm run dev
 | `GET /api/v1/occupations/hierarchy` | SOC major group tree with scores |
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
-| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs automation potential (X), four quadrants (insulated, augmented, disrupted, routine). Returns era_snapshots[] per task and available_eras[] for temporal views |
+| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings). Returns era_snapshots[] per task and available_eras[] for temporal views |
 | `GET /api/v1/drift/summary` | Classification distribution |
 | `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
 | `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
 | `GET /api/v1/drift/enduring` | Stable/declining AI usage tasks |
 | `GET /api/v1/search?q=...` | Fuzzy search 65,496 O\*NET titles via pg\_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage) |
+| `POST /api/v1/search/semantic` | Semantic search via sentence-transformers + pgvector HNSW over 66,512 title embeddings. Accepts query text and optional job description. |
 | `GET /api/v1/datasets` | Data vintage for dashboard footers |
 
 OpenAPI docs: http://localhost:8000/docs
@@ -85,19 +87,23 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 |------|-------|----------------|
 | Sectors | `/` | Zone distribution donut, three-tier evidence bar chart, metric cards, sector table |
 | Sector Detail | `/sectors/:code` | Priority roles view (composite impact ranking with risk badges), toggle to full occupation mix, score comparison |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage, task positioning matrix with 3 temporal views: Baseline (Eloundou DWA Beta), By Era (toggle Sonnet 3.5/3.7/4/4.5), Drift Arrows (red/green arrows showing movement direction) |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), detail panel with score chips, tasks by AI usage (mini sparklines), task positioning matrix with 2 temporal views (Baseline, By Era) and 3 overlay modes (None, Usage Level, Usage Trend) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
-| Role Search | `/search` | Fuzzy search 65,496 titles (pg\_trgm), similarity percentage, zone badges, three-tier score pills |
+| Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
 
 Frontend dev server: http://localhost:5173
 
 ### Tests
 
-67 tests passing — data invariants, cross-dataset joins, drift computation, transformation decorator, ingestion utilities, 26 API endpoint tests.
+108 tests passing (90 backend + 18 E2E). Backend at 83% coverage. E2E via Playwright across 4 suites (sectors, search-to-occupation, occupations, drift).
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v
+python -m pytest tests/ -v                    # 90 backend tests
+python -m pytest tests/ --cov=app             # with coverage
+
+cd src/frontend
+npm run test:e2e                              # 18 Playwright E2E tests
 ```
 
 ## Key Documentation
@@ -119,7 +125,7 @@ python -m pytest tests/ -v
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector, SQLAlchemy 2.x, Alembic
 - **Data/NLP**: pandas, scipy, sentence-transformers (all-MiniLM-L6-v2)
 - **Frontend**: TypeScript, React 18, Vite, Recharts/D3
-- **Dev**: black, ruff, mypy --strict, pytest, vitest
+- **Dev**: black, ruff, mypy --strict, pytest, vitest, Playwright (E2E)
 
 ## Project Structure
 
@@ -135,13 +141,15 @@ workforce-ai-platform/
         api/v1/                # FastAPI endpoints + Pydantic schemas
         models/                # SQLAlchemy ORM models (25+ tables)
         services/              # Ingestion, computation, transformations
-      migrations/versions/     # Alembic migrations (001-011)
+      migrations/versions/     # Alembic migrations (001-012)
       scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (67 tests)
+      tests/                   # pytest suite (90 tests)
     frontend/
       src/
         pages/               # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
-        components/          # Layout (collapsible sidebar), TaskMatrix (3 view modes), MetricCard
+        components/          # Layout (collapsible sidebar), TaskMatrix (overlay modes), MetricCard
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
+      e2e/                   # Playwright E2E tests (4 suites, 18 tests)
+      playwright.config.ts   # Playwright configuration
 ```

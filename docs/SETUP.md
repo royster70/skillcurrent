@@ -116,7 +116,7 @@ DATABASE_URL=postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai
 python -m alembic upgrade head
 ```
 
-This creates all tables (migrations 001-011).
+This creates all tables (migrations 001-012).
 
 ### Start the API server
 
@@ -147,9 +147,9 @@ npm run dev
 |------|-------|---------------|
 | Sectors | `/` | Zone distribution donut chart, three-tier evidence bar chart, metric cards, interactive sector table |
 | Sector Detail | `/sectors/:code` | Employment by occupation (zone-coloured bars), three-tier score comparison, occupation table |
-| Occupations | `/occupations` | SOC hierarchy tree (23 major groups, expandable), detail panel with score chips, tasks by AI usage, task positioning matrix with 3 temporal views (Baseline, By Era, Drift Arrows) |
+| Occupations | `/occupations` | SOC hierarchy tree (23 major groups, expandable), detail panel with score chips, tasks by AI usage (mini sparklines), task positioning matrix with 2 temporal views (Baseline, By Era) and 3 overlay modes (None, Usage Level, Usage Trend) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter plot, alert panel, departing/enduring lists |
-| Role Search | `/search` | Search 65,496 O\*NET titles, results with zone badges and three-tier score pills |
+| Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
 
 ---
 
@@ -282,6 +282,9 @@ python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4
 python -m scripts.derive_eloundou_dwas
 python -m scripts.compute_drift
 python -m scripts.compute_industry_profiles
+
+# 7. Title embeddings for semantic search (must be after O*NET load)
+python -m scripts.embed_titles
 ```
 
 ### Verify
@@ -293,6 +296,8 @@ python -m scripts.cross_dataset_insights
 ---
 
 ## 6. Run tests
+
+### Backend tests (90 tests, 83% coverage)
 
 ```powershell
 cd src\backend
@@ -306,6 +311,23 @@ python -m pytest tests/ --cov=app --cov-report=term
 # Specific test file
 python -m pytest tests/test_drift.py -v
 ```
+
+### E2E browser tests (18 tests via Playwright)
+
+```powershell
+cd src\frontend
+
+# Install Playwright browsers (first time only)
+npx playwright install
+
+# Run all E2E tests
+npm run test:e2e
+
+# Run a specific suite
+npx playwright test e2e/sectors.spec.ts
+```
+
+E2E tests require both the backend API (port 8000) and frontend dev server (port 5173) to be running. Test suites cover: sectors, search-to-occupation navigation, occupations, and drift.
 
 ---
 
@@ -384,7 +406,7 @@ workforce-ai-platform/
         db/              # Database session, base model
         models/          # SQLAlchemy ORM models (all tables)
         services/        # Ingestion, computation, transformation logic
-      migrations/        # Alembic migration files (001-011)
+      migrations/        # Alembic migration files (001-012)
       scripts/           # CLI scripts for ingestion + computation
       tests/             # pytest test suite
       pyproject.toml     # Python dependencies + tool config

@@ -249,6 +249,24 @@ O*NET emerging tasks. 328 new or updated tasks identified in occupations.
 - **Indexes**: `ix_onet_emerging_tasks_onet_soc`, `ix_onet_emerging_tasks_category`
 - **Migration**: 003
 
+### onet_title_embeddings
+
+Sentence-transformer embeddings for O*NET titles. 66,512 embeddings (384-dim, all-MiniLM-L6-v2) covering sample titles and alternate titles. Used by Layer 2 semantic search via pgvector HNSW index.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| onet_soc | TEXT | NO | FK to onet_occupations.onet_soc |
+| title | TEXT | NO | Job title text that was embedded |
+| source | TEXT | NO | Source table: "sample_titles" or "alternate_titles" |
+| embedding | VECTOR(384) | NO | 384-dimensional sentence-transformer embedding |
+
+- **Primary key**: `id`
+- **Foreign keys**: `onet_soc` -> `onet_occupations.onet_soc`
+- **Indexes**: HNSW index on `embedding` column for cosine similarity search
+- **Migration**: 012
+- **Populated by**: `python -m scripts.embed_titles` (66,512 embeddings)
+
 ---
 
 ## Eloundou Exposure
@@ -678,3 +696,4 @@ WHERE aei_task_snapshots.onet_soc_codes @> ARRAY['11-1011.00']
 | 009 | task_drift_metrics (FR-8.2/8.3 drift velocity and classification) |
 | 010 | Add eloundou_beta, ms_ai_applicability, aei_exposure, drift_velocity, drift_classification to industry_occupation_profiles |
 | 011 | Add pg_trgm extension + GIN trigram indexes on onet_sample_titles and onet_alternate_titles for fuzzy search |
+| 012 | onet_title_embeddings table with pgvector HNSW index for Layer 2 semantic search (66,512 embeddings) |

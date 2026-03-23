@@ -108,13 +108,14 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | oews_employment | 8,573 | BLS OEWS May 2024 |
 | task_drift_metrics | 4,605 | Derived (FR-8.2 linregress + FR-8.3 classification) |
 | industry_occupation_profiles | 7,935 | Derived (FR-8.4 OEWS × multi-source scoring) |
-| **TOTAL** | **~455,200** | |
+| onet_title_embeddings | 66,512 | Derived (sentence-transformers, Layer 2 semantic search) |
+| **TOTAL** | **~521,700** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
 - **Matching**: sentence-transformers (all-MiniLM-L6-v2), pgvector cosine similarity
 - **Frontend**: TypeScript, React 18, Recharts / D3
-- **Dev tools**: black (line 100), ruff, mypy --strict, pytest, vitest
+- **Dev tools**: black (line 100), ruff, mypy --strict, pytest, vitest, Playwright (E2E)
 - **Windows terminal**: Claude Code via `claude` command in PowerShell or WSL2
 
 ## Key Reference Docs (read when working in these areas)

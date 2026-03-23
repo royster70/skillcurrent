@@ -71,7 +71,7 @@ The platform also relies on PostgreSQL views for privacy enforcement (`manager_t
 
 **What:** PostgreSQL extension for vector similarity search.
 
-**Why this platform:** Layer 2 of the O\*NET matching cascade (FR-2.2) computes sentence-transformer embeddings for job titles and finds the nearest O\*NET occupation via cosine similarity. pgvector keeps this in-database — no separate Pinecone/Weaviate/Qdrant instance to manage. For ~37k sample titles and ~1,016 occupation descriptions, pgvector's HNSW index is more than adequate.
+**Why this platform:** Layer 2 semantic search and the O\*NET matching cascade compute sentence-transformer embeddings for job titles and find the nearest O\*NET occupation via cosine similarity. pgvector keeps this in-database — no separate Pinecone/Weaviate/Qdrant instance to manage. For 66,512 title embeddings (sample + alternate titles), pgvector's HNSW index is more than adequate.
 
 **Fits with:** SQLAlchemy models store `Vector(384)` columns (MiniLM-L6-v2 dimension). Queries use `<=>` cosine distance operator. PostgreSQL handles both relational joins and vector search in the same transaction.
 
@@ -136,13 +136,15 @@ This dual usage matters because the platform spans CRUD operations (Tier 2 emplo
 
 **What:** Pre-trained sentence embedding model for semantic similarity.
 
-**Why this platform:** Powers Layer 2 of the O\*NET matching cascade. When a job title like "AI Solutions Architect" doesn't match any of the 37k sample titles in the dictionary (Layer 1), the platform computes its embedding and finds the nearest O\*NET occupation description via cosine similarity. MiniLM-L6-v2 was chosen for its balance: 384-dimensional embeddings (small enough for pgvector at scale), fast inference (CPU-viable, no GPU required), and strong performance on short-text similarity benchmarks.
+**Why this platform:** Powers Layer 2 semantic search and the O\*NET matching cascade. When a job title like "AI Solutions Architect" doesn't match any of the 65k+ titles in the dictionary (Layer 1), the platform computes its embedding and finds the nearest O\*NET occupation via cosine similarity. MiniLM-L6-v2 was chosen for its balance: 384-dimensional embeddings (small enough for pgvector at scale), fast inference (CPU-viable, no GPU required), and strong performance on short-text similarity benchmarks.
 
-**Fits with:** Embeddings are stored in pgvector `Vector(384)` columns. Model runs locally — no API calls, no rate limits, no per-query cost.
+**Current state:** 66,512 embeddings stored in `onet_title_embeddings` table (sample titles + alternate titles). HNSW index on the embedding column for fast similarity search. Exposed via `POST /api/v1/search/semantic` endpoint and the Search page's Semantic mode (with optional job description textarea).
+
+**Fits with:** Embeddings are stored in pgvector `Vector(384)` columns with HNSW index. Model runs locally — no API calls, no rate limits, no per-query cost. asyncpg vector casts use `CAST(:embedding AS vector)` syntax (not `::vector`).
 
 **Constraints:**
 - Model: `all-MiniLM-L6-v2` — do not swap without re-embedding all stored vectors and re-validating matching accuracy
-- Embeddings computed on ingest (O\*NET load + employee CSV upload), not at query time
+- Embeddings computed on ingest (`python -m scripts.embed_titles`), not at query time
 - Target: ~20% of matching volume goes through Layer 2
 
 ### pandas
@@ -410,6 +412,19 @@ This dual usage matters because the platform spans CRUD operations (Tier 2 emplo
 **Constraints:**
 - Coverage target: overall 70%, components 75%, hooks 80%
 - Run: `npm run test` (vitest run)
+
+### Playwright (E2E browser tests)
+
+**What:** End-to-end browser testing framework.
+
+**Why this platform:** 18 E2E tests across 4 suites (sectors, search-to-occupation navigation, occupations, drift) verify the full stack — frontend rendering, API integration, and navigation flows. Critical for catching integration regressions (e.g., the search-to-occupation `?selected=` URL param navigation fix).
+
+**Fits with:** Runs against the live dev servers (frontend at 5173, backend at 8000). Config in `playwright.config.ts`, tests in `e2e/` directory. Run via `npm run test:e2e`.
+
+**Constraints:**
+- Requires both backend API and frontend dev server running
+- Tests are in `src/frontend/e2e/` directory
+- `npx playwright install` required on first setup (downloads browser binaries)
 
 ### @testing-library/react
 

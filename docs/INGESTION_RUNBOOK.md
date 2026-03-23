@@ -50,7 +50,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all 11 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all 12 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -62,6 +62,7 @@ This applies all 11 migrations in order, creating all tables documented in `docs
 3. Eloundou DWA derivation (depends on O*NET + Eloundou data)
 4. Drift computation (depends on AEI temporal data)
 5. Industry profiles computation (depends on OEWS + Eloundou + Microsoft AI + AEI + drift data)
+6. Title embeddings (depends on O*NET sample + alternate titles being loaded)
 
 ---
 
@@ -370,9 +371,39 @@ python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4
 python -m scripts.derive_eloundou_dwas
 python -m scripts.compute_drift
 python -m scripts.compute_industry_profiles
+
+# Step 4: Embeddings (must be after O*NET titles are loaded)
+python -m scripts.embed_titles
 ```
 
-**Total expected rows across all tables: ~455,200**
+## 4.10 Title Embeddings (Layer 2 Semantic Search)
+
+**Source**: Derived from already-loaded data (no external files). Uses `onet_sample_titles` and `onet_alternate_titles`.
+
+**Command**:
+```bash
+python -m scripts.embed_titles
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| onet_title_embeddings | 66,512 |
+
+Embeds all sample titles (7,953) and alternate titles (57,543) using sentence-transformers (all-MiniLM-L6-v2) into 384-dimensional vectors stored in pgvector. HNSW index is created by migration 012 for fast cosine similarity search.
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM onet_title_embeddings;
+-- Should be 66,512
+SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
+-- sample_titles: 7,953; alternate_titles: ~58,559
+```
+
+---
+
+**Total expected rows across all tables: ~521,700** (455,200 + 66,512 embeddings)
 
 ---
 
@@ -403,6 +434,7 @@ UNION ALL SELECT 'aei_task_snapshots', COUNT(*) FROM aei_task_snapshots
 UNION ALL SELECT 'oews_employment', COUNT(*) FROM oews_employment
 UNION ALL SELECT 'task_drift_metrics', COUNT(*) FROM task_drift_metrics
 UNION ALL SELECT 'industry_occupation_profiles', COUNT(*) FROM industry_occupation_profiles
+UNION ALL SELECT 'onet_title_embeddings', COUNT(*) FROM onet_title_embeddings
 ORDER BY tbl;
 ```
 
@@ -420,4 +452,4 @@ python -m uvicorn app.main:app --reload --port 8000
 - OpenAPI docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-15 Tier 1 endpoints available — see `README.md` for the full endpoint table.
+16 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search) — see `README.md` for the full endpoint table.
