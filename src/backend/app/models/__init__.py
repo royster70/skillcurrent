@@ -2,6 +2,9 @@ from app.models.aei import (
     AeiJobExposure,
     AeiTaskPenetration,
 )
+from app.models.drift import (
+    TaskDriftMetric,
+)
 from app.models.eloundou import (
     EloundouOccScore,
 )
@@ -63,5 +66,6 @@ __all__ = [
     "OnetTaskStatement",
     "OnetTaskToDwa",
     "OnetWorkActivity",
+    "TaskDriftMetric",
     "TransformationLog",
 ]

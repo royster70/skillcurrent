@@ -10,6 +10,7 @@ from app.db.base import Base
 from app.models import tier1  # noqa: F401 — registers models with Base.metadata
 from app.models import infrastructure  # noqa: F401
 from app.models import aei  # noqa: F401
+from app.models import drift  # noqa: F401
 from app.models import eloundou  # noqa: F401
 from app.models import eloundou_dwa  # noqa: F401
 from app.models import microsoft_ai  # noqa: F401
