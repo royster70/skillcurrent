@@ -20,16 +20,23 @@ from app.db.session import get_db
 router = APIRouter(tags=["occupations"])
 
 
+class EraSnapshot(BaseModel):
+    model_era: str
+    task_pct: float
+    automation_potential: float  # normalised for X-axis positioning
+
+
 class TaskMatrixPoint(BaseModel):
     task_id: int
     task_text: str
     importance: float | None = None  # Y-axis: O*NET importance (1-5)
-    automation_potential: float | None = None  # X-axis: derived from exposure scores
+    automation_potential: float | None = None  # X-axis: derived from exposure scores (current)
     eloundou_dwa_beta: float | None = None
     drift_velocity: float | None = None
     drift_classification: str | None = None
     aei_penetration: float | None = None
     quadrant: str | None = None  # insulated, augmented, disrupted, routine
+    era_snapshots: list[EraSnapshot] = []  # temporal positions per model era
 
 
 class TaskMatrixResponse(BaseModel):
@@ -38,6 +45,7 @@ class TaskMatrixResponse(BaseModel):
     tasks: list[TaskMatrixPoint]
     total_tasks: int
     quadrant_counts: dict[str, int]
+    available_eras: list[str] = []
 
 
 @router.get("/occupations/{soc_code}/matrix", response_model=TaskMatrixResponse)
@@ -97,6 +105,33 @@ async def get_task_matrix(
         ORDER BY tr.data_value DESC NULLS LAST
     """), {"soc": onet_soc})
 
+    # Fetch AEI temporal snapshots for all tasks in this occupation
+    era_r = await db.execute(text("""
+        SELECT LOWER(task_text), model_era, task_pct
+        FROM aei_task_snapshots
+        WHERE platform = 'claude_ai' AND task_pct IS NOT NULL
+          AND LOWER(task_text) IN (
+              SELECT LOWER(task) FROM onet_task_statements WHERE onet_soc = :soc
+          )
+        ORDER BY snapshot_date
+    """), {"soc": onet_soc})
+
+    # Build era lookup: task_text -> [{model_era, task_pct}]
+    era_data: dict[str, list[EraSnapshot]] = {}
+    all_eras: set[str] = set()
+    for era_row in era_r.fetchall():
+        task_lower = era_row[0]
+        era = era_row[1]
+        pct = float(era_row[2])
+        all_eras.add(era)
+        if task_lower not in era_data:
+            era_data[task_lower] = []
+        era_data[task_lower].append(EraSnapshot(
+            model_era=era,
+            task_pct=round(pct, 4),
+            automation_potential=round(min(pct / 5.0, 1.0), 3),  # normalise: 5% -> 1.0
+        ))
+
     tasks = []
     quadrant_counts = {"insulated": 0, "augmented": 0, "disrupted": 0, "routine": 0}
 
@@ -105,10 +140,9 @@ async def get_task_matrix(
         dwa_beta = float(row[3]) if row[3] is not None else None
 
         # Determine automation potential (normalise DWA beta to 0-1 range)
-        # DWA betas are small (distributed from occupation-level), scale up
         auto_potential = None
         if dwa_beta is not None:
-            auto_potential = min(dwa_beta * 10, 1.0)  # scale: 0.1 beta -> 1.0 potential
+            auto_potential = min(dwa_beta * 10, 1.0)
 
         # Determine quadrant
         quadrant = None
@@ -125,6 +159,10 @@ async def get_task_matrix(
                 quadrant = "routine"
             quadrant_counts[quadrant] += 1
 
+        # Get era snapshots for this task
+        task_lower = row[1].lower() if row[1] else ""
+        snapshots = era_data.get(task_lower, [])
+
         tasks.append(TaskMatrixPoint(
             task_id=row[0],
             task_text=row[1],
@@ -135,7 +173,12 @@ async def get_task_matrix(
             drift_classification=row[5],
             aei_penetration=round(float(row[6]), 4) if row[6] else None,
             quadrant=quadrant,
+            era_snapshots=snapshots,
         ))
+
+    available_eras = sorted(all_eras, key=lambda e: {
+        "sonnet-3.5": 1, "sonnet-3.7": 2, "sonnet-4": 3, "sonnet-4.5": 4
+    }.get(e, 99))
 
     return TaskMatrixResponse(
         soc_code=onet_soc,
@@ -143,4 +186,5 @@ async def get_task_matrix(
         tasks=tasks,
         total_tasks=len(tasks),
         quadrant_counts=quadrant_counts,
+        available_eras=available_eras,
     )

@@ -175,6 +175,12 @@ export interface SectorPrioritiesResponse {
   full_mix: PriorityRole[];
 }
 
+export interface EraSnapshot {
+  model_era: string;
+  task_pct: number;
+  automation_potential: number;
+}
+
 export interface TaskMatrixPoint {
   task_id: number;
   task_text: string;
@@ -185,6 +191,7 @@ export interface TaskMatrixPoint {
   drift_classification: string | null;
   aei_penetration: number | null;
   quadrant: string | null;
+  era_snapshots: EraSnapshot[];
 }
 
 export interface TaskMatrixResponse {
@@ -193,6 +200,7 @@ export interface TaskMatrixResponse {
   tasks: TaskMatrixPoint[];
   total_tasks: number;
   quadrant_counts: Record<string, number>;
+  available_eras: string[];
 }
 
 // ── API functions ──
