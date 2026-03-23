@@ -35,6 +35,14 @@ class SectorSummary(BaseModel):
     zone_e0_count: int = 0
     zone_e1_count: int = 0
     zone_e2_count: int = 0
+    # Employment-weighted scores (headcount-weighted averages)
+    weighted_eloundou_beta: float | None = None
+    weighted_ms_applicability: float | None = None
+    weighted_aei_exposure: float | None = None
+    # Workers per zone (headcount, not occupation count)
+    workers_e0: int = 0
+    workers_e1: int = 0
+    workers_e2: int = 0
 
 
 class SectorsResponse(BaseModel):
@@ -59,6 +67,12 @@ class OccupationSummary(BaseModel):
     drift_classification: str | None = None
 
 
+class OccupationEraSnapshot(BaseModel):
+    model_era: str
+    avg_task_pct: float
+    task_count: int
+
+
 class OccupationDetail(BaseModel):
     soc_code: str
     title: str
@@ -78,6 +92,18 @@ class OccupationDetail(BaseModel):
     # Drift
     drift_velocity: float | None = None
     drift_classification: str | None = None
+    # Percentile context (for data storytelling)
+    eloundou_percentile: int | None = None
+    ms_ai_percentile: int | None = None
+    aei_percentile: int | None = None
+    eloundou_median: float | None = None
+    ms_ai_median: float | None = None
+    aei_median: float | None = None
+    eloundou_population: int | None = None
+    ms_ai_population: int | None = None
+    aei_population: int | None = None
+    # AEI temporal trend (occupation-level aggregation across model eras)
+    aei_era_snapshots: list[OccupationEraSnapshot] = []
 
 
 class OccupationSectorProfile(BaseModel):

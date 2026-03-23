@@ -27,7 +27,21 @@ async def list_sectors(db: AsyncSession = Depends(get_db)) -> SectorsResponse:
             AVG(aei_exposure) AS avg_aei_exposure,
             SUM(CASE WHEN dominant_zone = 'E0' THEN 1 ELSE 0 END) AS zone_e0,
             SUM(CASE WHEN dominant_zone = 'E1' THEN 1 ELSE 0 END) AS zone_e1,
-            SUM(CASE WHEN dominant_zone = 'E2' THEN 1 ELSE 0 END) AS zone_e2
+            SUM(CASE WHEN dominant_zone = 'E2' THEN 1 ELSE 0 END) AS zone_e2,
+            -- Employment-weighted score averages
+            SUM(headcount * COALESCE(eloundou_beta, 0))
+                / NULLIF(SUM(CASE WHEN eloundou_beta IS NOT NULL THEN headcount END), 0)
+                AS weighted_eloundou_beta,
+            SUM(headcount * COALESCE(ms_ai_applicability, 0))
+                / NULLIF(SUM(CASE WHEN ms_ai_applicability IS NOT NULL THEN headcount END), 0)
+                AS weighted_ms_applicability,
+            SUM(headcount * COALESCE(aei_exposure, 0))
+                / NULLIF(SUM(CASE WHEN aei_exposure IS NOT NULL THEN headcount END), 0)
+                AS weighted_aei_exposure,
+            -- Workers per zone (headcount, not occupation count)
+            SUM(CASE WHEN dominant_zone = 'E0' THEN COALESCE(headcount, 0) ELSE 0 END) AS workers_e0,
+            SUM(CASE WHEN dominant_zone = 'E1' THEN COALESCE(headcount, 0) ELSE 0 END) AS workers_e1,
+            SUM(CASE WHEN dominant_zone = 'E2' THEN COALESCE(headcount, 0) ELSE 0 END) AS workers_e2
         FROM industry_occupation_profiles
         GROUP BY naics_code, naics_title
         ORDER BY SUM(headcount) DESC NULLS LAST
@@ -44,6 +58,12 @@ async def list_sectors(db: AsyncSession = Depends(get_db)) -> SectorsResponse:
             zone_e0_count=row[7],
             zone_e1_count=row[8],
             zone_e2_count=row[9],
+            weighted_eloundou_beta=round(row[10], 4) if row[10] else None,
+            weighted_ms_applicability=round(row[11], 4) if row[11] else None,
+            weighted_aei_exposure=round(row[12], 4) if row[12] else None,
+            workers_e0=row[13] or 0,
+            workers_e1=row[14] or 0,
+            workers_e2=row[15] or 0,
         )
         for row in r.fetchall()
     ]

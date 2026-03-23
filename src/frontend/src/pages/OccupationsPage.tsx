@@ -5,6 +5,7 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { ZONE_COLORS, ZONE_LABELS, CLASSIFICATION_COLORS } from "../lib/constants";
 import { TaskMatrix, DOT_COLORS, TaskSparkline } from "../components/TaskMatrix";
+import { ContextualScoreCard } from "../components/ContextualScoreCard";
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
@@ -141,9 +142,9 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <ScoreChip label="Eloundou" value={occ.eloundou_beta_gpt4} color={ZONE_COLORS.E0} />
-          <ScoreChip label="Microsoft" value={occ.ms_ai_applicability} color={ZONE_COLORS.E1} />
-          <ScoreChip label="AEI" value={occ.aei_exposure} color={ZONE_COLORS.E2} />
+          <ContextualScoreCard label="Eloundou" value={occ.eloundou_beta_gpt4} percentile={occ.eloundou_percentile} median={occ.eloundou_median} population={occ.eloundou_population} accentColor={ZONE_COLORS.E0} sourceKey="eloundou" />
+          <ContextualScoreCard label="Microsoft" value={occ.ms_ai_applicability} percentile={occ.ms_ai_percentile} median={occ.ms_ai_median} population={occ.ms_ai_population} accentColor={ZONE_COLORS.E1} sourceKey="microsoft" />
+          <ContextualScoreCard label="AEI" value={occ.aei_exposure} percentile={occ.aei_percentile} median={occ.aei_median} population={occ.aei_population} accentColor={ZONE_COLORS.E2} sourceKey="aei" eraSnapshots={occ.aei_era_snapshots} />
           {occ.dominant_zone && (
             <span style={{
               fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
@@ -257,26 +258,6 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           </ResponsiveContainer>
         </div>
       )}
-    </div>
-  );
-}
-
-function ScoreChip({ label, value, color, format }: { label: string; value: number | null; color: string; format?: string }) {
-  let display = "—";
-  if (value != null) {
-    if (format === "emp") {
-      display = value >= 1_000_000 ? `${(value / 1_000_000).toFixed(1)}M` : value >= 1000 ? `${(value / 1000).toFixed(0)}K` : value.toLocaleString();
-    } else {
-      display = value.toFixed(3);
-    }
-  }
-  return (
-    <div style={{
-      flex: 1, padding: "10px 14px", borderRadius: 8,
-      border: `1px solid ${color}30`, backgroundColor: `${color}08`,
-    }}>
-      <div style={{ fontSize: 11, color: "#71717A", fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 20, fontWeight: 700, color }}>{display}</div>
     </div>
   );
 }

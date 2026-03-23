@@ -6,6 +6,7 @@ from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas import (
     OccupationDetail,
+    OccupationEraSnapshot,
     OccupationSectorProfile,
     OccupationSummary,
     OccupationTasksResponse,
@@ -272,6 +273,75 @@ async def get_occupation(
     """), {"soc": soc_6})
     drift_row = r.fetchone()
 
+    # Percentile context for score cards (storytelling)
+    r = await db.execute(text("""
+        WITH e_ranked AS (
+            SELECT onet_soc,
+                   PERCENT_RANK() OVER (ORDER BY dv_beta_derived) AS pct,
+                   COUNT(*) OVER () AS pop
+            FROM eloundou_occ_scores WHERE dv_beta_derived IS NOT NULL
+        ),
+        e_med AS (
+            SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY dv_beta_derived) AS median
+            FROM eloundou_occ_scores WHERE dv_beta_derived IS NOT NULL
+        ),
+        m_ranked AS (
+            SELECT soc_code,
+                   PERCENT_RANK() OVER (ORDER BY ai_applicability_score) AS pct,
+                   COUNT(*) OVER () AS pop
+            FROM ms_ai_applicability_scores WHERE ai_applicability_score IS NOT NULL
+        ),
+        m_med AS (
+            SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY ai_applicability_score) AS median
+            FROM ms_ai_applicability_scores WHERE ai_applicability_score IS NOT NULL
+        ),
+        a_ranked AS (
+            SELECT occ_code,
+                   PERCENT_RANK() OVER (ORDER BY observed_exposure) AS pct,
+                   COUNT(*) OVER () AS pop
+            FROM aei_job_exposure WHERE observed_exposure IS NOT NULL
+        ),
+        a_med AS (
+            SELECT PERCENTILE_CONT(0.5) WITHIN GROUP (ORDER BY observed_exposure) AS median
+            FROM aei_job_exposure WHERE observed_exposure IS NOT NULL
+        )
+        SELECT
+            e.pct, em.median, e.pop,
+            m.pct, mm.median, m.pop,
+            a.pct, am.median, a.pop
+        FROM (SELECT 1) AS dummy
+        LEFT JOIN e_ranked e ON e.onet_soc = :onet_soc
+        LEFT JOIN m_ranked m ON m.soc_code = :soc_6
+        LEFT JOIN a_ranked a ON a.occ_code = :soc_6
+        CROSS JOIN e_med em
+        CROSS JOIN m_med mm
+        CROSS JOIN a_med am
+        LIMIT 1
+    """), {"onet_soc": onet_soc, "soc_6": soc_6})
+    pct_row = r.fetchone()
+
+    # AEI temporal trend — occupation-level aggregation across model eras
+    r = await db.execute(text("""
+        SELECT ats.model_era, AVG(ats.task_pct) AS avg_task_pct, COUNT(*) AS task_count
+        FROM aei_task_snapshots ats
+        WHERE ats.platform = 'claude_ai'
+          AND ats.task_pct IS NOT NULL
+          AND LOWER(ats.task_text) IN (
+              SELECT LOWER(task) FROM onet_task_statements WHERE onet_soc = :onet_soc
+          )
+        GROUP BY ats.model_era, ats.snapshot_date
+        ORDER BY ats.snapshot_date
+    """), {"onet_soc": onet_soc})
+    era_rows = r.fetchall()
+    aei_era_snapshots = [
+        OccupationEraSnapshot(
+            model_era=row[0],
+            avg_task_pct=round(row[1], 4),
+            task_count=row[2],
+        )
+        for row in era_rows
+    ]
+
     return OccupationDetail(
         soc_code=onet_soc,
         title=occ[1],
@@ -287,6 +357,17 @@ async def get_occupation(
         top_sectors=sectors,
         drift_velocity=round(drift_row[0], 6) if drift_row and drift_row[0] else None,
         drift_classification=drift_row[1] if drift_row else None,
+        # Percentile context
+        eloundou_percentile=round(pct_row[0] * 100) if pct_row and pct_row[0] is not None else None,
+        ms_ai_percentile=round(pct_row[3] * 100) if pct_row and pct_row[3] is not None else None,
+        aei_percentile=round(pct_row[6] * 100) if pct_row and pct_row[6] is not None else None,
+        eloundou_median=round(pct_row[1], 4) if pct_row and pct_row[1] is not None else None,
+        ms_ai_median=round(pct_row[4], 4) if pct_row and pct_row[4] is not None else None,
+        aei_median=round(pct_row[7], 4) if pct_row and pct_row[7] is not None else None,
+        eloundou_population=pct_row[2] if pct_row and pct_row[2] is not None else None,
+        ms_ai_population=pct_row[5] if pct_row and pct_row[5] is not None else None,
+        aei_population=pct_row[8] if pct_row and pct_row[8] is not None else None,
+        aei_era_snapshots=aei_era_snapshots,
     )
 
 

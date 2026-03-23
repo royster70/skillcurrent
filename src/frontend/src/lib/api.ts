@@ -33,6 +33,12 @@ export interface SectorSummary {
   zone_e0_count: number;
   zone_e1_count: number;
   zone_e2_count: number;
+  weighted_eloundou_beta: number | null;
+  weighted_ms_applicability: number | null;
+  weighted_aei_exposure: number | null;
+  workers_e0: number;
+  workers_e1: number;
+  workers_e2: number;
 }
 
 export interface SectorsResponse {
@@ -54,6 +60,12 @@ export interface OccupationSummary {
   drift_classification: string | null;
 }
 
+export interface OccupationEraSnapshot {
+  model_era: string;
+  avg_task_pct: number;
+  task_count: number;
+}
+
 export interface OccupationDetail {
   soc_code: string;
   title: string;
@@ -68,6 +80,17 @@ export interface OccupationDetail {
   top_sectors: { naics_code: string; naics_title: string; headcount: number | null; employment_share: number | null }[];
   drift_velocity: number | null;
   drift_classification: string | null;
+  // Percentile context
+  eloundou_percentile: number | null;
+  ms_ai_percentile: number | null;
+  aei_percentile: number | null;
+  eloundou_median: number | null;
+  ms_ai_median: number | null;
+  aei_median: number | null;
+  eloundou_population: number | null;
+  ms_ai_population: number | null;
+  aei_population: number | null;
+  aei_era_snapshots: OccupationEraSnapshot[];
 }
 
 export interface TaskWithDrift {
