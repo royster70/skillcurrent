@@ -39,7 +39,18 @@ export function CompositeSectorPage() {
   }
 
   if (loading) return <div style={{ padding: 32 }}>Loading composite analysis...</div>;
-  if (error) return <div style={{ padding: 32, color: "red" }}>Error: {error}</div>;
+  if (error) return (
+    <div style={{ padding: 32 }}>
+      <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0 }}>Composite Sector Analysis</h1>
+      <p style={{ color: "#DC2626", marginTop: 8 }}>
+        Failed to load composite analysis: {error}
+      </p>
+      <p style={{ color: "#71717A", marginTop: 4, fontSize: 14 }}>
+        If the backend was recently updated, try restarting the API server.
+        Selected codes: {codes.join(", ")}
+      </p>
+    </div>
+  );
   if (!data) return null;
 
   return <CompositeContent data={data} navigate={navigate} />;
