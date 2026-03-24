@@ -521,6 +521,78 @@ class TestTaskMatrix:
                 )
 
 
+# ── Composite Sector ──
+
+
+class TestCompositeSector:
+    @pytest.mark.asyncio
+    async def test_composite_returns_data(self, client):
+        """GET /sectors/composite with 2+ codes returns blended analysis."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,54")
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data["codes"]) == 2
+        assert len(data["sector_names"]) == 2
+        assert data["total_employment"] > 0
+        assert data["occupation_count"] > 0
+
+    @pytest.mark.asyncio
+    async def test_composite_requires_two_codes(self, client):
+        """Single code returns 400."""
+        r = await client.get("/api/v1/sectors/composite?codes=62")
+        assert r.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_composite_invalid_code_returns_404(self, client):
+        """Unknown NAICS code returns 404."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,ZZ")
+        assert r.status_code == 404
+        assert "ZZ" in r.json()["detail"]
+
+    @pytest.mark.asyncio
+    async def test_composite_weighted_scores_valid(self, client):
+        """Employment-weighted scores are in valid range."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,54,51")
+        data = r.json()
+        if data["weighted_eloundou_beta"] is not None:
+            assert 0 < data["weighted_eloundou_beta"] <= 1.0
+        if data["weighted_ms_applicability"] is not None:
+            assert 0 < data["weighted_ms_applicability"] <= 1.0
+
+    @pytest.mark.asyncio
+    async def test_composite_occupations_sorted_by_headcount(self, client):
+        """Occupations are sorted by total_headcount descending."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,54")
+        occs = r.json()["occupations"]
+        headcounts = [o["total_headcount"] for o in occs]
+        assert headcounts == sorted(headcounts, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_composite_occupations_have_sector_badges(self, client):
+        """Each occupation lists which sectors it appears in."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,54")
+        for occ in r.json()["occupations"][:10]:
+            assert isinstance(occ["sectors"], list)
+            assert len(occ["sectors"]) >= 1
+
+    @pytest.mark.asyncio
+    async def test_composite_deduplicates_occupations(self, client):
+        """Same SOC in multiple sectors appears once with summed headcount."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,54,51")
+        socs = [o["onet_soc"] for o in r.json()["occupations"]]
+        assert len(socs) == len(set(socs)), "Duplicate SOC codes found"
+
+    @pytest.mark.asyncio
+    async def test_composite_zone_workers_sum(self, client):
+        """E0+E1+E2 workers should approximate total employment."""
+        r = await client.get("/api/v1/sectors/composite?codes=62,54")
+        data = r.json()
+        zone_total = data["workers_e0"] + data["workers_e1"] + data["workers_e2"]
+        # Some occupations may lack zone classification, so zone_total <= total
+        assert zone_total <= data["total_employment"]
+        assert zone_total > 0
+
+
 # ── GDPval Benchmarks ──
 
 

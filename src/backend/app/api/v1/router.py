@@ -8,12 +8,14 @@ from app.api.v1.gdpval import router as gdpval_router
 from app.api.v1.occupations import router as occupations_router
 from app.api.v1.search import router as search_router
 from app.api.v1.task_matrix import router as task_matrix_router
+from app.api.v1.composite_sector import router as composite_sector_router
 from app.api.v1.sector_priorities import router as sector_priorities_router
 from app.api.v1.sectors import router as sectors_router
 
 api_router = APIRouter(prefix="/api/v1")
 api_router.include_router(datasets_router)
 api_router.include_router(search_router)
+api_router.include_router(composite_sector_router)  # before sectors (literal before param)
 api_router.include_router(sectors_router)
 api_router.include_router(sector_priorities_router)
 api_router.include_router(occupations_router)
