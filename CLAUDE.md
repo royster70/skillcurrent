@@ -60,7 +60,7 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.2 Drift Calculation (4,605 tasks, velocity via linregress)
   [x] FR-8.3 Task Classification (558 departing, 2,971 enduring, 4 below_threshold)
   [x] FR-8.4 OEWS Industry Profiles (7,935 profiles, 20 sectors, 153M workers)
-  [x] FR-8.5 Tier 1 Dashboard (5 pages: Sectors, Sector Detail, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards
+  [x] FR-8.5 Tier 1 Dashboard (6 pages: Sectors, Sector Detail, Composite Sector, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards; composite multi-sector analysis (SectorChipSelector → /sectors/composite with blended metrics, unified occupation table, narrative summary)
   [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores; GDPval API live (GET /gdpval/summary, GET /gdpval/occupations/{soc_code}); GDPval badges on occupation detail header and sector role rows; GDPval filter toggle on Occupations and Sector Detail pages (filters to 44 benchmark occupations); AEI Task Intelligence panel (4 SVG visualisations); GDPval Benchmark panel (3 visualisations); task matrix API enriched with automation_pct, augmentation_pct, gdpval_benchmark_count
   [ ] FR-8.9 Industry Crosswalk (table exists, AU data not loaded)
 

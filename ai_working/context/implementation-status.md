@@ -24,9 +24,9 @@ Last updated: 2026-03-24
 - Computed via `python -m scripts.compute_industry_profiles`
 - **industry_occupation_profiles** table populated with multi-source scoring columns (migration 010)
 
-### Tier 1 API (18 endpoints, live)
+### Tier 1 API (19 endpoints, live)
 - **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
-- **Sectors**: `GET /api/v1/sectors` (now returns employment-weighted scores: weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers_e0/e1/e2), `GET /api/v1/sectors/{code}/occupations`, `GET /api/v1/sectors/{code}/priorities`
+- **Sectors**: `GET /api/v1/sectors` (now returns employment-weighted scores: weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers_e0/e1/e2), `GET /api/v1/sectors/composite?codes=...` (blends 2+ sectors into employment-weighted composite with de-duplicated occupations and multi-sector badges), `GET /api/v1/sectors/{code}/occupations`, `GET /api/v1/sectors/{code}/priorities`
 - **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy` (923 occupations — 93 residual "All Other" and military SOC-55 occupations filtered from hierarchy as they lack task data), `GET /api/v1/occupations/{soc}` (now includes `gdpval_task_count` and `gdpval_available` fields), `GET /api/v1/occupations/{soc}/tasks`, `GET /api/v1/occupations/{soc}/matrix`
 - **GDPval**: `GET /api/v1/gdpval/summary` — benchmark overview (total tasks, occupations, rubric items, sectors list, per-occupation task counts); `GET /api/v1/gdpval/occupations/{soc_code}` — full benchmark detail for one SOC (tasks + rubric items)
 - **Drift**: `GET /api/v1/drift/summary`, `GET /api/v1/drift/departing`, `GET /api/v1/drift/enduring`, `GET /api/v1/drift/below-threshold`
@@ -35,8 +35,9 @@ Last updated: 2026-03-24
 - No auth required (Tier 1 = public data only)
 - OpenAPI docs at http://localhost:8000/docs
 
-### Tier 1 Dashboard (FR-8.5 + FR-8.7 UI)
-- **Sectors page** (`/`): Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart (replaces misleading three-tier bar chart), weighted scores in sector table
+### Tier 1 Dashboard (FR-8.5 + FR-8.7 UI, 6 pages)
+- **Sectors page** (`/`): Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart (replaces misleading three-tier bar chart), weighted scores in sector table; SectorChipSelector bar for building composite multi-sector views (search dropdown, zone-coloured chips, "Analyse N Sectors" CTA)
+- **Composite sector page** (`/sectors/composite`): Multi-sector blended analysis with employment-weighted metric cards (E0/E1/E2 + purple composite Beta), unified de-duplicated occupation table with multi-sector badges per row, auto-generated narrative summary panel. URL-driven via ?codes= param for shareability.
 - **Sector detail page** (`/sectors/:code`): Narrative summary, navigation fix (clicking role navigates to /occupations?selected=SOC), ContextualScoreCards with percentile context; priority view showing top-N occupations ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity), risk factor badges, toggle to full occupation mix; GDPval coverage indicators on role rows; "GDPval Only" filter button to show only the 44 benchmark occupations (normalises 8-digit/7-digit SOC codes for matching)
 - **Occupations page** (`/occupations`): SOC hierarchy tree (23 major groups, expandable), occupation detail panel with score chips, employment by sector bar chart, top tasks by AI usage (colour-coded by drift classification); GDPval filter button to filter hierarchy to only the 44 occupations with GDPval benchmarks; interactive GDPval badge on occupation detail header (expand/collapse); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars)
 - **Occupation detail page** (`/occupations/:soc`): Includes TaskMatrix chart — redesigned quadrant chart with era timeline sparklines. Two temporal view modes: Baseline (Eloundou DWA Beta) and By Era (toggle Sonnet 3.5/3.7/4/4.5). Four overlay modes: None, Usage Level (dot size reflects AEI penetration), Usage Trend (concentric rings indicate trend direction), GDPval (conditional overlay strip when gdpval_benchmark_count > 0). Mini sparklines in task list show temporal usage. API returns era_snapshots[] per task (with automation_pct, augmentation_pct), available_eras[], and gdpval_benchmark_count. (Drift arrows removed — AI capability doesn't go backward, so arrows were conceptually wrong.) ContextualScoreCards with percentile bar, predicted/measured tags, explainer popover.

@@ -58,11 +58,12 @@ npm install && npm run dev
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 
-### Tier 1 API (18 endpoints, live)
+### Tier 1 API (19 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
 | `GET /api/v1/sectors` | 20 NAICS sectors with aggregate and employment-weighted exposure stats (weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers per zone) |
+| `GET /api/v1/sectors/composite?codes=...` | Composite multi-sector analysis: blends 2+ NAICS sectors into employment-weighted profile with de-duplicated occupations, zone worker counts, and per-occupation sector badges |
 | `GET /api/v1/sectors/{code}/occupations` | Occupations within a sector |
 | `GET /api/v1/sectors/{code}/priorities` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
 | `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
@@ -82,13 +83,14 @@ npm install && npm run dev
 
 OpenAPI docs: http://localhost:8000/docs
 
-### Tier 1 Dashboard (5 pages, functional)
+### Tier 1 Dashboard (6 pages, functional)
 
 Built with React 18, React Router, and Recharts. Dark sidebar design system with zone colours (orange E0, blue E1, green E2). Collapsible sidebar toggles between 260px expanded (full labels, data sources) and 64px collapsed (icons only) with smooth CSS transition.
 
 | Page | Route | Visualisations |
 |------|-------|----------------|
-| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table |
+| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table; SectorChipSelector for building composite multi-sector views |
+| Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards (E0/E1/E2 + composite Beta), unified occupation table with multi-sector badges, auto-generated narrative summary panel |
 | Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC; GDPval coverage indicators on role rows; "GDPval Only" filter to show only benchmark occupations |
 | Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + interactive GDPval badge, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
@@ -98,7 +100,7 @@ Frontend dev server: http://localhost:5173
 
 ### Tests
 
-108 tests passing (90 backend + 18 E2E). Backend at 83% coverage. E2E via Playwright across 4 suites (sectors, search-to-occupation, occupations, drift).
+163+ tests passing (98 backend + 34 component + 28 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 5 suites (sectors, search-to-occupation, occupations, drift, composite).
 
 ```powershell
 cd src/backend
