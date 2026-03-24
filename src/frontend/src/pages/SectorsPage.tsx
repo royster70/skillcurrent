@@ -8,12 +8,14 @@ import { useApi } from "../hooks/useApi";
 import { api, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
+import { SectorChipSelector } from "../components/SectorChipSelector";
 
 export function SectorsPage() {
   const { data, loading, error } = useApi(() => api.sectors(), []);
   const { data: drift } = useApi(() => api.driftSummary(), []);
   const navigate = useNavigate();
   const [pieMode, setPieMode] = useState<"workers" | "occupations">("workers");
+  const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
 
   if (loading) return <div>Loading sectors...</div>;
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
@@ -78,6 +80,13 @@ export function SectorsPage() {
           subtitle="Tasks approaching zone flip" color={ZONE_COLORS.alert}
           bgColor={ZONE_BG.alert} borderColor="#FECACA" />
       </div>
+
+      {/* Composite sector selector */}
+      <SectorChipSelector
+        sectors={sectors}
+        selected={selectedSectors}
+        onChange={setSelectedSectors}
+      />
 
       {/* Charts row */}
       <div style={{ display: "flex", gap: 16 }}>

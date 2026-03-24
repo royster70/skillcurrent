@@ -276,6 +276,35 @@ export interface GDPvalSummaryResponse {
   occupations: GDPvalOccupationSummary[];
 }
 
+// ── Composite Sector ──
+
+export interface CompositeOccupation {
+  onet_soc: string;
+  occupation_title: string;
+  total_headcount: number;
+  sectors: string[];
+  eloundou_beta: number | null;
+  ms_ai_applicability: number | null;
+  aei_exposure: number | null;
+  dominant_zone: string | null;
+  drift_velocity: number | null;
+  drift_classification: string | null;
+}
+
+export interface CompositeSectorResponse {
+  codes: string[];
+  sector_names: string[];
+  total_employment: number;
+  occupation_count: number;
+  weighted_eloundou_beta: number | null;
+  weighted_ms_applicability: number | null;
+  weighted_aei_exposure: number | null;
+  workers_e0: number;
+  workers_e1: number;
+  workers_e2: number;
+  occupations: CompositeOccupation[];
+}
+
 // ── API functions ──
 
 export const api = {
@@ -304,4 +333,6 @@ export const api = {
   driftEnduring: (page = 1, size = 20) => get<DriftListResponse>(`/drift/enduring?page=${page}&page_size=${size}`),
   gdpvalSummary: () => get<GDPvalSummaryResponse>("/gdpval/summary"),
   gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
+  compositeAnalysis: (codes: string[]) =>
+    get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}`),
 };
