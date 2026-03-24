@@ -95,6 +95,14 @@ CREATE TABLE industry_crosswalk (
 );
 ```
 
+## Task Matrix API Enrichment (FR-8.7)
+
+The `GET /api/v1/occupations/{soc}/matrix` endpoint now returns:
+- `automation_pct` and `augmentation_pct` per era snapshot (sourced from `aei_task_snapshots`)
+- `gdpval_benchmark_count` per occupation (count of matching `gdpval_tasks`)
+
+These fields power the GDPval overlay strip on the TaskMatrix chart and the AEI auto/aug split visualisation on the Occupations page.
+
 ## Success Metrics
 - AEI drift computed for ≥3,000 O*NET tasks
 - All 4+ AEI releases ingested within 24h of platform setup

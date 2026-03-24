@@ -69,7 +69,7 @@ npm install && npm run dev
 | `GET /api/v1/occupations/hierarchy` | SOC major group tree (923 occupations, 93 residual/military filtered) |
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift + GDPval availability (gdpval_task_count, gdpval_available fields) |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
-| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings). Returns era_snapshots[] per task and available_eras[] for temporal views |
+| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings), plus conditional GDPval overlay strip. Returns era_snapshots[] per task (with automation_pct, augmentation_pct) and available_eras[] for temporal views. Includes gdpval_benchmark_count. |
 | `GET /api/v1/gdpval/summary` | GDPval benchmark overview: total tasks (220), occupations (44), rubric items (10,453), sectors list, per-occupation task counts |
 | `GET /api/v1/gdpval/occupations/{soc_code}` | Full GDPval benchmark detail for one occupation: tasks with prompts + complete rubric items (criterion, score, required flag, tags) |
 | `GET /api/v1/drift/summary` | Classification distribution |
@@ -90,7 +90,7 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 |------|-------|----------------|
 | Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table |
 | Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC; GDPval coverage indicators on role rows; "GDPval Only" filter to show only benchmark occupations |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + GDPval badge when available, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend) |
+| Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + interactive GDPval badge, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars) |
 | Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
 | Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
 
