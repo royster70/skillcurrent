@@ -87,9 +87,10 @@ Last updated: 2026-03-24
 - **FR-6**: Org Dashboards
 
 ### Tests
-- **90 backend API tests** at 83% coverage (data invariants, cross-dataset joins, drift velocity, classification, ingestion utilities, transformation decorator, API endpoint tests)
-- **18 Playwright E2E browser tests** across 4 suites (sectors, search-to-occupation navigation, occupations, drift)
-- **Total: 108 tests** (90 backend + 18 E2E)
+- **119 backend tests** at 83% coverage — test_api.py (74: Search, Health, Datasets, Sectors, Occupations, Hierarchy, Drift, SectorPriorities, TaskMatrix, CompositeSector, GDPval, SemanticSearch, OccupationsCoverage), test_data_invariants.py (11), test_drift.py (15), test_drift_results.py (8), test_cross_dataset_joins.py (5), test_transformations.py (3), test_onet_ingestion.py (3)
+- **34 component tests** via Vitest + @testing-library/react — AEITaskDetailPanel (12), GDPvalBenchmarkPanel (11), SectorChipSelector (11)
+- **37 Playwright E2E browser tests** across 5 suites — sectors (4), search-to-occupation (5), occupations (14), drift (4), composite (10)
+- **Total: 190 tests** (119 backend + 34 component + 37 E2E)
 - E2E config: `playwright.config.ts`, test files in `e2e/` directory, run via `npm run test:e2e`
 
 ## Success Metrics Progress
@@ -101,7 +102,7 @@ Last updated: 2026-03-24
 | O*NET matching automation | >=95% | 0% |
 | Hierarchy build (10k employees) | <5s | -- |
 | N>=5 enforcement | 100% | -- |
-| Backend test coverage | >=80% | 83% (90 backend tests + 18 E2E = 108 total) |
+| Backend test coverage | >=80% | 83% (119 backend + 34 component + 37 E2E = 190 total) |
 
 ## Technical Debt
 - Eloundou DWA Strategy B (LLM rubric for uncovered DWAs) not yet implemented

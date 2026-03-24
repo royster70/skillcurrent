@@ -100,15 +100,15 @@ Frontend dev server: http://localhost:5173
 
 ### Tests
 
-163+ tests passing (98 backend + 34 component + 28 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 5 suites (sectors, search-to-occupation, occupations, drift, composite).
+190+ tests passing (119 backend + 34 component + 37 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 5 suites (sectors, search-to-occupation, occupations, drift, composite).
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v                    # 90 backend tests
+python -m pytest tests/ -v                    # 119 backend tests
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
-npm run test:e2e                              # 18 Playwright E2E tests
+npm run test:e2e                              # 37 Playwright E2E tests
 ```
 
 ## Key Documentation
@@ -148,13 +148,13 @@ workforce-ai-platform/
         services/              # Ingestion, computation, transformations
       migrations/versions/     # Alembic migrations (001-013)
       scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (90 tests)
+      tests/                   # pytest suite (119 tests)
     frontend/
       src/
-        pages/               # SectorsPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
+        pages/               # SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
         components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
-      e2e/                   # Playwright E2E tests (4 suites, 18 tests)
+      e2e/                   # Playwright E2E tests (5 suites, 37 tests)
       playwright.config.ts   # Playwright configuration
 ```
