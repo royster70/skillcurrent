@@ -3,7 +3,8 @@ import {
   ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
   ResponsiveContainer, Cell, ReferenceLine, ReferenceArea, Label,
 } from "recharts";
-import type { TaskMatrixResponse, TaskMatrixPoint } from "../lib/api";
+import type { TaskMatrixResponse, TaskMatrixPoint, GDPvalTaskDetail } from "../lib/api";
+import { GDPVAL_COLORS } from "../lib/constants";
 
 const QUADRANT_COLORS = {
   insulated: { fill: "#FFF7ED", stroke: "#F97316", label: "Insulated" },
@@ -26,7 +27,7 @@ const QUADRANT_DESCRIPTIONS: Record<string, string> = {
   routine: "low-priority",
 };
 
-type OverlayMode = "none" | "usage" | "trend";
+type OverlayMode = "none" | "usage" | "trend" | "gdpval";
 type TrendType = "growing" | "declining" | "stable" | "unknown";
 
 interface PlotPoint {
@@ -50,6 +51,8 @@ interface PlotPoint {
 interface TaskMatrixProps {
   data: TaskMatrixResponse;
   highlightedTaskId?: number | null;
+  gdpvalTasks?: GDPvalTaskDetail[] | null;
+  onRequestGdpval?: () => void;
 }
 
 // ── Collision-aware jitter ──
@@ -179,7 +182,7 @@ function markNotableTasks(points: PlotPoint[]): PlotPoint[] {
   return out;
 }
 
-export function TaskMatrix({ data, highlightedTaskId }: TaskMatrixProps) {
+export function TaskMatrix({ data, highlightedTaskId, gdpvalTasks, onRequestGdpval }: TaskMatrixProps) {
   const [overlay, setOverlay] = useState<OverlayMode>("usage");
 
   const plotData = useMemo(() => {
@@ -250,14 +253,22 @@ export function TaskMatrix({ data, highlightedTaskId }: TaskMatrixProps) {
               { mode: "none" as const, label: "None" },
               { mode: "usage" as const, label: "Usage Level" },
               { mode: "trend" as const, label: "Usage Trend" },
+              ...(data.gdpval_benchmark_count > 0
+                ? [{ mode: "gdpval" as const, label: "GDPval" }]
+                : []),
             ]).map(({ mode, label }) => (
               <button
                 key={mode}
-                onClick={() => setOverlay(mode)}
+                onClick={() => {
+                  setOverlay(mode);
+                  if (mode === "gdpval" && onRequestGdpval) onRequestGdpval();
+                }}
                 style={{
                   padding: "5px 12px", fontSize: 11, fontWeight: overlay === mode ? 600 : 400,
                   border: "none", cursor: "pointer",
-                  backgroundColor: overlay === mode ? "#2563EB" : "#fff",
+                  backgroundColor: overlay === mode
+                    ? (mode === "gdpval" ? GDPVAL_COLORS.primary : "#2563EB")
+                    : "#fff",
                   color: overlay === mode ? "#fff" : "#71717A",
                 }}
               >
@@ -452,6 +463,86 @@ export function TaskMatrix({ data, highlightedTaskId }: TaskMatrixProps) {
         <div style={{ marginTop: 12, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 8, fontSize: 12, color: "#71717A" }}>
           Dot size and opacity = current AI usage level. Large bright = heavily used with AI.
           Small faded = AI-capable but low adoption. The gap between position and size reveals adoption opportunities.
+        </div>
+      )}
+      {overlay === "gdpval" && (
+        <GDPvalOverlayStrip
+          benchmarkCount={data.gdpval_benchmark_count}
+          tasks={gdpvalTasks ?? null}
+        />
+      )}
+    </div>
+  );
+}
+
+// ── GDPval Overlay Strip ──
+
+function GDPvalOverlayStrip({ benchmarkCount, tasks }: { benchmarkCount: number; tasks: GDPvalTaskDetail[] | null }) {
+  if (benchmarkCount === 0) return null;
+
+  return (
+    <div style={{
+      marginTop: 12, padding: 12, borderRadius: 8,
+      backgroundColor: GDPVAL_COLORS.bg,
+      border: `1px solid ${GDPVAL_COLORS.border}`,
+    }}>
+      <div style={{ fontSize: 12, color: GDPVAL_COLORS.primary, fontWeight: 600, marginBottom: 4, fontFamily: "Inter, system-ui, sans-serif" }}>
+        GDPval Benchmark — {benchmarkCount} real-world tasks
+      </div>
+      <div style={{ fontSize: 11, color: GDPVAL_COLORS.dark, marginBottom: 8, lineHeight: 1.4, fontFamily: "Inter, system-ui, sans-serif" }}>
+        Independent evaluation prompts graded against rubric criteria.
+        These are NOT O*NET task statements — they represent real-world deliverables that test AI capability for this occupation.
+      </div>
+
+      {!tasks ? (
+        <div style={{ fontSize: 11, color: "#A1A1AA", fontStyle: "italic" }}>Loading benchmark tasks…</div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+          {tasks.map(task => {
+            const maxScore = task.max_score ?? 0;
+            const minScore = task.min_score ?? 0;
+            const range = maxScore - minScore;
+            // Normalize to chart width (0 = center, positive right, negative left)
+            const chartW = 200;
+            const zeroX = range > 0 ? Math.max((-minScore / range) * chartW, 0) : chartW / 2;
+
+            return (
+              <div key={task.task_id} style={{ display: "flex", alignItems: "center", gap: 8, height: 26 }}>
+                <div style={{
+                  width: 240, flexShrink: 0, fontSize: 11, color: "#52525B",
+                  fontFamily: "Inter, system-ui, sans-serif",
+                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+                }}>
+                  {task.prompt_summary}
+                </div>
+                <svg width={chartW} height={16} style={{ flexShrink: 0 }}>
+                  {/* Zero line */}
+                  <line x1={zeroX} y1={0} x2={zeroX} y2={16} stroke="#D4D4D8" strokeWidth={1} strokeDasharray="2,2" />
+                  {/* Range line */}
+                  <line x1={0} y1={8} x2={chartW} y2={8} stroke={GDPVAL_COLORS.border} strokeWidth={2} />
+                  {/* Min endpoint (penalty) */}
+                  <circle cx={0} cy={8} r={4} fill={GDPVAL_COLORS.penalty} />
+                  {/* Max endpoint (reward) */}
+                  <circle cx={chartW} cy={8} r={5} fill={GDPVAL_COLORS.reward} />
+                </svg>
+                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
+                  <span style={{ fontSize: 10, color: GDPVAL_COLORS.penalty, fontWeight: 500 }}>
+                    {minScore > 0 ? `+${minScore}` : minScore}
+                  </span>
+                  <span style={{ fontSize: 10, color: "#D4D4D8" }}>→</span>
+                  <span style={{ fontSize: 10, color: GDPVAL_COLORS.reward, fontWeight: 600 }}>
+                    +{maxScore}
+                  </span>
+                  <span style={{
+                    fontSize: 9, color: GDPVAL_COLORS.primary, backgroundColor: `${GDPVAL_COLORS.primary}10`,
+                    padding: "1px 5px", borderRadius: 4,
+                  }}>
+                    {task.rubric_item_count} criteria
+                  </span>
+                </div>
+              </div>
+            );
+          })}
         </div>
       )}
     </div>

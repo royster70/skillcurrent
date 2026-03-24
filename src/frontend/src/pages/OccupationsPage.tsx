@@ -1,11 +1,14 @@
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
-import { api } from "../lib/api";
+import { api, type GDPvalTaskDetail } from "../lib/api";
 import { ZONE_COLORS, ZONE_LABELS, CLASSIFICATION_COLORS } from "../lib/constants";
 import { TaskMatrix, DOT_COLORS, TaskSparkline } from "../components/TaskMatrix";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
+import { GDPvalBenchmarkPanel } from "../components/GDPvalBenchmarkPanel";
+import { AEITaskDetailPanel } from "../components/AEITaskDetailPanel";
+import { GDPVAL_COLORS } from "../lib/constants";
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
@@ -56,9 +59,9 @@ export function OccupationsPage() {
             onClick={() => setGdpvalFilter(!gdpvalFilter)}
             style={{
               fontSize: 12, fontWeight: 600, padding: "5px 12px", borderRadius: 8, marginBottom: 2,
-              border: gdpvalFilter ? "1px solid #C2410C" : "1px solid #E4E4E7",
-              backgroundColor: gdpvalFilter ? "#FFF7ED" : "#fff", cursor: "pointer",
-              color: gdpvalFilter ? "#C2410C" : "#71717A",
+              border: gdpvalFilter ? `1px solid ${GDPVAL_COLORS.primary}` : "1px solid #E4E4E7",
+              backgroundColor: gdpvalFilter ? GDPVAL_COLORS.bg : "#fff", cursor: "pointer",
+              color: gdpvalFilter ? GDPVAL_COLORS.primary : "#71717A",
             }}
           >
             GDPval
@@ -154,6 +157,20 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
   const { data: occ, loading } = useApi(() => api.occupation(soc), [soc]);
   const { data: matrixData } = useApi(() => api.taskMatrix(soc), [soc]);
   const [highlightedTask, setHighlightedTask] = useState<number | null>(null);
+  const [gdpvalExpanded, setGdpvalExpanded] = useState(false);
+  const [aeiExpanded, setAeiExpanded] = useState(false);
+  const [gdpvalTasks, setGdpvalTasks] = useState<GDPvalTaskDetail[] | null>(null);
+
+  // Reset GDPval overlay tasks when occupation changes
+  useEffect(() => { setGdpvalTasks(null); }, [soc]);
+
+  const loadGdpvalTasks = useCallback(async () => {
+    if (gdpvalTasks) return; // already loaded
+    try {
+      const resp = await api.gdpvalOccupation(soc);
+      setGdpvalTasks(resp.tasks);
+    } catch { /* silently ignore — overlay will show loading state */ }
+  }, [soc, gdpvalTasks]);
 
   if (loading) return <div>Loading...</div>;
   if (!occ) return null;
@@ -190,19 +207,65 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
             </span>
           )}
           {occ.gdpval_available && (
-            <span style={{
-              fontSize: 11, fontWeight: 600, padding: "4px 10px", borderRadius: 16,
-              backgroundColor: "#FFF7ED", color: "#C2410C", border: "1px solid #FDBA7440",
-            }}>
-              {occ.gdpval_task_count} GDPval tasks
-            </span>
+            <div
+              onClick={() => setGdpvalExpanded(!gdpvalExpanded)}
+              style={{
+                display: "flex", flexDirection: "column", gap: 2, padding: "8px 14px",
+                borderRadius: 10, backgroundColor: GDPVAL_COLORS.bg,
+                border: `1.5px solid ${GDPVAL_COLORS.border}`,
+                cursor: "pointer", transition: "box-shadow 0.15s",
+                boxShadow: gdpvalExpanded ? `0 0 0 2px ${GDPVAL_COLORS.border}40` : "none",
+              }}
+            >
+              <span style={{ fontSize: 10, fontWeight: 600, color: GDPVAL_COLORS.primary, letterSpacing: 0.8 }}>
+                GDPVAL
+              </span>
+              <div style={{ display: "flex", gap: 4, alignItems: "baseline" }}>
+                <span style={{ fontSize: 20, fontWeight: 700, color: GDPVAL_COLORS.primary }}>
+                  {occ.gdpval_task_count}
+                </span>
+                <span style={{ fontSize: 11, fontWeight: 500, color: GDPVAL_COLORS.primary }}>tasks</span>
+              </div>
+              <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+                <span style={{ fontSize: 10, color: GDPVAL_COLORS.primary }}>
+                  {gdpvalExpanded ? "Hide" : "View"} detail
+                </span>
+                <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={GDPVAL_COLORS.primary} strokeWidth={2.5}>
+                  <polyline points="6 9 12 15 18 9" style={{ transform: gdpvalExpanded ? "rotate(180deg)" : "none", transformOrigin: "center", transition: "transform 0.2s" }} />
+                </svg>
+              </div>
+            </div>
           )}
         </div>
       </div>
 
+      {/* GDPval Benchmark Panel — collapsible */}
+      {occ.gdpval_available && (
+        <GDPvalBenchmarkPanel
+          socCode={occ.soc_code}
+          taskCount={occ.gdpval_task_count}
+          expanded={gdpvalExpanded}
+          onToggle={() => setGdpvalExpanded(!gdpvalExpanded)}
+        />
+      )}
+
+      {/* AEI Task Intelligence Panel — collapsible, uses already-fetched matrix data */}
+      {matrixData && matrixData.available_eras.length > 0 && (
+        <AEITaskDetailPanel
+          matrixData={matrixData}
+          expanded={aeiExpanded}
+          onToggle={() => setAeiExpanded(!aeiExpanded)}
+        />
+      )}
+
       {/* HERO: Task Positioning Matrix */}
       {matrixData && (
-        <TaskMatrix data={matrixData} highlightedTaskId={highlightedTask} />
+        <TaskMatrix
+          data={matrixData}
+          highlightedTaskId={highlightedTask}
+          gdpvalTasks={gdpvalTasks}
+          onRequestGdpval={loadGdpvalTasks}
+        />
       )}
 
       {/* Task list — interactive, highlights on matrix */}

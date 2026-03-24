@@ -27,6 +27,27 @@ export const CLASSIFICATION_COLORS = {
   below_threshold: "#F97316",
 } as const;
 
+export const GDPVAL_COLORS = {
+  primary: "#C2410C",    // burnt orange — text, borders
+  bg: "#FFF7ED",         // soft orange — backgrounds
+  border: "#FDBA74",     // warm orange — borders, range lines
+  dark: "#92400E",       // deep brown — secondary text
+  reward: "#16A34A",     // green — positive score endpoints
+  penalty: "#DC2626",    // red — negative score endpoints
+} as const;
+
+export const AEI_COLORS = {
+  primary: "#16A34A",    // green — main text and accents
+  bg: "#F0FDF4",         // soft green — backgrounds
+  border: "#86EFAC",     // light green — borders, augmentation bars
+  dark: "#15803D",       // deep green — secondary text
+  automation: "#16A34A", // solid green — full automation bars
+  augmentation: "#86EFAC", // light green — human-in-the-loop bars
+  growing: "#DC2626",    // red — growing trend indicator
+  stable: "#A1A1AA",     // grey — stable trend
+  declining: "#E4E4E7",  // light grey — declining trend
+} as const;
+
 export const CLASSIFICATION_LABELS = {
   departing: "Departing",
   enduring: "Enduring",

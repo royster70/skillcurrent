@@ -206,6 +206,8 @@ export interface EraSnapshot {
   model_era: string;
   task_pct: number;
   automation_potential: number;
+  automation_pct: number | null;
+  augmentation_pct: number | null;
 }
 
 export interface TaskMatrixPoint {
@@ -228,6 +230,7 @@ export interface TaskMatrixResponse {
   total_tasks: number;
   quadrant_counts: Record<string, number>;
   available_eras: string[];
+  gdpval_benchmark_count: number;
 }
 
 // ── GDPval Benchmarks ──

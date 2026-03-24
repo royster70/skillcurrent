@@ -24,6 +24,8 @@ class EraSnapshot(BaseModel):
     model_era: str
     task_pct: float
     automation_potential: float  # normalised for X-axis positioning
+    automation_pct: float | None = None  # % of conversations where AI fully automated
+    augmentation_pct: float | None = None  # % with human-in-the-loop
 
 
 class TaskMatrixPoint(BaseModel):
@@ -46,6 +48,7 @@ class TaskMatrixResponse(BaseModel):
     total_tasks: int
     quadrant_counts: dict[str, int]
     available_eras: list[str] = []
+    gdpval_benchmark_count: int = 0
 
 
 @router.get("/occupations/{soc_code}/matrix", response_model=TaskMatrixResponse)
@@ -107,7 +110,7 @@ async def get_task_matrix(
 
     # Fetch AEI temporal snapshots for all tasks in this occupation
     era_r = await db.execute(text("""
-        SELECT LOWER(task_text), model_era, task_pct
+        SELECT LOWER(task_text), model_era, task_pct, automation_pct, augmentation_pct
         FROM aei_task_snapshots
         WHERE platform = 'claude_ai' AND task_pct IS NOT NULL
           AND LOWER(task_text) IN (
@@ -123,6 +126,8 @@ async def get_task_matrix(
         task_lower = era_row[0]
         era = era_row[1]
         pct = float(era_row[2])
+        auto_pct = round(float(era_row[3]), 4) if era_row[3] is not None else None
+        aug_pct = round(float(era_row[4]), 4) if era_row[4] is not None else None
         all_eras.add(era)
         if task_lower not in era_data:
             era_data[task_lower] = []
@@ -130,6 +135,8 @@ async def get_task_matrix(
             model_era=era,
             task_pct=round(pct, 4),
             automation_potential=round(min(pct / 5.0, 1.0), 3),  # normalise: 5% -> 1.0
+            automation_pct=auto_pct,
+            augmentation_pct=aug_pct,
         ))
 
     tasks = []
@@ -180,6 +187,12 @@ async def get_task_matrix(
         "sonnet-3.5": 1, "sonnet-3.7": 2, "sonnet-4": 3, "sonnet-4.5": 4
     }.get(e, 99))
 
+    # GDPval benchmark count for this occupation
+    gdpval_r = await db.execute(text(
+        "SELECT COUNT(*) FROM gdpval_tasks WHERE onet_soc = :soc"
+    ), {"soc": onet_soc})
+    gdpval_count = gdpval_r.scalar() or 0
+
     return TaskMatrixResponse(
         soc_code=onet_soc,
         occupation_title=occ[1],
@@ -187,4 +200,5 @@ async def get_task_matrix(
         total_tasks=len(tasks),
         quadrant_counts=quadrant_counts,
         available_eras=available_eras,
+        gdpval_benchmark_count=gdpval_count,
     )

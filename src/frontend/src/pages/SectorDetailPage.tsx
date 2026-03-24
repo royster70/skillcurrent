@@ -3,7 +3,7 @@ import { useParams, useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
-import { ZONE_COLORS, CLASSIFICATION_COLORS } from "../lib/constants";
+import { ZONE_COLORS, CLASSIFICATION_COLORS, GDPVAL_COLORS } from "../lib/constants";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 
 export function SectorDetailPage() {
@@ -197,9 +197,9 @@ export function SectorDetailPage() {
               onClick={() => { setGdpvalFilter(!gdpvalFilter); if (!showFullMix) setShowFullMix(true); }}
               style={{
                 fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8,
-                border: gdpvalFilter ? "1px solid #C2410C" : "1px solid #E4E4E7",
-                backgroundColor: gdpvalFilter ? "#FFF7ED" : "#fff", cursor: "pointer",
-                color: gdpvalFilter ? "#C2410C" : "#71717A",
+                border: gdpvalFilter ? `1px solid ${GDPVAL_COLORS.primary}` : "1px solid #E4E4E7",
+                backgroundColor: gdpvalFilter ? GDPVAL_COLORS.bg : "#fff", cursor: "pointer",
+                color: gdpvalFilter ? GDPVAL_COLORS.primary : "#71717A",
               }}
             >
               GDPval Only ({gdpvalSocs.size > 0 ? data.full_mix.filter((r) => gdpvalSocs.has(r.soc_code)).length : "..."})
@@ -299,8 +299,9 @@ function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigat
           {r.soc_code}
           {hasGdpval && (
             <span style={{
-              fontSize: 9, fontWeight: 600, padding: "1px 5px", borderRadius: 4,
-              backgroundColor: "#FFF7ED", color: "#C2410C",
+              fontSize: 9, fontWeight: 600, padding: "1px 6px", borderRadius: 4,
+              backgroundColor: GDPVAL_COLORS.bg, color: GDPVAL_COLORS.primary,
+              border: `1px solid ${GDPVAL_COLORS.border}40`,
             }}>
               GDPval
             </span>
