@@ -438,6 +438,196 @@ class TestTaskMatrix:
         r = await client.get("/api/v1/occupations/99-9999.99/matrix")
         assert r.status_code == 404
 
+    @pytest.mark.asyncio
+    async def test_matrix_has_gdpval_benchmark_count(self, client):
+        """Response includes gdpval_benchmark_count as non-negative integer."""
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        assert r.status_code == 200
+        data = r.json()
+        assert "gdpval_benchmark_count" in data
+        assert isinstance(data["gdpval_benchmark_count"], int)
+        assert data["gdpval_benchmark_count"] >= 0
+
+    @pytest.mark.asyncio
+    async def test_matrix_gdpval_count_zero_for_non_benchmark_occ(self, client):
+        """Occupation without GDPval data returns gdpval_benchmark_count=0."""
+        # Use an obscure SOC unlikely to have GDPval benchmarks
+        r = await client.get("/api/v1/occupations/45-2011.00/matrix")
+        if r.status_code == 200:
+            assert r.json()["gdpval_benchmark_count"] == 0
+
+    @pytest.mark.asyncio
+    async def test_matrix_era_snapshot_has_automation_fields(self, client):
+        """Era snapshots include automation_pct and augmentation_pct fields."""
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        data = r.json()
+        tasks_with_eras = [t for t in data["tasks"] if len(t["era_snapshots"]) > 0]
+        if tasks_with_eras:
+            snap = tasks_with_eras[0]["era_snapshots"][0]
+            assert "automation_pct" in snap
+            assert "augmentation_pct" in snap
+
+    @pytest.mark.asyncio
+    async def test_matrix_automation_pct_nullable(self, client):
+        """automation_pct and augmentation_pct can be null."""
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        data = r.json()
+        all_snaps = [
+            s for t in data["tasks"] for s in t["era_snapshots"]
+        ]
+        # At least some snapshots should exist; null is valid
+        for snap in all_snaps:
+            auto = snap["automation_pct"]
+            aug = snap["augmentation_pct"]
+            assert auto is None or isinstance(auto, (int, float))
+            assert aug is None or isinstance(aug, (int, float))
+
+    @pytest.mark.asyncio
+    async def test_matrix_automation_pct_range(self, client):
+        """When present, automation_pct and augmentation_pct are in [0, 1]."""
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        data = r.json()
+        for task in data["tasks"]:
+            for snap in task["era_snapshots"]:
+                if snap["automation_pct"] is not None:
+                    assert 0 <= snap["automation_pct"] <= 1, (
+                        f"automation_pct {snap['automation_pct']} out of range"
+                    )
+                if snap["augmentation_pct"] is not None:
+                    assert 0 <= snap["augmentation_pct"] <= 1, (
+                        f"augmentation_pct {snap['augmentation_pct']} out of range"
+                    )
+
+    @pytest.mark.asyncio
+    async def test_matrix_available_eras_sorted(self, client):
+        """available_eras follows chronological model order."""
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        data = r.json()
+        eras = data["available_eras"]
+        era_order = {"sonnet-3.5": 1, "sonnet-3.7": 2, "sonnet-4": 3, "sonnet-4.5": 4}
+        if len(eras) > 1:
+            ranks = [era_order.get(e, 99) for e in eras]
+            assert ranks == sorted(ranks), f"Eras not sorted: {eras}"
+
+    @pytest.mark.asyncio
+    async def test_matrix_era_automation_potential_normalised(self, client):
+        """automation_potential in era snapshots is always <= 1.0."""
+        r = await client.get("/api/v1/occupations/15-1252.00/matrix")
+        data = r.json()
+        for task in data["tasks"]:
+            for snap in task["era_snapshots"]:
+                assert snap["automation_potential"] <= 1.0, (
+                    f"automation_potential {snap['automation_potential']} > 1.0"
+                )
+
+
+# ── GDPval Benchmarks ──
+
+
+class TestGDPval:
+    @pytest.mark.asyncio
+    async def test_gdpval_summary_returns_data(self, client):
+        """GET /gdpval/summary returns benchmark overview."""
+        r = await client.get("/api/v1/gdpval/summary")
+        assert r.status_code == 200
+        data = r.json()
+        assert "total_tasks" in data
+        assert "total_occupations" in data
+        assert "total_rubric_items" in data
+
+    @pytest.mark.asyncio
+    async def test_gdpval_summary_known_counts(self, client):
+        """Summary returns expected counts from loaded GDPval data."""
+        r = await client.get("/api/v1/gdpval/summary")
+        data = r.json()
+        assert data["total_tasks"] == 220
+        assert data["total_occupations"] == 44
+        assert data["total_rubric_items"] > 10000  # 10,453 loaded
+
+    @pytest.mark.asyncio
+    async def test_gdpval_summary_has_sectors(self, client):
+        """Summary includes non-empty sectors list."""
+        r = await client.get("/api/v1/gdpval/summary")
+        sectors = r.json()["sectors"]
+        assert len(sectors) > 0
+        assert all(isinstance(s, str) for s in sectors)
+
+    @pytest.mark.asyncio
+    async def test_gdpval_summary_has_occupations(self, client):
+        """Summary includes occupation list with required fields."""
+        r = await client.get("/api/v1/gdpval/summary")
+        occs = r.json()["occupations"]
+        assert len(occs) > 0
+        for occ in occs:
+            assert "soc_code" in occ
+            assert "title" in occ
+            assert "task_count" in occ
+            assert occ["task_count"] > 0
+
+    @pytest.mark.asyncio
+    async def test_gdpval_occupation_detail(self, client):
+        """GET /gdpval/occupations/{soc} returns tasks with rubric items."""
+        # Get a valid SOC from the summary
+        summary = await client.get("/api/v1/gdpval/summary")
+        soc = summary.json()["occupations"][0]["soc_code"]
+        r = await client.get(f"/api/v1/gdpval/occupations/{soc}")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["soc_code"] == soc
+        assert len(data["tasks"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_gdpval_occupation_task_fields(self, client):
+        """Each task has required fields."""
+        summary = await client.get("/api/v1/gdpval/summary")
+        soc = summary.json()["occupations"][0]["soc_code"]
+        r = await client.get(f"/api/v1/gdpval/occupations/{soc}")
+        task = r.json()["tasks"][0]
+        assert "task_id" in task
+        assert "prompt_summary" in task
+        assert "rubric_item_count" in task
+        assert "max_score" in task
+        assert "min_score" in task
+
+    @pytest.mark.asyncio
+    async def test_gdpval_occupation_rubric_items(self, client):
+        """Tasks include rubric_items with criterion, score, required."""
+        summary = await client.get("/api/v1/gdpval/summary")
+        soc = summary.json()["occupations"][0]["soc_code"]
+        r = await client.get(f"/api/v1/gdpval/occupations/{soc}")
+        task = r.json()["tasks"][0]
+        assert len(task["rubric_items"]) > 0
+        item = task["rubric_items"][0]
+        assert "criterion" in item
+        assert "score" in item
+        assert "required" in item
+
+    @pytest.mark.asyncio
+    async def test_gdpval_occupation_rubric_tags(self, client):
+        """Rubric items have tags field (array or null)."""
+        summary = await client.get("/api/v1/gdpval/summary")
+        soc = summary.json()["occupations"][0]["soc_code"]
+        r = await client.get(f"/api/v1/gdpval/occupations/{soc}")
+        for task in r.json()["tasks"]:
+            for item in task["rubric_items"]:
+                assert "tags" in item
+                assert item["tags"] is None or isinstance(item["tags"], list)
+
+    @pytest.mark.asyncio
+    async def test_gdpval_occupation_not_found(self, client):
+        """Non-existent SOC returns 404."""
+        r = await client.get("/api/v1/gdpval/occupations/99-9999.99")
+        assert r.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_gdpval_occupation_task_count_matches(self, client):
+        """Response task_count matches actual tasks array length."""
+        summary = await client.get("/api/v1/gdpval/summary")
+        soc = summary.json()["occupations"][0]["soc_code"]
+        r = await client.get(f"/api/v1/gdpval/occupations/{soc}")
+        data = r.json()
+        assert data["task_count"] == len(data["tasks"])
+
 
 # ── Semantic Search ──
 

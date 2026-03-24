@@ -136,3 +136,60 @@ async def test_ms_ai_iwa_coverage(session: AsyncSession):
     )
     iwa_count = result2.scalar_one()
     assert iwa_count == 332, f"Expected 332 IWA codes, found {iwa_count}"
+
+
+# ── GDPval Data Invariants ──
+
+
+async def test_gdpval_tasks_all_have_soc(session: AsyncSession):
+    """All GDPval tasks must have onet_soc mapped."""
+    result = await session.execute(
+        text("SELECT COUNT(*) FROM gdpval_tasks WHERE onet_soc IS NULL")
+    )
+    unmapped = result.scalar_one()
+    assert unmapped == 0, f"{unmapped} GDPval tasks lack SOC mapping"
+
+
+async def test_gdpval_rubric_coverage(session: AsyncSession):
+    """Every GDPval task must have at least one rubric item."""
+    result = await session.execute(
+        text("""
+            SELECT COUNT(*) FROM gdpval_tasks gt
+            WHERE NOT EXISTS (
+                SELECT 1 FROM gdpval_rubric_items ri WHERE ri.task_id = gt.task_id
+            )
+        """)
+    )
+    orphaned = result.scalar_one()
+    assert orphaned == 0, f"{orphaned} GDPval tasks lack rubric items"
+
+
+async def test_gdpval_scores_finite(session: AsyncSession):
+    """All scores in gdpval_rubric_items are finite (NaN/Inf not allowed).
+
+    Note: negative scores are valid — GDPval uses them as penalty deductions.
+    """
+    result = await session.execute(
+        text("""
+            SELECT COUNT(*) FROM gdpval_rubric_items
+            WHERE score IS NOT NULL
+              AND (score = 'NaN'::float OR score = 'Infinity'::float OR score = '-Infinity'::float)
+        """)
+    )
+    invalid = result.scalar_one()
+    assert invalid == 0, f"{invalid} rubric items have non-finite scores"
+
+
+async def test_aei_snapshots_automation_range(session: AsyncSession):
+    """automation_pct and augmentation_pct in [0,1] when not null."""
+    result = await session.execute(
+        text("""
+            SELECT COUNT(*) FROM aei_task_snapshots
+            WHERE (automation_pct IS NOT NULL AND (automation_pct < 0 OR automation_pct > 1))
+               OR (augmentation_pct IS NOT NULL AND (augmentation_pct < 0 OR augmentation_pct > 1))
+        """)
+    )
+    violations = result.scalar_one()
+    assert violations == 0, (
+        f"{violations} AEI snapshots have automation/augmentation pct outside [0,1]"
+    )

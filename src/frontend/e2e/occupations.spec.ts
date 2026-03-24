@@ -49,3 +49,89 @@ test.describe("Occupations Page", () => {
     await expect(page.getByText("Task Positioning Matrix")).toBeVisible({ timeout: 15000 });
   });
 });
+
+test.describe("AEI Task Intelligence Panel", () => {
+  test("panel header visible when occupation selected", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("Task Positioning Matrix")).toBeVisible({ timeout: 15000 });
+
+    await expect(page.getByText("AEI Task Intelligence")).toBeVisible({ timeout: 5000 });
+  });
+
+  test("panel expands on click and shows sub-headings", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("AEI Task Intelligence")).toBeVisible({ timeout: 15000 });
+
+    // Expand
+    await page.getByText("AEI Task Intelligence").click();
+
+    // Sub-headings should appear
+    await expect(page.getByText("TASK USAGE TRAJECTORY")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("TASK PENETRATION RANKING")).toBeVisible({ timeout: 5000 });
+  });
+
+  test("panel shows tracked task count", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("AEI Task Intelligence")).toBeVisible({ timeout: 15000 });
+
+    // Header metadata shows tracked count
+    await expect(page.getByText(/\d+ of \d+ tasks tracked/)).toBeVisible({ timeout: 5000 });
+  });
+
+  test("panel collapses on second click", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("AEI Task Intelligence")).toBeVisible({ timeout: 15000 });
+
+    // Expand then collapse
+    await page.getByText("AEI Task Intelligence").click();
+    await expect(page.getByText("TASK USAGE TRAJECTORY")).toBeVisible({ timeout: 5000 });
+
+    await page.getByText("AEI Task Intelligence").click();
+    await expect(page.getByText("TASK USAGE TRAJECTORY")).not.toBeVisible({ timeout: 5000 });
+  });
+});
+
+test.describe("GDPval Benchmark Panel", () => {
+  test("panel visible for benchmark occupation", async ({ page }) => {
+    // 15-1252.00 has 5 GDPval tasks
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("Task Positioning Matrix")).toBeVisible({ timeout: 15000 });
+
+    await expect(page.getByText("GDPval Benchmark")).toBeVisible({ timeout: 5000 });
+  });
+
+  test("panel expands and loads benchmark data", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("GDPval Benchmark")).toBeVisible({ timeout: 15000 });
+
+    await page.getByText("GDPval Benchmark").click();
+
+    // Wait for API load and content render
+    await expect(page.getByText("TASK SCORE RANGES")).toBeVisible({ timeout: 15000 });
+  });
+
+  test("panel shows real-world task count", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("GDPval Benchmark")).toBeVisible({ timeout: 15000 });
+
+    await expect(page.getByText(/\d+ real-world tasks/)).toBeVisible({ timeout: 5000 });
+  });
+
+  test("panel not rendered for non-benchmark occupation", async ({ page }) => {
+    // 11-1011.00 (Chief Executives) has 0 GDPval tasks
+    await page.goto("/occupations?selected=11-1011.00");
+    await expect(page.getByRole("heading", { name: "Chief Executives" })).toBeVisible({ timeout: 10000 });
+
+    // GDPval panel should NOT be present
+    await expect(page.getByText("GDPval Benchmark")).not.toBeVisible({ timeout: 5000 });
+  });
+
+  test("direct URL loads with both panels accessible", async ({ page }) => {
+    await page.goto("/occupations?selected=15-1252.00");
+    await expect(page.getByText("Task Positioning Matrix")).toBeVisible({ timeout: 15000 });
+
+    // Both panels should be present
+    await expect(page.getByText("AEI Task Intelligence")).toBeVisible({ timeout: 5000 });
+    await expect(page.getByText("GDPval Benchmark")).toBeVisible({ timeout: 5000 });
+  });
+});
