@@ -120,8 +120,10 @@ Last updated: 2026-03-25
 - GPTVal integration not started
 - GDPval evaluations not yet collected — gdpval_evaluations table is empty; model-era scoring pipeline for FR-8.7 waterline tracking not yet built (API and UI surface for GDPval benchmarks is complete)
 - ANZSCO concordance low-confidence matches (<0.70 similarity) should be manually reviewed before use in Tier 2 matching
+- **SOC code format inconsistency across tables** — three formats coexist: 8-digit O*NET format (`29-1141.00`) in `onet_occupations` and `anzsco_soc_concordance`; 6-digit format (`29-1141`) in `ms_ai_applicability_scores`, `aei_job_exposure`, and `oews_employment`; AU profile computation joins use `SUBSTRING(... FROM 1 FOR 7)` prefix match to bridge the two. US joins use exact equality and were always unaffected. Not standardised at ingestion time. See ADR-004 Decision 7 for full record. AU MS AI applicability coverage: 92%; AU AEI exposure coverage: 91%.
 
 ## ADRs Created
 - ADR-001: Data lineage catalog strategy
 - ADR-002: Reference dataset versioning
 - ADR-003: Toolchain selection
+- ADR-004: Australian data integration (schema, matching, distribution, LQ, frontend state, crosswalk, SOC format normalisation)

@@ -512,6 +512,23 @@ SELECT COUNT(*) FROM industry_occupation_profiles WHERE region = 'AU' AND elound
 -- Most AU profiles should have exposure scores via the concordance join
 ```
 
+**MS/AEI coverage check (must be >90% — not just row count):**
+```sql
+SELECT
+    COUNT(*) AS total_au_profiles,
+    COUNT(ms_ai_applicability) AS ms_coverage,
+    COUNT(aei_exposure) AS aei_coverage,
+    ROUND(COUNT(ms_ai_applicability)::numeric / COUNT(*) * 100, 1) AS ms_pct,
+    ROUND(COUNT(aei_exposure)::numeric / COUNT(*) * 100, 1) AS aei_pct
+FROM industry_occupation_profiles
+WHERE region = 'AU';
+-- Expected: ms_pct ~92%, aei_pct ~91%
+-- If either is 0%: the server was not restarted after the fix, or the SUBSTRING join
+-- is not in place. See ADR-004 Decision 7 for the SOC format mismatch background.
+```
+
+**Note on SOC code formats**: AU profiles join via `SUBSTRING(onet_soc FROM 1 FOR 7)` prefix match because `anzsco_soc_concordance` stores 8-digit SOC codes (e.g. `29-1141.00`) while Microsoft and AEI tables use 6-digit codes (e.g. `29-1141`). US profiles use exact equality because all US source tables share the 6-digit format. If MS/AEI coverage reads 0% after running this step, confirm that the latest version of `compute_industry_profiles.py` is loaded — on Windows, uvicorn `--reload` may not detect file changes; restart the server manually if needed.
+
 ---
 
 ## 5. Full Rebuild Sequence

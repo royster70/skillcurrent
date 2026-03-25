@@ -15,7 +15,7 @@ FR-8.9 extends the Tier 1 industry intelligence pipeline to support Australian w
 2. **ANZSCO classification** — Australia's occupation taxonomy (491 unit groups with 4,694 title variants including principal titles, alternative titles, and specialisations)
 3. **ANZSIC industry classification** — Australia's industry taxonomy (19 divisions, analogous to NAICS 2-digit sectors)
 
-The integration presents six architectural decisions spanning schema design, occupation matching, employment distribution, location quotient computation, frontend state management, and industry crosswalk strategy.
+The integration presents seven architectural decisions spanning schema design, occupation matching, employment distribution, location quotient computation, frontend state management, industry crosswalk strategy, and SOC code format normalisation.
 
 ### Constraints
 
@@ -133,6 +133,44 @@ Region is stored in URL search parameters (`?region=AU`), read by each page inde
 - **Natural cascading** — `SectorsPage` passes `region` to navigation links. `SectorDetailPage` reads it from its own URL. `CompositeSectorPage` reads it from its own URL. No prop drilling, no context consumption.
 - **Backward compatibility** — All existing URLs without `?region=` continue to show US data. Zero breaking changes for existing bookmarks or links.
 
+## Decision 7: SOC Code Format Normalisation for MS/AEI Joins (8-digit vs 6-digit)
+
+### The choice
+
+Use `SUBSTRING(onet_soc FROM 1 FOR 7)` prefix matching when joining MS AI applicability scores and AEI job exposure data to AU industry profiles, rather than exact equality.
+
+### Background
+
+The platform contains three distinct SOC code formats across tables:
+
+| Format | Example | Source tables |
+|--------|---------|--------------|
+| 8-digit with decimal (full O*NET) | `29-1141.00` | `onet_occupations`, `anzsco_soc_concordance` |
+| 6-digit (hyphenated, no decimal) | `29-1141` | `ms_ai_applicability_scores`, `aei_job_exposure`, `oews_employment` |
+| 7-character prefix | `29-1141` | Used as join key (first 7 chars of 8-digit = 6-digit) |
+
+The ANZSCO→SOC concordance (`build_anzsco_concordance.py`) queries `onet_occupations` via pgvector and stores the matched SOC code in 8-digit format (e.g., `29-1141.00`). Microsoft and AEI data use 6-digit codes (e.g., `29-1141`). An exact equality join between these two formats always returns zero rows.
+
+### Why US profiles were unaffected
+
+US profiles are built by joining `oews_employment` to `ms_ai_applicability_scores` and `aei_job_exposure`. All three of these source tables use 6-digit SOC codes, so exact equality joins worked correctly. The 8-digit format only appears in `onet_occupations` — which the US pipeline joins to via `eloundou_occ_scores` (also 8-digit from O*NET) where the format is already consistent.
+
+### Discovery
+
+AU MS/AEI coverage was 0% after the initial FR-8.9 implementation — every profile row had `NULL` for `ms_ai_applicability` and `aei_exposure`. Investigation revealed the concordance stored 8-digit codes while the scoring tables used 6-digit codes. The fix: `SUBSTRING(concordance.soc_code FROM 1 FOR 7) = ms_ai.soc_code` (the first 7 characters of `29-1141.00` are `29-1141`, matching the 6-digit format exactly). Coverage jumped from 0% to 92% (MS) and 91% (AEI) after the fix.
+
+### Rejected alternative
+
+Normalising all SOC codes to a single format at ingestion time. Rejected because: (a) it would require modifying multiple ingestion scripts and potentially altering loaded data, (b) O*NET's 8-digit format is the authoritative canonical form and should not be silently truncated, (c) the prefix match is a read-time join strategy that touches only the AU profiles computation query.
+
+### Note on `search.py`
+
+The semantic search endpoint (`search.py`) was already using a `LIKE` prefix match (`soc_code LIKE '29-1141%'`) for related joins, which independently handled the same format mismatch. This confirms the prefix approach is correct. The AU profiles computation query now uses the same strategy via `SUBSTRING`.
+
+### Trade-off
+
+The prefix match assumes the first 7 characters of an 8-digit O*NET SOC code are always identical to the corresponding 6-digit code. This is true by O*NET convention (the `.00` or `.01` etc. suffix is always appended after the hyphenated 6-digit base), but is an implicit assumption rather than an enforced constraint. If O*NET ever introduces SOC extensions where this does not hold, the join would silently under-count. This risk is documented here for future maintainers.
+
 ## Decision 6: Two-Hop Industry Crosswalk (NAICS to ISIC to ANZSIC) at Sector Level
 
 ### The choice
@@ -228,6 +266,7 @@ Default: `region=US`. Invalid region values return 400.
 - Employment distribution (50/30/20) is approximate — acceptable for Tier 1, insufficient for Tier 2
 - 18% of AU employment unallocated (outside top 3 industries per occupation)
 - 29.5% of ANZSCO unit groups below auto-accept confidence — mostly non-occupational ABS statistical categories
+- Three SOC code formats coexist in the platform (8-digit O*NET, 6-digit MS/AEI/OEWS, 7-char prefix join key) — AU joins use `SUBSTRING(... FROM 1 FOR 7)` prefix match; US joins use exact equality; this inconsistency is documented in Decision 7 and is implicit rather than enforced
 
 **Risks:**
 - ANZSCO classification revision (next expected ~2028) would require re-running the concordance pipeline: Low impact — pipeline is automated and reproducible
