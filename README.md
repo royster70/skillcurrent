@@ -45,7 +45,7 @@ npm install && npm run dev
 
 ## Current Status
 
-### Data loaded (~532,400 rows)
+### Data loaded (~535,655 rows)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -54,7 +54,8 @@ npm install && npm run dev
 | Microsoft "Working with AI" | 34,396 | Empirical Copilot applicability (785 SOCs, 332 IWAs) |
 | AEI (Anthropic) | 35,730 | Empirical Claude usage + 4-era temporal snapshots |
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
-| Derived products | 12,540 | Drift metrics (4,605) + industry profiles (7,935) |
+| ABS/JSA 2025 | 2,743 | AU employment by occupation x ANZSIC division (FR-8.9) |
+| Derived products | 15,794 | Drift metrics (4,605) + industry profiles (9,019 US+AU) + crosswalk (21) + ANZSCO concordance (491) + AU profiles (1,084 of 9,019) |
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 
@@ -62,10 +63,10 @@ npm install && npm run dev
 
 | Endpoint | Description |
 |----------|-------------|
-| `GET /api/v1/sectors` | 20 NAICS sectors with aggregate and employment-weighted exposure stats (weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers per zone) |
-| `GET /api/v1/sectors/composite?codes=...` | Composite multi-sector analysis: blends 2+ NAICS sectors into employment-weighted profile with de-duplicated occupations, zone worker counts, and per-occupation sector badges |
-| `GET /api/v1/sectors/{code}/occupations` | Occupations within a sector |
-| `GET /api/v1/sectors/{code}/priorities` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
+| `GET /api/v1/sectors?region=US\|AU` | NAICS (US, default) or ANZSIC (AU) sectors with employment-weighted exposure stats (weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers per zone) |
+| `GET /api/v1/sectors/composite?codes=...&region=US\|AU` | Composite multi-sector analysis: blends 2+ sectors into employment-weighted profile with de-duplicated occupations, zone worker counts, and per-occupation sector badges |
+| `GET /api/v1/sectors/{code}/occupations?region=US\|AU` | Occupations within a sector |
+| `GET /api/v1/sectors/{code}/priorities?region=US\|AU` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
 | `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
 | `GET /api/v1/occupations/hierarchy` | SOC major group tree (923 occupations, 93 residual/military filtered) |
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift + GDPval availability (gdpval_task_count, gdpval_available fields) |
@@ -89,7 +90,7 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 
 | Page | Route | Visualisations |
 |------|-------|----------------|
-| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table; SectorChipSelector for building composite multi-sector views |
+| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table; SectorChipSelector for building composite multi-sector views; RegionSelector toggle (US/AU flag) switches all sector data between NAICS and ANZSIC via ?region= URL param |
 | Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards (E0/E1/E2 + composite Beta), unified occupation table with multi-sector badges, auto-generated narrative summary panel |
 | Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC; GDPval coverage indicators on role rows; "GDPval Only" filter to show only benchmark occupations |
 | Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + interactive GDPval badge, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars) |
@@ -100,11 +101,11 @@ Frontend dev server: http://localhost:5173
 
 ### Tests
 
-190+ tests passing (119 backend + 34 component + 37 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 5 suites (sectors, search-to-occupation, occupations, drift, composite).
+210+ tests passing (132 backend + 45 component + 37 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 5 suites (sectors, search-to-occupation, occupations, drift, composite).
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v                    # 119 backend tests
+python -m pytest tests/ -v                    # 132 backend tests
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
@@ -146,13 +147,13 @@ workforce-ai-platform/
         api/v1/                # FastAPI endpoints + Pydantic schemas
         models/                # SQLAlchemy ORM models (25+ tables)
         services/              # Ingestion, computation, transformations
-      migrations/versions/     # Alembic migrations (001-013)
+      migrations/versions/     # Alembic migrations (001-014)
       scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (119 tests)
+      tests/                   # pytest suite (132 tests)
     frontend/
       src/
         pages/               # SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
-        components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard
+        components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard, RegionSelector (US/AU toggle)
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
       e2e/                   # Playwright E2E tests (5 suites, 37 tests)

@@ -50,7 +50,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all 13 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all 14 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -61,9 +61,14 @@ This applies all 13 migrations in order, creating all tables documented in `docs
 2. Eloundou, Microsoft AI, AEI labor market, AEI temporal, BLS OEWS (any order)
 3. Eloundou DWA derivation (depends on O*NET + Eloundou data)
 4. Drift computation (depends on AEI temporal data)
-5. Industry profiles computation (depends on OEWS + Eloundou + Microsoft AI + AEI + drift data)
+5. US Industry profiles computation (depends on OEWS + Eloundou + Microsoft AI + AEI + drift data)
 6. Title embeddings (depends on O*NET sample + alternate titles being loaded)
 7. GDPval ingestion (independent — no dependencies on other datasets)
+8. AU data (optional, requires title embeddings for ANZSCO concordance):
+   a. Industry crosswalk (NAICS↔ANZSIC mappings — no file dependencies)
+   b. ABS employment ingestion (depends on ABS data file)
+   c. ANZSCO→SOC concordance (depends on title embeddings + ABS structure files)
+   d. AU industry profiles computation (depends on abs_employment + anzsco_soc_concordance + industry_crosswalk)
 
 ---
 
@@ -325,17 +330,18 @@ SELECT classification, COUNT(*) FROM task_drift_metrics GROUP BY classification 
 
 **Command**:
 ```bash
-python -m scripts.compute_industry_profiles
-python -m scripts.compute_industry_profiles --year 2024  # optional: specific release year
+python -m scripts.compute_industry_profiles                 # US, year 2024 (default)
+python -m scripts.compute_industry_profiles --year 2024     # optional: specific release year
+python -m scripts.compute_industry_profiles --region AU --year 2025  # AU profiles (see 4.12d)
 ```
 
-**Expected row counts**:
+**Expected row counts (US only)**:
 
 | Table | Rows |
 |-------|------|
-| industry_occupation_profiles | 7,935 |
+| industry_occupation_profiles (US) | 7,935 |
 
-(20 NAICS sectors, ~153M total workers)
+(20 NAICS sectors, ~153M total workers. After AU profiles are added the table total is 9,019 — see section 4.12d.)
 
 **Verification**:
 ```sql
@@ -386,6 +392,126 @@ SELECT occupation_title, onet_soc FROM gdpval_tasks GROUP BY occupation_title, o
 -- Should show 44 distinct occupations, all with non-NULL onet_soc
 ```
 
+### 4.12 Australian Data Integration (FR-8.9)
+
+The AU data pipeline has three stages that must run in order. Title embeddings (step 4.10) must be loaded before stage c.
+
+#### 4.12a Industry Crosswalk (NAICS ↔ ANZSIC)
+
+**Source**: Hardcoded concordance derived from Statistics Canada NAICS↔ISIC concordance, UN Statistics Division ANZSIC↔ISIC comparison, and ABS ANZSIC 2006 Rev.2 classification structure. No external file download required.
+
+**Command**:
+```bash
+python -m scripts.ingest_crosswalk
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| industry_crosswalk | 21 |
+
+21 mappings covering all 20 NAICS sectors to 19 ANZSIC divisions (NAICS 51 Information splits into ANZSIC J + S, hence 21 rows). Match types: `exact` (1:1 conceptual match) or `partial` (overlapping scope with fractional weight).
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM industry_crosswalk;
+-- Should be 21
+SELECT source_code, target_code, match_type, weight FROM industry_crosswalk ORDER BY source_code;
+-- All 20 NAICS sectors represented, weights sum correctly within each NAICS sector
+```
+
+#### 4.12b ABS Employment Ingestion
+
+**Source**: https://www.jobsandskills.gov.au/data/occupation-and-industry-profiles
+
+**Local path**: `C:\Users\royst\Projects\Data\ABS`
+
+**Files**: `Occupation profiles data - November 2025 (Revised).xlsx`
+
+Employment is distributed across top 3 ANZSIC industries per ANZSCO occupation using rank-weighted splits (50%/30%/20%). Release year is set to 2025.
+
+**Command**:
+```bash
+python -m scripts.ingest_abs
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| abs_employment | 2,743 |
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM abs_employment;
+-- Should be 2,743
+SELECT anzsic_code, anzsic_title, COUNT(*) AS occupations, SUM(employment) AS total_emp
+FROM abs_employment WHERE release_year = 2025
+GROUP BY anzsic_code, anzsic_title ORDER BY total_emp DESC;
+-- Shows 19 ANZSIC divisions with occupation counts and employment totals
+```
+
+#### 4.12c ANZSCO → SOC Concordance
+
+**Source**: Derived from ABS ANZSCO 2022 structure + title index Excel files (no separate download — uses the same data directory as ABS employment). Requires `onet_title_embeddings` to be loaded first.
+
+**Local path**: `C:\Users\royst\Projects\Data\ANZSCO`
+
+**Files**:
+- `anzsco 2022 structure 062023.xlsx`
+- `anzsco 2022 index of principal titles, alternative titles and specialisations 062023.xlsx`
+
+The script embeds all ANZSCO title variants (principal + alternative + specialisations) using all-MiniLM-L6-v2 and finds the best O*NET SOC match per 4-digit unit group via pgvector cosine similarity. Confidence ≥0.85 is auto-accepted; 0.70–0.85 is flagged for review.
+
+**Command**:
+```bash
+python -m scripts.build_anzsco_concordance
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| anzsco_soc_concordance | 491 |
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM anzsco_soc_concordance;
+-- Should be 491
+SELECT COUNT(*) FROM anzsco_soc_concordance WHERE reviewed = true;
+-- Auto-accepted rows (confidence >= 0.85)
+SELECT COUNT(*) FROM anzsco_soc_concordance WHERE confidence < 0.70;
+-- Low-confidence matches requiring manual review
+```
+
+#### 4.12d AU Industry Profiles Computation
+
+**Source**: Derived from abs_employment, anzsco_soc_concordance, and industry_crosswalk (all loaded in prior steps). ANZSIC codes are stored in the `naics_code` column of `industry_occupation_profiles` for AU rows (pragmatic column reuse — discriminated by `region='AU'`).
+
+**Command**:
+```bash
+python -m scripts.compute_industry_profiles --region AU --year 2025
+```
+
+**Expected row counts**:
+
+| Table | Additional Rows |
+|-------|----------------|
+| industry_occupation_profiles (AU) | 1,084 |
+
+After this step the table total is 9,019 (7,935 US + 1,084 AU).
+
+**Verification**:
+```sql
+SELECT region, COUNT(*) FROM industry_occupation_profiles GROUP BY region;
+-- US: 7935, AU: 1084
+SELECT COUNT(DISTINCT naics_code) FROM industry_occupation_profiles WHERE region = 'AU';
+-- Should reflect populated ANZSIC divisions
+SELECT COUNT(*) FROM industry_occupation_profiles WHERE region = 'AU' AND eloundou_beta IS NOT NULL;
+-- Most AU profiles should have exposure scores via the concordance join
+```
+
 ---
 
 ## 5. Full Rebuild Sequence
@@ -417,6 +543,12 @@ python -m scripts.embed_titles
 
 # Step 5: GDPval (independent — can run at any point after migrations)
 python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
+
+# Step 6: Australian data (requires title embeddings from Step 4)
+python -m scripts.ingest_crosswalk
+python -m scripts.ingest_abs
+python -m scripts.build_anzsco_concordance
+python -m scripts.compute_industry_profiles --region AU --year 2025
 ```
 
 ## 4.10 Title Embeddings (Layer 2 Semantic Search)
@@ -446,7 +578,7 @@ SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
 
 ---
 
-**Total expected rows across all tables: ~532,400** (455,200 + 66,512 embeddings + 10,673 GDPval)
+**Total expected rows across all tables: ~535,655** (455,200 + 66,512 embeddings + 10,673 GDPval + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk)
 
 ---
 
@@ -481,6 +613,9 @@ UNION ALL SELECT 'onet_title_embeddings', COUNT(*) FROM onet_title_embeddings
 UNION ALL SELECT 'gdpval_tasks', COUNT(*) FROM gdpval_tasks
 UNION ALL SELECT 'gdpval_rubric_items', COUNT(*) FROM gdpval_rubric_items
 UNION ALL SELECT 'gdpval_evaluations', COUNT(*) FROM gdpval_evaluations
+UNION ALL SELECT 'abs_employment', COUNT(*) FROM abs_employment
+UNION ALL SELECT 'anzsco_soc_concordance', COUNT(*) FROM anzsco_soc_concordance
+UNION ALL SELECT 'industry_crosswalk', COUNT(*) FROM industry_crosswalk
 ORDER BY tbl;
 ```
 
@@ -498,4 +633,4 @@ python -m uvicorn app.main:app --reload --port 8000
 - OpenAPI docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-16 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search; GET /api/v1/sectors now returns employment-weighted scores and workers-per-zone) — see `README.md` for the full endpoint table.
+19 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search; all 4 sector endpoints accept ?region=US|AU for AU/ANZSIC data; GET /api/v1/sectors returns employment-weighted scores and workers-per-zone) — see `README.md` for the full endpoint table.

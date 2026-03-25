@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: 2026-03-24
+Last updated: 2026-03-25
 
 ## Completed
 
@@ -12,6 +12,9 @@ Last updated: 2026-03-24
 - **AEI Labor Market**: 18,754 rows (756 job exposures + 17,998 task penetration scores)
 - **AEI Temporal**: 16,976 task snapshots across 6 releases and 4 model eras
 - **BLS OEWS**: 8,573 employment rows (May 2024 release)
+- **ABS/JSA Employment**: 2,743 rows — JSA Occupation Profiles Nov 2025 (Revised); ANZSCO × ANZSIC employment distributed across top 3 industries per occupation using 50/30/20 rank weights
+- **Industry Crosswalk**: 21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge (Statistics Canada + UN Statistics Division + ABS sources)
+- **ANZSCO→SOC Concordance**: 491 rows built by semantic matching (all-MiniLM-L6-v2) against onet_title_embeddings; confidence ≥0.85 auto-accepted, 0.70–0.85 flagged for review
 
 ### Tier 1 Computation (FR-8.2/8.3)
 - **FR-8.2 Drift Calculation**: 4,605 tasks processed, velocity via scipy.stats.linregress across 4 AEI model eras
@@ -19,10 +22,19 @@ Last updated: 2026-03-24
 - **task_drift_metrics** table populated with velocity, R², p-value, classification per task
 
 ### Tier 1 Computation (FR-8.4)
-- **FR-8.4 Industry Profiles**: 7,935 profiles across 20 NAICS sectors (~153M workers)
+- **FR-8.4 Industry Profiles**: 7,935 US profiles across 20 NAICS sectors (~153M workers)
 - Multi-source scoring: eloundou_beta, ms_ai_applicability, aei_exposure, drift_velocity, drift_classification
 - Computed via `python -m scripts.compute_industry_profiles`
 - **industry_occupation_profiles** table populated with multi-source scoring columns (migration 010)
+
+### Tier 1 Data Integration (FR-8.9)
+- **FR-8.9 Industry Crosswalk + AU Employment**: Fully complete
+- **industry_crosswalk**: 21 rows — NAICS 2022 ↔ ANZSIC 2006 via ISIC Rev.4 bridge (`scripts/ingest_crosswalk.py`)
+- **abs_employment**: 2,743 rows — ABS/JSA Nov 2025 occupation profiles distributed across ANZSIC divisions (`scripts/ingest_abs.py`)
+- **anzsco_soc_concordance**: 491 rows — ANZSCO 4-digit unit groups mapped to O*NET SOC codes via semantic matching (`scripts/build_anzsco_concordance.py`)
+- **industry_occupation_profiles**: Extended with `region` column (migration 014); US backfilled to `region='US'`; 1,084 AU profiles added via `python -m scripts.compute_industry_profiles --region AU --year 2025`; total table now 9,019 rows
+- **API**: All 4 sector endpoints (`/sectors`, `/sectors/composite`, `/sectors/{code}/occupations`, `/sectors/{code}/priorities`) accept `?region=US|AU` (default US, fully backward compatible); invalid region values rejected with 422
+- **Frontend**: `RegionSelector.tsx` component (US/AU flag toggle) on Sectors page; region propagated via URL `?region=AU` parameter to all sector sub-pages
 
 ### Tier 1 API (19 endpoints, live)
 - **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
@@ -58,7 +70,7 @@ Last updated: 2026-03-24
 - **dataset_versions**: Central version registry (ADR-002)
 - **dataset_version_deltas**: Pre-computed diffs between dataset versions (ADR-002)
 - **transformation_log**: Lineage tracking for derived computations (ADR-001)
-- **13 Alembic migrations**: All applied (migration 012: onet_title_embeddings; migration 013: gdpval_tasks, gdpval_rubric_items, gdpval_evaluations)
+- **14 Alembic migrations**: All applied (migration 012: onet_title_embeddings; migration 013: gdpval_tasks, gdpval_rubric_items, gdpval_evaluations; migration 014: region column on industry_occupation_profiles, abs_employment, anzsco_soc_concordance)
 
 ### Database Schema
 - All 20+ tables created and populated
@@ -74,7 +86,6 @@ Last updated: 2026-03-24
 
 ### Tier 1 — Industry Intelligence (remaining)
 - **FR-8.7** (partial): Longitudinal Waterline Tracking — GDPval data ingested and API + UI complete; model evaluation scores (gdpval_evaluations) not yet collected; the waterline velocity computation pipeline (running models against rubrics and writing scores) is the remaining piece
-- **FR-8.9**: Industry Crosswalk AU data load (table exists, NAICS-to-ANZSIC mappings not loaded)
 
 ### Tier 2 — Organisational Overlay
 - **FR-1**: Data Ingestion + CSV Upload (org hierarchy, HRIS)
@@ -87,10 +98,10 @@ Last updated: 2026-03-24
 - **FR-6**: Org Dashboards
 
 ### Tests
-- **119 backend tests** at 83% coverage — test_api.py (74: Search, Health, Datasets, Sectors, Occupations, Hierarchy, Drift, SectorPriorities, TaskMatrix, CompositeSector, GDPval, SemanticSearch, OccupationsCoverage), test_data_invariants.py (11), test_drift.py (15), test_drift_results.py (8), test_cross_dataset_joins.py (5), test_transformations.py (3), test_onet_ingestion.py (3)
-- **34 component tests** via Vitest + @testing-library/react — AEITaskDetailPanel (12), GDPvalBenchmarkPanel (11), SectorChipSelector (11)
+- **132 backend tests** at 83% coverage — test_api.py (83: Search, Health, Datasets, Sectors, Occupations, Hierarchy, Drift, SectorPriorities, TaskMatrix, CompositeSector, GDPval, SemanticSearch, OccupationsCoverage, AURegion [9 new]), test_data_invariants.py (15: includes 4 new AU invariant tests — test_crosswalk_covers_all_naics_sectors, test_anzsco_concordance_coverage, test_au_profiles_have_region, test_au_profiles_have_exposure_scores), test_drift.py (15), test_drift_results.py (8), test_cross_dataset_joins.py (5), test_transformations.py (3), test_onet_ingestion.py (3)
+- **45 component tests** via Vitest + @testing-library/react — AEITaskDetailPanel (12), GDPvalBenchmarkPanel (11), SectorChipSelector (11), RegionSelector (11 new)
 - **37 Playwright E2E browser tests** across 5 suites — sectors (4), search-to-occupation (5), occupations (14), drift (4), composite (10)
-- **Total: 190 tests** (119 backend + 34 component + 37 E2E)
+- **Total: 214 tests** (132 backend + 45 component + 37 E2E)
 - E2E config: `playwright.config.ts`, test files in `e2e/` directory, run via `npm run test:e2e`
 
 ## Success Metrics Progress
@@ -102,13 +113,13 @@ Last updated: 2026-03-24
 | O*NET matching automation | >=95% | 0% |
 | Hierarchy build (10k employees) | <5s | -- |
 | N>=5 enforcement | 100% | -- |
-| Backend test coverage | >=80% | 83% (119 backend + 34 component + 37 E2E = 190 total) |
+| Backend test coverage | >=80% | 83% (132 backend + 45 component + 37 E2E = 214 total) |
 
 ## Technical Debt
 - Eloundou DWA Strategy B (LLM rubric for uncovered DWAs) not yet implemented
 - GPTVal integration not started
 - GDPval evaluations not yet collected — gdpval_evaluations table is empty; model-era scoring pipeline for FR-8.7 waterline tracking not yet built (API and UI surface for GDPval benchmarks is complete)
-- ABS/JSA Australian employment data not loaded
+- ANZSCO concordance low-confidence matches (<0.70 similarity) should be manually reviewed before use in Tier 2 matching
 
 ## ADRs Created
 - ADR-001: Data lineage catalog strategy

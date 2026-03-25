@@ -62,7 +62,7 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.4 OEWS Industry Profiles (7,935 profiles, 20 sectors, 153M workers)
   [x] FR-8.5 Tier 1 Dashboard (6 pages: Sectors, Sector Detail, Composite Sector, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards; composite multi-sector analysis (SectorChipSelector → /sectors/composite with blended metrics, unified occupation table, narrative summary)
   [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores; GDPval API live (GET /gdpval/summary, GET /gdpval/occupations/{soc_code}); GDPval badges on occupation detail header and sector role rows; GDPval filter toggle on Occupations and Sector Detail pages (filters to 44 benchmark occupations); AEI Task Intelligence panel (4 SVG visualisations); GDPval Benchmark panel (3 visualisations); task matrix API enriched with automation_pct, augmentation_pct, gdpval_benchmark_count
-  [ ] FR-8.9 Industry Crosswalk (table exists, AU data not loaded)
+  [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
 
 Tier 2 (sequential — each stage blocks the next):
   [ ] FR-1 (Org Hierarchy) → FR-7 (Privacy Controls) → FR-6 (Dashboards)
@@ -77,7 +77,7 @@ Tier 2 (sequential — each stage blocks the next):
 - **Microsoft "Working with AI"**: CC-BY 4.0, empirical Copilot usage (Jan–Sept 2024). 785 SOC scores, 332 IWA metrics, 13,698 SOC-to-IWA mappings. LOADED.
 - **AEI**: HuggingFace CC-BY — labor market (756 jobs, 17,998 tasks) + temporal (16,976 snapshots across 4 model eras). LOADED.
 - **BLS OEWS**: US headcount weighting by occupation × industry (NAICS). 8,573 rows. LOADED.
-- **ABS/JSA**: Australian headcount weighting (ANZSIC), loaded per engagement. NOT LOADED.
+- **ABS/JSA**: JSA Occupation Profiles Nov 2025 (Revised). ANZSCO × ANZSIC employment by occupation. 2,743 rows across 19 ANZSIC divisions. LOADED.
 - **GPTVal**: Longitudinal AI capability benchmarks; versioned by model era (sonnet-3.5, 3.7, 4, 4.5...). NOT LOADED.
 - **OpenAI GDPval**: MIT license — 220 real-world knowledge tasks across 44 occupations and 9 NAICS sectors. Tasks mapped to O*NET SOC codes (43 exact + 1 contextual match). Rubric-graded evaluations (10,453 items). gdpval_evaluations table ready for model-era scores to enable FR-8.7 waterline velocity. LOADED.
 
@@ -107,13 +107,16 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | aei_task_penetration | 17,998 | AEI (Anthropic) |
 | aei_task_snapshots | 16,976 | AEI Temporal (4 model eras) |
 | oews_employment | 8,573 | BLS OEWS May 2024 |
+| abs_employment | 2,743 | ABS/JSA Nov 2025 (AU) |
+| anzsco_soc_concordance | 491 | Derived (semantic matching, FR-8.9) |
+| industry_crosswalk | 21 | Derived (NAICS↔ANZSIC via ISIC Rev.4, FR-8.9) |
 | task_drift_metrics | 4,605 | Derived (FR-8.2 linregress + FR-8.3 classification) |
-| industry_occupation_profiles | 7,935 | Derived (FR-8.4 OEWS × multi-source scoring) |
+| industry_occupation_profiles | 9,019 | Derived (FR-8.4/FR-8.9 — 7,935 US + 1,084 AU; region column added) |
 | onet_title_embeddings | 66,512 | Derived (sentence-transformers, Layer 2 semantic search) |
 | gdpval_tasks | 220 | OpenAI GDPval |
 | gdpval_rubric_items | 10,453 | OpenAI GDPval |
 | gdpval_evaluations | 0 | (future model-era scores for FR-8.7) |
-| **TOTAL** | **~532,400** | |
+| **TOTAL** | **~535,655** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
