@@ -5,6 +5,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, CLASSIFICATION_COLORS, GDPVAL_COLORS } from "../lib/constants";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
+import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 
 export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
@@ -132,6 +133,9 @@ export function SectorDetailPage() {
           />
         </div>
       )}
+
+      {/* Zone explainer — collapsed by default */}
+      <ZoneExplainerPanel />
 
       {/* Charts row */}
       <div style={{ display: "flex", gap: 16 }}>

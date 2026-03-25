@@ -14,6 +14,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type CompositeSectorResponse } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
+import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 
 export function CompositeSectorPage() {
   const [searchParams] = useSearchParams();
@@ -166,6 +167,9 @@ function CompositeContent({
           borderColor="#C4B5FD"
         />
       </div>
+
+      {/* Zone explainer — collapsed by default */}
+      <ZoneExplainerPanel />
 
       {/* Occupation table */}
       <div style={{

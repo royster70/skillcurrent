@@ -9,6 +9,7 @@ import { api, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { SectorChipSelector } from "../components/SectorChipSelector";
+import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 
 export function SectorsPage() {
   const { data, loading, error } = useApi(() => api.sectors(), []);
@@ -67,6 +68,9 @@ export function SectorsPage() {
           {" "}· {(totalEmp / 1_000_000).toFixed(1)}M US workers
         </p>
       </div>
+
+      {/* Zone explainer — collapsed by default */}
+      <ZoneExplainerPanel />
 
       {/* Metric cards — workers at risk */}
       <div style={{ display: "flex", gap: 16 }}>
