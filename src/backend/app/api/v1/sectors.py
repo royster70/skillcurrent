@@ -1,6 +1,6 @@
-"""Sector endpoints — NAICS industry sector views."""
+"""Sector endpoints — industry sector views (US NAICS / AU ANZSIC)."""
 
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
@@ -15,8 +15,14 @@ router = APIRouter(prefix="/sectors", tags=["sectors"])
 
 
 @router.get("", response_model=SectorsResponse)
-async def list_sectors(db: AsyncSession = Depends(get_db)) -> SectorsResponse:
-    """List all NAICS sectors with aggregate AI exposure stats."""
+async def list_sectors(
+    region: str = Query("US", pattern="^(US|AU)$", description="US (NAICS) or AU (ANZSIC)"),
+    db: AsyncSession = Depends(get_db),
+) -> SectorsResponse:
+    """List all sectors with aggregate AI exposure stats.
+
+    US returns NAICS sectors; AU returns ANZSIC divisions.
+    """
     r = await db.execute(text("""
         SELECT
             naics_code, naics_title,
@@ -43,9 +49,10 @@ async def list_sectors(db: AsyncSession = Depends(get_db)) -> SectorsResponse:
             SUM(CASE WHEN dominant_zone = 'E1' THEN COALESCE(headcount, 0) ELSE 0 END) AS workers_e1,
             SUM(CASE WHEN dominant_zone = 'E2' THEN COALESCE(headcount, 0) ELSE 0 END) AS workers_e2
         FROM industry_occupation_profiles
+        WHERE region = :region
         GROUP BY naics_code, naics_title
         ORDER BY SUM(headcount) DESC NULLS LAST
-    """))
+    """), {"region": region})
     sectors = [
         SectorSummary(
             naics_code=row[0],
@@ -67,12 +74,13 @@ async def list_sectors(db: AsyncSession = Depends(get_db)) -> SectorsResponse:
         )
         for row in r.fetchall()
     ]
-    return SectorsResponse(sectors=sectors, total_sectors=len(sectors))
+    return SectorsResponse(sectors=sectors, total_sectors=len(sectors), region=region)
 
 
 @router.get("/{naics_code}/occupations", response_model=list[OccupationSummary])
 async def get_sector_occupations(
     naics_code: str,
+    region: str = Query("US", pattern="^(US|AU)$"),
     db: AsyncSession = Depends(get_db),
 ) -> list[OccupationSummary]:
     """Get occupations within a sector, grouped by SOC major group."""
@@ -84,9 +92,9 @@ async def get_sector_occupations(
             p.aei_exposure, p.dominant_zone,
             p.drift_velocity, p.drift_classification
         FROM industry_occupation_profiles p
-        WHERE p.naics_code = :naics_code
+        WHERE p.naics_code = :naics_code AND p.region = :region
         ORDER BY p.headcount DESC NULLS LAST
-    """), {"naics_code": naics_code})
+    """), {"naics_code": naics_code, "region": region})
 
     rows = r.fetchall()
     if not rows:

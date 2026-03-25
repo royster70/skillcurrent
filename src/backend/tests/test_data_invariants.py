@@ -193,3 +193,76 @@ async def test_aei_snapshots_automation_range(session: AsyncSession):
     assert violations == 0, (
         f"{violations} AEI snapshots have automation/augmentation pct outside [0,1]"
     )
+
+
+# ── AU Data Invariants (FR-8.9) ──
+
+
+async def test_crosswalk_covers_all_naics_sectors(session: AsyncSession):
+    """Every NAICS sector code in US profiles has a crosswalk entry."""
+    result = await session.execute(
+        text("""
+            SELECT DISTINCT p.naics_code
+            FROM industry_occupation_profiles p
+            WHERE p.region = 'US'
+              AND NOT EXISTS (
+                  SELECT 1 FROM industry_crosswalk c
+                  WHERE c.source_code = p.naics_code AND c.source_system = 'NAICS_2022'
+              )
+        """)
+    )
+    unmapped = [row[0] for row in result.fetchall()]
+    assert len(unmapped) == 0, f"NAICS sectors without crosswalk: {unmapped}"
+
+
+async def test_anzsco_concordance_coverage(session: AsyncSession):
+    """Every ANZSCO code in abs_employment has a SOC concordance entry."""
+    result = await session.execute(
+        text("""
+            SELECT COUNT(DISTINCT ab.anzsco_code)
+            FROM abs_employment ab
+            WHERE NOT EXISTS (
+                SELECT 1 FROM anzsco_soc_concordance asc2
+                WHERE asc2.anzsco_code = SUBSTRING(ab.anzsco_code FROM 1 FOR 4)
+            )
+        """)
+    )
+    unmapped = result.scalar_one()
+    # Some nfd/catch-all codes may not match — allow up to 10%
+    total = await session.execute(text("SELECT COUNT(DISTINCT anzsco_code) FROM abs_employment"))
+    total_count = total.scalar_one()
+    if total_count > 0:
+        assert unmapped / total_count < 0.10, (
+            f"{unmapped}/{total_count} ANZSCO codes lack SOC concordance (>{10}%)"
+        )
+
+
+async def test_au_profiles_have_region(session: AsyncSession):
+    """All AU profiles have region='AU'."""
+    result = await session.execute(
+        text("""
+            SELECT COUNT(*) FROM industry_occupation_profiles
+            WHERE region = 'AU' AND naics_code ~ '^[A-S]$'
+        """)
+    )
+    au_count = result.scalar_one()
+    assert au_count > 0, "No AU profiles found"
+
+
+async def test_au_profiles_have_exposure_scores(session: AsyncSession):
+    """Most AU profiles have Eloundou Beta scores (via SOC concordance)."""
+    result = await session.execute(
+        text("""
+            SELECT
+                COUNT(*) AS total,
+                COUNT(eloundou_beta) AS with_beta
+            FROM industry_occupation_profiles
+            WHERE region = 'AU'
+        """)
+    )
+    row = result.one()
+    if row.total > 0:
+        coverage = row.with_beta / row.total
+        assert coverage >= 0.80, (
+            f"Only {coverage:.0%} of AU profiles have Eloundou Beta (expected ≥80%)"
+        )

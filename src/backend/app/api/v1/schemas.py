@@ -48,6 +48,7 @@ class SectorSummary(BaseModel):
 class SectorsResponse(BaseModel):
     sectors: list[SectorSummary]
     total_sectors: int
+    region: str = "US"
 
 
 # ── Occupations ──

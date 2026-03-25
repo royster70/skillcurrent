@@ -44,6 +44,7 @@ export interface SectorSummary {
 export interface SectorsResponse {
   sectors: SectorSummary[];
   total_sectors: number;
+  region: string;
 }
 
 export interface OccupationSummary {
@@ -319,9 +320,9 @@ export const api = {
     return res.json() as Promise<SearchResponse>;
   },
   datasets: () => get<DatasetsResponse>("/datasets"),
-  sectors: () => get<SectorsResponse>("/sectors"),
-  sectorOccupations: (code: string) => get<OccupationSummary[]>(`/sectors/${code}/occupations`),
-  sectorPriorities: (code: string, topN = 10) => get<SectorPrioritiesResponse>(`/sectors/${code}/priorities?top_n=${topN}`),
+  sectors: (region = "US") => get<SectorsResponse>(`/sectors?region=${region}`),
+  sectorOccupations: (code: string, region = "US") => get<OccupationSummary[]>(`/sectors/${code}/occupations?region=${region}`),
+  sectorPriorities: (code: string, topN = 10, region = "US") => get<SectorPrioritiesResponse>(`/sectors/${code}/priorities?top_n=${topN}&region=${region}`),
   occupations: (params?: string) => get<{ occupations: OccupationSummary[]; total: number }>(`/occupations${params ? `?${params}` : ""}`),
   hierarchy: () => get<SocHierarchyResponse>("/occupations/hierarchy"),
   occupation: (soc: string) => get<OccupationDetail>(`/occupations/${soc}`),
@@ -333,6 +334,6 @@ export const api = {
   driftEnduring: (page = 1, size = 20) => get<DriftListResponse>(`/drift/enduring?page=${page}&page_size=${size}`),
   gdpvalSummary: () => get<GDPvalSummaryResponse>("/gdpval/summary"),
   gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
-  compositeAnalysis: (codes: string[]) =>
-    get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}`),
+  compositeAnalysis: (codes: string[], region = "US") =>
+    get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}`),
 };

@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import {
   ScatterChart, Scatter, XAxis, YAxis, ZAxis, Tooltip, ResponsiveContainer, Cell,
   PieChart, Pie, Legend,
@@ -10,13 +10,21 @@ import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { SectorChipSelector } from "../components/SectorChipSelector";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
+import { RegionSelector } from "../components/RegionSelector";
 
 export function SectorsPage() {
-  const { data, loading, error } = useApi(() => api.sectors(), []);
+  const [searchParams, setSearchParams] = useSearchParams();
+  const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
+  const { data, loading, error } = useApi(() => api.sectors(region), [region]);
   const { data: drift } = useApi(() => api.driftSummary(), []);
   const navigate = useNavigate();
   const [pieMode, setPieMode] = useState<"workers" | "occupations">("workers");
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+
+  const setRegion = (r: string) => {
+    setSearchParams(r === "US" ? {} : { region: r });
+    setSelectedSectors([]);
+  };
 
   if (loading) return <div>Loading sectors...</div>;
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
@@ -60,13 +68,16 @@ export function SectorsPage() {
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
-      {/* Header */}
-      <div>
-        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Industry Sectors</h1>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
-          AI exposure analysis across {data.total_sectors} NAICS sectors
-          {" "}· {(totalEmp / 1_000_000).toFixed(1)}M US workers
-        </p>
+      {/* Header with region toggle */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
+        <div>
+          <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Industry Sectors</h1>
+          <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+            AI exposure analysis across {data.total_sectors} {region === "AU" ? "ANZSIC" : "NAICS"} sectors
+            {" "}· {(totalEmp / 1_000_000).toFixed(1)}M {region === "AU" ? "AU" : "US"} workers
+          </p>
+        </div>
+        <RegionSelector region={region} onChange={setRegion} />
       </div>
 
       {/* Zone explainer — collapsed by default */}
@@ -90,6 +101,7 @@ export function SectorsPage() {
         sectors={sectors}
         selected={selectedSectors}
         onChange={setSelectedSectors}
+        region={region}
       />
 
       {/* Charts row */}
@@ -140,7 +152,7 @@ export function SectorsPage() {
                   <Cell key={i} fill={ZONE_COLORS[d.zone as keyof typeof ZONE_COLORS] || "#94A3B8"}
                     fillOpacity={0.7} stroke={ZONE_COLORS[d.zone as keyof typeof ZONE_COLORS] || "#94A3B8"}
                     strokeWidth={1} cursor="pointer"
-                    onClick={() => navigate(`/sectors/${d.naics_code}`)} />
+                    onClick={() => navigate(`/sectors/${d.naics_code}${region === "AU" ? "?region=AU" : ""}`)} />
                 ))}
               </Scatter>
             </ScatterChart>
@@ -173,7 +185,7 @@ export function SectorsPage() {
           <tbody>
             {sectors.map((s) => (
               <tr key={s.naics_code}
-                onClick={() => navigate(`/sectors/${s.naics_code}`)}
+                onClick={() => navigate(`/sectors/${s.naics_code}${region === "AU" ? "?region=AU" : ""}`)}
                 style={{ cursor: "pointer", borderTop: "1px solid #E4E4E7" }}
                 onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F9FAFB")}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}

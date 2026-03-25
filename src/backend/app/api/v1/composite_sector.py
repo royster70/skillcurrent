@@ -46,9 +46,10 @@ class CompositeSectorResponse(BaseModel):
 async def composite_sector_analysis(
     codes: str = Query(
         ...,
-        description="Comma-separated NAICS codes (minimum 2)",
+        description="Comma-separated sector codes (minimum 2). NAICS for US, ANZSIC for AU.",
         examples=["62,54,51"],
     ),
+    region: str = Query("US", pattern="^(US|AU)$", description="US (NAICS) or AU (ANZSIC)"),
     db: AsyncSession = Depends(get_db),
 ) -> CompositeSectorResponse:
     """Blend multiple sectors into a composite impact profile.
@@ -70,9 +71,9 @@ async def composite_sector_analysis(
         text("""
             SELECT DISTINCT naics_code, naics_title
             FROM industry_occupation_profiles
-            WHERE naics_code = ANY(:codes)
+            WHERE naics_code = ANY(:codes) AND region = :region
         """),
-        {"codes": code_list},
+        {"codes": code_list, "region": region},
     )
     found = {row[0]: row[1] for row in validate_r.fetchall()}
     missing = [c for c in code_list if c not in found]
@@ -113,11 +114,11 @@ async def composite_sector_analysis(
                 (ARRAY_AGG(p.drift_classification ORDER BY p.headcount DESC))[1]
                     AS drift_classification
             FROM industry_occupation_profiles p
-            WHERE p.naics_code = ANY(:codes)
+            WHERE p.naics_code = ANY(:codes) AND p.region = :region
             GROUP BY p.onet_soc, p.occupation_title
             ORDER BY SUM(p.headcount) DESC NULLS LAST
         """),
-        {"codes": code_list},
+        {"codes": code_list, "region": region},
     )
     rows = r.fetchall()
 

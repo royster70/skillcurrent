@@ -46,6 +46,7 @@ class SectorPrioritiesResponse(BaseModel):
 async def get_sector_priorities(
     naics_code: str,
     top_n: int = Query(10, ge=1, le=50, description="Number of priority roles to highlight"),
+    region: str = Query("US", pattern="^(US|AU)$", description="US (NAICS) or AU (ANZSIC)"),
     db: AsyncSession = Depends(get_db),
 ) -> SectorPrioritiesResponse:
     """Get sector occupations ranked by AI impact priority.
@@ -57,22 +58,25 @@ async def get_sector_priorities(
     - Concentration: location quotient (sector concentration vs national average)
 
     Returns priority_roles (top N) and full_mix (all occupations).
+    Works for both US (NAICS) and AU (ANZSIC) by filtering on region.
     """
+    # Use industry_occupation_profiles for national totals — works for both regions
+    # since profiles already contain headcount per (sector, soc, region)
     r = await db.execute(text("""
         WITH sector_total AS (
-            SELECT SUM(employment) AS total_emp
-            FROM oews_employment
-            WHERE naics_code = :naics_code AND employment IS NOT NULL
+            SELECT SUM(headcount) AS total_emp
+            FROM industry_occupation_profiles
+            WHERE naics_code = :naics_code AND region = :region AND headcount IS NOT NULL
         ),
         national_total AS (
-            SELECT onet_soc, SUM(employment) AS national_emp
-            FROM oews_employment
-            WHERE employment IS NOT NULL
+            SELECT onet_soc, SUM(headcount) AS national_emp
+            FROM industry_occupation_profiles
+            WHERE region = :region AND headcount IS NOT NULL
             GROUP BY onet_soc
         ),
         national_grand AS (
-            SELECT SUM(employment) AS grand_total FROM oews_employment
-            WHERE employment IS NOT NULL
+            SELECT SUM(headcount) AS grand_total FROM industry_occupation_profiles
+            WHERE region = :region AND headcount IS NOT NULL
         ),
         sector_roles AS (
             SELECT
@@ -116,12 +120,12 @@ async def get_sector_priorities(
             CROSS JOIN sector_total st
             CROSS JOIN national_grand ng
             LEFT JOIN national_total nt ON nt.onet_soc = p.onet_soc
-            WHERE p.naics_code = :naics_code
+            WHERE p.naics_code = :naics_code AND p.region = :region
               AND p.headcount IS NOT NULL
         )
         SELECT * FROM sector_roles
         ORDER BY impact_score DESC NULLS LAST
-    """), {"naics_code": naics_code})
+    """), {"naics_code": naics_code, "region": region})
 
     rows = r.fetchall()
     if not rows:

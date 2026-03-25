@@ -2,6 +2,7 @@ from datetime import date, datetime
 
 from sqlalchemy import (
     ARRAY,
+    Boolean,
     Date,
     Float,
     Index,
@@ -120,12 +121,63 @@ class IndustryOccupationProfile(Base):
     drift_classification: Mapped[str | None] = mapped_column(Text)
     profile_date: Mapped[date] = mapped_column(Date, nullable=False)
     release_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    region: Mapped[str] = mapped_column(Text, nullable=False, server_default="US")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        UniqueConstraint("naics_code", "onet_soc", "release_year"),
+        UniqueConstraint("naics_code", "onet_soc", "release_year", "region", name="uq_iop_naics_soc_year_region"),
         Index("ix_industry_occupation_profiles_naics_code", "naics_code"),
         Index("ix_industry_occupation_profiles_onet_soc", "onet_soc"),
         Index("ix_industry_occupation_profiles_dominant_zone", "dominant_zone"),
+        Index("ix_industry_occupation_profiles_region", "region"),
+    )
+
+
+class ABSEmployment(Base):
+    """Australian Bureau of Statistics employment data by ANZSCO × ANZSIC."""
+
+    __tablename__ = "abs_employment"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    anzsco_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_title: Mapped[str | None] = mapped_column(Text)
+    anzsic_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsic_title: Mapped[str | None] = mapped_column(Text)
+    area_code: Mapped[str] = mapped_column(Text, nullable=False, server_default="AU0000")
+    employment: Mapped[int | None] = mapped_column(Integer)
+    employment_per_1000: Mapped[float | None] = mapped_column(Float)
+    median_annual_wage: Mapped[int | None] = mapped_column(Integer)
+    release_year: Mapped[int] = mapped_column(Integer, nullable=False)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("anzsco_code", "anzsic_code", "area_code", "release_year"),
+        Index("ix_abs_employment_anzsco", "anzsco_code"),
+        Index("ix_abs_employment_anzsic", "anzsic_code"),
+        Index("ix_abs_employment_release_year", "release_year"),
+    )
+
+
+class ANZSCOSOCConcordance(Base):
+    """ANZSCO → O*NET SOC occupation mapping via semantic matching."""
+
+    __tablename__ = "anzsco_soc_concordance"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    anzsco_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_title: Mapped[str] = mapped_column(Text, nullable=False)
+    onet_soc: Mapped[str] = mapped_column(Text, nullable=False)
+    onet_title: Mapped[str | None] = mapped_column(Text)
+    match_method: Mapped[str] = mapped_column(Text, nullable=False)
+    confidence: Mapped[float] = mapped_column(Float, nullable=False)
+    matched_variant: Mapped[str | None] = mapped_column(Text)  # which title variant produced the match
+    reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint("anzsco_code", "onet_soc"),
+        Index("ix_anzsco_soc_anzsco", "anzsco_code"),
+        Index("ix_anzsco_soc_onet", "onet_soc"),
+        Index("ix_anzsco_soc_confidence", "confidence"),
     )

@@ -593,6 +593,93 @@ class TestCompositeSector:
         assert zone_total > 0
 
 
+# ── AU Region Support (FR-8.9) ──
+
+
+class TestAURegion:
+    @pytest.mark.asyncio
+    async def test_au_sectors_list(self, client):
+        """GET /sectors?region=AU returns ANZSIC divisions."""
+        r = await client.get("/api/v1/sectors?region=AU")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["region"] == "AU"
+        assert data["total_sectors"] == 19  # 19 ANZSIC divisions
+        # First sector should have a single-letter code (ANZSIC division)
+        assert len(data["sectors"][0]["naics_code"]) == 1
+
+    @pytest.mark.asyncio
+    async def test_au_sector_has_employment(self, client):
+        """AU sectors have non-zero employment data."""
+        r = await client.get("/api/v1/sectors?region=AU")
+        sectors = r.json()["sectors"]
+        total_emp = sum(s["total_employment"] for s in sectors)
+        assert total_emp > 10_000_000  # >10M AU workers
+
+    @pytest.mark.asyncio
+    async def test_au_sector_occupations(self, client):
+        """GET /sectors/Q/occupations?region=AU returns Health Care roles."""
+        r = await client.get("/api/v1/sectors/Q/occupations?region=AU")
+        assert r.status_code == 200
+        occs = r.json()
+        assert len(occs) > 0
+        # All occupations should have SOC codes
+        for occ in occs[:5]:
+            assert occ["soc_code"]
+            assert occ["title"]
+
+    @pytest.mark.asyncio
+    async def test_au_sector_priorities(self, client):
+        """GET /sectors/Q/priorities?region=AU returns ranked roles."""
+        r = await client.get("/api/v1/sectors/Q/priorities?region=AU")
+        assert r.status_code == 200
+        data = r.json()
+        assert data["occupation_count"] > 0
+        # Impact scores should be sorted descending
+        scores = [r["impact_score"] for r in data["priority_roles"] if r["impact_score"]]
+        if len(scores) > 1:
+            assert scores == sorted(scores, reverse=True)
+
+    @pytest.mark.asyncio
+    async def test_au_composite(self, client):
+        """GET /sectors/composite?codes=Q,M&region=AU returns composite analysis."""
+        r = await client.get("/api/v1/sectors/composite?codes=Q,M&region=AU")
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data["sector_names"]) == 2
+        assert data["occupation_count"] > 0
+        assert data["total_employment"] > 0
+
+    @pytest.mark.asyncio
+    async def test_au_composite_invalid_code(self, client):
+        """AU composite with invalid ANZSIC code returns 404."""
+        r = await client.get("/api/v1/sectors/composite?codes=Q,ZZ&region=AU")
+        assert r.status_code == 404
+
+    @pytest.mark.asyncio
+    async def test_us_default_unchanged(self, client):
+        """Default (no region param) still returns US data."""
+        r = await client.get("/api/v1/sectors")
+        data = r.json()
+        assert data["region"] == "US"
+        assert data["total_sectors"] == 20  # 20 NAICS sectors
+
+    @pytest.mark.asyncio
+    async def test_au_exposure_scores_present(self, client):
+        """AU sectors have Eloundou Beta scores (country-agnostic intelligence)."""
+        r = await client.get("/api/v1/sectors?region=AU")
+        sectors = r.json()["sectors"]
+        has_beta = [s for s in sectors if s.get("weighted_eloundou_beta")]
+        # Most AU sectors should have exposure scores (via SOC concordance)
+        assert len(has_beta) >= 15
+
+    @pytest.mark.asyncio
+    async def test_invalid_region_rejected(self, client):
+        """Invalid region parameter returns 422."""
+        r = await client.get("/api/v1/sectors?region=NZ")
+        assert r.status_code == 422
+
+
 # ── GDPval Benchmarks ──
 
 

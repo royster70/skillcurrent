@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
@@ -9,15 +9,17 @@ import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 
 export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
+  const [searchParams] = useSearchParams();
+  const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
   const navigate = useNavigate();
   const [showFullMix, setShowFullMix] = useState(false);
   const [gdpvalFilter, setGdpvalFilter] = useState(false);
 
   const { data, loading, error } = useApi(
-    () => api.sectorPriorities(code!, 10), [code]
+    () => api.sectorPriorities(code!, 10, region), [code, region]
   );
   // Fetch all sectors for percentile ranking
-  const { data: allSectorsData } = useApi(() => api.sectors(), []);
+  const { data: allSectorsData } = useApi(() => api.sectors(region), [region]);
   // Fetch GDPval summary for benchmark coverage indicators
   const { data: gdpvalData } = useApi(() => api.gdpvalSummary(), []);
 
@@ -78,7 +80,7 @@ export function SectorDetailPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Header */}
       <div>
-        <button onClick={() => navigate("/")}
+        <button onClick={() => navigate(`/${region === "AU" ? "?region=AU" : ""}`)}
           style={{ fontSize: 13, color: "#2563EB", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 8 }}>
           ← Back to Sectors
         </button>

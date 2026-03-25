@@ -3,6 +3,7 @@
 Usage:
     python -m scripts.compute_industry_profiles
     python -m scripts.compute_industry_profiles --year 2024
+    python -m scripts.compute_industry_profiles --region AU --year 2025
 """
 
 import argparse
@@ -19,15 +20,18 @@ logging.basicConfig(
 )
 
 
-async def main(release_year: int) -> None:
+async def main(release_year: int, region: str) -> None:
     async with async_session() as session:
-        rows = await compute_industry_profiles(session, release_year=release_year)
+        rows = await compute_industry_profiles(
+            session, release_year=release_year, region=region,
+        )
         await session.commit()
-        print(f"\nIndustry profiles complete: {rows:,} profiles created")
+        print(f"\n{region} industry profiles complete: {rows:,} profiles created")
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute industry occupation profiles")
-    parser.add_argument("--year", type=int, default=2024, help="OEWS release year (default: 2024)")
+    parser.add_argument("--year", type=int, default=2024, help="Employment release year (default: 2024)")
+    parser.add_argument("--region", default="US", choices=["US", "AU"], help="Region: US (OEWS/NAICS) or AU (ABS/ANZSIC)")
     args = parser.parse_args()
-    asyncio.run(main(args.year))
+    asyncio.run(main(args.year, args.region))

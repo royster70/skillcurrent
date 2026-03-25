@@ -20,10 +20,11 @@ export function CompositeSectorPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const codes = (searchParams.get("codes") || "").split(",").filter(Boolean);
+  const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
 
   const { data, loading, error } = useApi(
-    () => codes.length >= 2 ? api.compositeAnalysis(codes) : Promise.reject("Need 2+ codes"),
-    [searchParams.get("codes")],
+    () => codes.length >= 2 ? api.compositeAnalysis(codes, region) : Promise.reject("Need 2+ codes"),
+    [searchParams.get("codes"), region],
   );
 
   if (codes.length < 2) {
@@ -54,7 +55,7 @@ export function CompositeSectorPage() {
   );
   if (!data) return null;
 
-  return <CompositeContent data={data} navigate={navigate} />;
+  return <CompositeContent data={data} navigate={navigate} region={region} />;
 }
 
 // ── Main content (separated for cleaner rendering) ──
@@ -62,9 +63,11 @@ export function CompositeSectorPage() {
 function CompositeContent({
   data,
   navigate,
+  region = "US",
 }: {
   data: CompositeSectorResponse;
   navigate: ReturnType<typeof useNavigate>;
+  region?: string;
 }) {
   const totalEmp = data.total_employment;
   const narrative = generateNarrative(data);
@@ -120,7 +123,7 @@ function CompositeContent({
           </div>
         ))}
         <button
-          onClick={() => navigate("/")}
+          onClick={() => navigate(`/${region === "AU" ? "?region=AU" : ""}`)}
           style={{
             display: "flex", alignItems: "center", gap: 4,
             background: "none", border: "none", cursor: "pointer",
