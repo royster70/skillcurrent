@@ -86,8 +86,8 @@ export function SectorDetailPage() {
         </button>
         <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0 }}>{data.naics_title}</h1>
         <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
-          NAICS {data.naics_code} · {data.occupation_count} occupations
-          {data.total_employment ? ` · ${(data.total_employment / 1_000_000).toFixed(1)}M workers` : ""}
+          {region === "AU" ? "ANZSIC" : "NAICS"} {data.naics_code} · {data.occupation_count} occupations
+          {data.total_employment ? ` · ${(data.total_employment / 1_000_000).toFixed(1)}M ${region === "AU" ? "AU" : "US"} workers` : ""}
         </p>
       </div>
 
