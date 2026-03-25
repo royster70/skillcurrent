@@ -275,16 +275,16 @@ async def _compute_au_profiles(
             WHERE onet_soc LIKE agg.onet_soc || '%'
             ORDER BY onet_soc LIMIT 1
         ) e ON TRUE
-        -- Microsoft AI applicability (6-digit SOC join)
-        LEFT JOIN ms_ai_applicability_scores m ON m.soc_code = agg.onet_soc
-        -- AEI job exposure
-        LEFT JOIN aei_job_exposure a ON a.occ_code = agg.onet_soc
+        -- Microsoft AI applicability (prefix match: 8-digit SOC → 6-digit MS code)
+        LEFT JOIN ms_ai_applicability_scores m ON m.soc_code = SUBSTRING(agg.onet_soc FROM 1 FOR 7)
+        -- AEI job exposure (prefix match)
+        LEFT JOIN aei_job_exposure a ON a.occ_code = SUBSTRING(agg.onet_soc FROM 1 FOR 7)
         -- AEI automation/augmentation averages
         LEFT JOIN LATERAL (
             SELECT AVG(automation_pct) AS avg_automation,
                    AVG(augmentation_pct) AS avg_augmentation
             FROM aei_task_snapshots
-            WHERE onet_soc_codes @> ARRAY[agg.onet_soc]
+            WHERE onet_soc_codes @> ARRAY[SUBSTRING(agg.onet_soc FROM 1 FOR 7)]
               AND automation_pct IS NOT NULL
         ) aei_auto ON TRUE
         -- Drift velocity aggregate
@@ -293,7 +293,7 @@ async def _compute_au_profiles(
                    MODE() WITHIN GROUP (ORDER BY tdm.classification) AS dominant_classification
             FROM task_drift_metrics tdm
             JOIN aei_task_snapshots ats ON ats.task_text = tdm.task_text
-            WHERE ats.onet_soc_codes @> ARRAY[agg.onet_soc]
+            WHERE ats.onet_soc_codes @> ARRAY[SUBSTRING(agg.onet_soc FROM 1 FOR 7)]
               AND tdm.velocity IS NOT NULL
             HAVING COUNT(*) > 0
         ) drift_agg ON TRUE
