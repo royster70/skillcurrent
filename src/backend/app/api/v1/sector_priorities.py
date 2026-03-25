@@ -46,7 +46,7 @@ class SectorPrioritiesResponse(BaseModel):
 async def get_sector_priorities(
     naics_code: str,
     top_n: int = Query(10, ge=1, le=50, description="Number of priority roles to highlight"),
-    region: str = Query("US", pattern="^(US|AU)$", description="US (NAICS) or AU (ANZSIC)"),
+    region: str = Query("US", pattern="^(US|AU|us|au)$", description="US (NAICS) or AU (ANZSIC)"),
     db: AsyncSession = Depends(get_db),
 ) -> SectorPrioritiesResponse:
     """Get sector occupations ranked by AI impact priority.
@@ -60,6 +60,7 @@ async def get_sector_priorities(
     Returns priority_roles (top N) and full_mix (all occupations).
     Works for both US (NAICS) and AU (ANZSIC) by filtering on region.
     """
+    region = region.upper()
     # Use industry_occupation_profiles for national totals — works for both regions
     # since profiles already contain headcount per (sector, soc, region)
     r = await db.execute(text("""

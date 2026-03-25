@@ -49,7 +49,7 @@ async def composite_sector_analysis(
         description="Comma-separated sector codes (minimum 2). NAICS for US, ANZSIC for AU.",
         examples=["62,54,51"],
     ),
-    region: str = Query("US", pattern="^(US|AU)$", description="US (NAICS) or AU (ANZSIC)"),
+    region: str = Query("US", pattern="^(US|AU|us|au)$", description="US (NAICS) or AU (ANZSIC)"),
     db: AsyncSession = Depends(get_db),
 ) -> CompositeSectorResponse:
     """Blend multiple sectors into a composite impact profile.
@@ -59,6 +59,7 @@ async def composite_sector_analysis(
     - Computes employment-weighted exposure scores
     - Tracks which sectors each occupation appears in
     """
+    region = region.upper()
     code_list = [c.strip() for c in codes.split(",") if c.strip()]
     if len(code_list) < 2:
         raise HTTPException(

@@ -16,13 +16,14 @@ router = APIRouter(prefix="/sectors", tags=["sectors"])
 
 @router.get("", response_model=SectorsResponse)
 async def list_sectors(
-    region: str = Query("US", pattern="^(US|AU)$", description="US (NAICS) or AU (ANZSIC)"),
+    region: str = Query("US", pattern="^(US|AU|us|au)$", description="US (NAICS) or AU (ANZSIC)"),
     db: AsyncSession = Depends(get_db),
 ) -> SectorsResponse:
     """List all sectors with aggregate AI exposure stats.
 
     US returns NAICS sectors; AU returns ANZSIC divisions.
     """
+    region = region.upper()
     r = await db.execute(text("""
         SELECT
             naics_code, naics_title,
@@ -80,10 +81,11 @@ async def list_sectors(
 @router.get("/{naics_code}/occupations", response_model=list[OccupationSummary])
 async def get_sector_occupations(
     naics_code: str,
-    region: str = Query("US", pattern="^(US|AU)$"),
+    region: str = Query("US", pattern="^(US|AU|us|au)$"),
     db: AsyncSession = Depends(get_db),
 ) -> list[OccupationSummary]:
     """Get occupations within a sector, grouped by SOC major group."""
+    region = region.upper()
     r = await db.execute(text("""
         SELECT
             p.onet_soc, p.occupation_title,
