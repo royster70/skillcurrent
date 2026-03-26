@@ -64,6 +64,9 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores; GDPval API live (GET /gdpval/summary, GET /gdpval/occupations/{soc_code}); GDPval badges on occupation detail header and sector role rows; GDPval filter toggle on Occupations and Sector Detail pages (filters to 44 benchmark occupations); AEI Task Intelligence panel (4 SVG visualisations); GDPval Benchmark panel (3 visualisations); task matrix API enriched with automation_pct, augmentation_pct, gdpval_benchmark_count
   [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
 
+Cross-cutting:
+  [ ] Observability: API timing middleware (api_request_log), pg_stat_statements, performance baseline tests (ADR-007)
+
 Tier 2 (sequential — each stage blocks the next):
   [ ] FR-1 (Org Hierarchy) → FR-7 (Privacy Controls) → FR-6 (Dashboards)
   [ ] FR-1 (Matching) → FR-2 → FR-3 (Tasks) → FR-4 (Scoring) → FR-5 (Analytics)
@@ -135,6 +138,7 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 - FR-8 drift engine (Tier 1 intelligence): `docs/fr8-role-evolution.md`
 - Security / RBAC / privacy implementation: `docs/security.md`
 - Test strategy & coverage targets: `docs/testing.md`
+- Performance & observability: ADR-007 (`ai_working/decisions/ADR-007-performance-instrumentation.md`)
 - ADRs: `ai_working/decisions/`
 - Discoveries & patterns: `ai_working/discoveries/`
 
