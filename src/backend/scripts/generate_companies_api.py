@@ -1,0 +1,359 @@
+"""Generate the companies API module.
+
+This script writes src/backend/app/api/v1/companies.py.
+Run with: python -m scripts.generate_companies_api
+"""
+
+import pathlib
+import sys
+
+sys.path.insert(0, str(pathlib.Path(__file__).resolve().parent.parent))
+
+TARGET = pathlib.Path(__file__).resolve().parent.parent / "app" / "api" / "v1" / "companies.py"
+
+# The Anthropic SDK reads its credential from the ANTHROPIC_API_KEY
+# environment variable by default when instantiated with no arguments.
+# We use os.environ.get() to check availability before calling.
+
+ANZSIC = {
+    "A": "Agriculture, Forestry and Fishing",
+    "B": "Mining",
+    "C": "Manufacturing",
+    "D": "Electricity, Gas, Water and Waste Services",
+    "E": "Construction",
+    "F": "Wholesale Trade",
+    "G": "Retail Trade",
+    "H": "Accommodation and Food Services",
+    "I": "Transport, Postal and Warehousing",
+    "J": "Information Media and Telecommunications",
+    "K": "Financial and Insurance Services",
+    "L": "Rental, Hiring and Real Estate Services",
+    "M": "Professional, Scientific and Technical Services",
+    "N": "Administrative and Support Services",
+    "O": "Public Administration and Safety",
+    "P": "Education and Training",
+    "Q": "Health Care and Social Assistance",
+    "R": "Arts and Recreation Services",
+    "S": "Other Services",
+}
+
+NAICS = {
+    "11": "Agriculture, Forestry, Fishing and Hunting",
+    "21": "Mining, Quarrying, and Oil and Gas Extraction",
+    "22": "Utilities",
+    "23": "Construction",
+    "31-33": "Manufacturing",
+    "42": "Wholesale Trade",
+    "44-45": "Retail Trade",
+    "48-49": "Transportation and Warehousing",
+    "51": "Information",
+    "52": "Finance and Insurance",
+    "53": "Real Estate and Rental and Leasing",
+    "54": "Professional, Scientific, and Technical Services",
+    "55": "Management of Companies and Enterprises",
+    "56": "Administrative and Support and Waste Management",
+    "61": "Educational Services",
+    "62": "Health Care and Social Assistance",
+    "71": "Arts, Entertainment, and Recreation",
+    "72": "Accommodation and Food Services",
+    "81": "Other Services (except Public Administration)",
+    "99": "Federal, State, and Local Government",
+}
+
+
+def _fmt_dict(name: str, d: dict[str, str], indent: int = 4) -> str:
+    pad = " " * indent
+    lines = [f"{name} = {{"]
+    for k, v in d.items():
+        lines.append(f'{pad}"{k}": "{v}",')
+    lines.append("}")
+    return "\n".join(lines)
+
+
+def generate() -> str:
+    anzsic_block = _fmt_dict("ANZSIC_DIVISIONS", ANZSIC)
+    naics_block = _fmt_dict("NAICS_SECTORS", NAICS)
+
+    # Use triple-backtick-free prompt template
+    prompt_template = (
+        'CLASSIFY_PROMPT = """You are classifying a company into industry sectors '
+        "based on its name and your knowledge of the company.\n"
+        "\n"
+        "Company: {name}\n"
+        "Country/Region: {region_label}\n"
+        "\n"
+        "Available sectors ({system_label}):\n"
+        "{sector_list}\n"
+        "\n"
+        "Instructions:\n"
+        "- Return 1-3 sectors that best describe this company's primary business activities.\n"
+        "- Only include sectors where you have reasonable confidence (>= 0.6).\n"
+        "- For diversified companies (e.g. conglomerates), include multiple sectors.\n"
+        "- If you don't recognise the company, make your best guess from the name alone.\n"
+        "\n"
+        "Return ONLY valid JSON in this exact format (no markdown, no explanation):\n"
+        '{{"sectors": [{{"code": "Q", "name": "Health Care and Social Assistance", "confidence": 0.9}}]}}\n'
+        '"""'
+    )
+
+    return f'''"""Company lookup -- ASX search + LLM classification for industry mapping.
+
+Layer 1: Search ~2,000 ASX-listed companies (instant, pg_trgm fuzzy)
+Layer 2: LLM classification for any company name (cached after first call)
+
+Returns ANZSIC (AU) or NAICS (US) sector codes that feed directly into
+the composite sector analysis endpoint.
+"""
+
+import json
+import logging
+import os
+
+import anthropic
+from fastapi import APIRouter, Depends, HTTPException, Query
+from pydantic import BaseModel
+from sqlalchemy import text
+from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.db.session import get_db
+
+logger = logging.getLogger(__name__)
+
+router = APIRouter(prefix="/companies", tags=["companies"])
+
+
+# -- Response schemas --
+
+
+class SectorSuggestion(BaseModel):
+    code: str
+    name: str
+    confidence: float | None = None
+
+
+class CompanySearchResult(BaseModel):
+    company_name: str
+    asx_code: str | None = None
+    sector_codes: list[str]
+    sector_names: list[str] = []
+    source: str  # "asx", "cached", "llm"
+    confidence: float | None = None
+
+
+class CompanySearchResponse(BaseModel):
+    results: list[CompanySearchResult]
+    query: str
+    region: str
+
+
+class ClassifyRequest(BaseModel):
+    name: str
+    region: str = "AU"
+
+
+class ClassifyResponse(BaseModel):
+    company_name: str
+    sectors: list[SectorSuggestion]
+    sector_codes: list[str]
+    source: str  # "cached" or "llm"
+    region: str
+
+
+# -- Sector reference data --
+
+{anzsic_block}
+
+{naics_block}
+
+
+# -- LLM Classification Prompt --
+
+{prompt_template}
+
+
+def _get_anthropic_client() -> anthropic.Anthropic:
+    """Create Anthropic client. Reads credential from env var automatically."""
+    return anthropic.Anthropic()
+
+
+# -- Endpoints --
+
+
+@router.get("/search", response_model=CompanySearchResponse)
+async def search_companies(
+    q: str = Query(..., min_length=1, description="Company name search query"),
+    region: str = Query("AU", pattern="^(US|AU|us|au)$"),
+    limit: int = Query(10, ge=1, le=50),
+    db: AsyncSession = Depends(get_db),
+) -> CompanySearchResponse:
+    """Search for companies by name. Searches ASX listings and cached LLM results."""
+    region = region.upper()
+    results: list[CompanySearchResult] = []
+
+    # Layer 1: ASX search (AU only, instant)
+    if region == "AU":
+        asx_r = await db.execute(text("""
+            SELECT company_name, asx_code, anzsic_codes, naics_codes,
+                   similarity(company_name, :q) AS sim
+            FROM asx_company_sectors
+            WHERE company_name ILIKE :prefix
+               OR company_name % :q
+            ORDER BY sim DESC
+            LIMIT :limit
+        """), {{"q": q, "prefix": f"%{{q}}%", "limit": limit}})
+
+        for row in asx_r.fetchall():
+            codes = row[2] if row[2] else []
+            names = [ANZSIC_DIVISIONS.get(c, c) for c in codes if c != "Z"]
+            if names:
+                results.append(CompanySearchResult(
+                    company_name=row[0],
+                    asx_code=row[1],
+                    sector_codes=[c for c in codes if c != "Z"],
+                    sector_names=names,
+                    source="asx",
+                    confidence=round(float(row[4]), 2) if row[4] else None,
+                ))
+
+    # Layer 2: Check LLM classification cache
+    cache_r = await db.execute(text("""
+        SELECT company_name_lower, sector_codes, sector_names, confidence
+        FROM company_classifications
+        WHERE company_name_lower ILIKE :prefix AND region = :region
+        ORDER BY classified_at DESC
+        LIMIT :limit
+    """), {{"prefix": f"%{{q.lower()}}%", "region": region, "limit": limit}})
+
+    for row in cache_r.fetchall():
+        if not any(r.company_name.lower() == row[0] for r in results):
+            results.append(CompanySearchResult(
+                company_name=row[0].title(),
+                sector_codes=row[1] if row[1] else [],
+                sector_names=row[2] if row[2] else [],
+                source="cached",
+                confidence=row[3],
+            ))
+
+    return CompanySearchResponse(results=results[:limit], query=q, region=region)
+
+
+@router.post("/classify", response_model=ClassifyResponse)
+async def classify_company(
+    req: ClassifyRequest,
+    db: AsyncSession = Depends(get_db),
+) -> ClassifyResponse:
+    """Classify a company into industry sectors using LLM (with caching)."""
+    region = req.region.upper()
+    name_lower = req.name.strip().lower()
+
+    if region not in ("US", "AU"):
+        raise HTTPException(status_code=400, detail="Region must be US or AU")
+
+    # Check cache first
+    cached = await db.execute(text("""
+        SELECT sector_codes, sector_names, confidence
+        FROM company_classifications
+        WHERE company_name_lower = :name AND region = :region
+    """), {{"name": name_lower, "region": region}})
+    cached_row = cached.fetchone()
+
+    if cached_row:
+        codes = cached_row[0] or []
+        names = cached_row[1] or []
+        return ClassifyResponse(
+            company_name=req.name,
+            sectors=[SectorSuggestion(code=c, name=n, confidence=cached_row[2])
+                     for c, n in zip(codes, names)],
+            sector_codes=codes,
+            source="cached",
+            region=region,
+        )
+
+    # LLM classification -- uses Haiku for speed and cost efficiency
+    if not os.environ.get("ANTHROPIC_API_KEY"):
+        raise HTTPException(
+            status_code=503,
+            detail="Anthropic credential not set in environment. Required for AI classification.",
+        )
+
+    sectors_ref = ANZSIC_DIVISIONS if region == "AU" else NAICS_SECTORS
+    system_label = "ANZSIC 2006 Divisions" if region == "AU" else "NAICS 2022 Sectors"
+    region_label = "Australia" if region == "AU" else "United States"
+
+    sector_list = "\\n".join(f"  {{code}}: {{name}}" for code, name in sectors_ref.items())
+
+    prompt = CLASSIFY_PROMPT.format(
+        name=req.name,
+        region_label=region_label,
+        system_label=system_label,
+        sector_list=sector_list,
+    )
+
+    try:
+        client = _get_anthropic_client()
+        response = client.messages.create(
+            model="claude-haiku-4-20250414",
+            max_tokens=256,
+            messages=[{{"role": "user", "content": prompt}}],
+        )
+        raw_text = response.content[0].text.strip()
+        parsed = json.loads(raw_text)
+        suggestions = parsed.get("sectors", [])
+
+    except json.JSONDecodeError:
+        logger.warning(f"LLM returned non-JSON for '{{req.name}}': {{raw_text[:200]}}")
+        raise HTTPException(status_code=502, detail="AI classification returned invalid format")
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic error classifying '{{req.name}}': {{e}}")
+        raise HTTPException(status_code=502, detail=f"AI classification failed: {{str(e)}}")
+
+    # Validate and filter suggestions
+    valid_suggestions = []
+    for s in suggestions:
+        code = s.get("code", "")
+        if code in sectors_ref:
+            valid_suggestions.append(SectorSuggestion(
+                code=code,
+                name=sectors_ref[code],
+                confidence=s.get("confidence"),
+            ))
+
+    if not valid_suggestions:
+        raise HTTPException(status_code=404, detail=f"Could not classify '{{req.name}}' into known sectors")
+
+    sector_codes = [s.code for s in valid_suggestions]
+    sector_names = [s.name for s in valid_suggestions]
+    avg_confidence = sum(s.confidence or 0 for s in valid_suggestions) / len(valid_suggestions)
+
+    # Cache the result
+    await db.execute(text("""
+        INSERT INTO company_classifications (company_name_lower, region, sector_codes, sector_names, confidence)
+        VALUES (:name, :region, :codes, :names, :conf)
+        ON CONFLICT (company_name_lower, region) DO UPDATE SET
+            sector_codes = EXCLUDED.sector_codes,
+            sector_names = EXCLUDED.sector_names,
+            confidence = EXCLUDED.confidence,
+            classified_at = NOW()
+    """), {{
+        "name": name_lower,
+        "region": region,
+        "codes": sector_codes,
+        "names": sector_names,
+        "conf": round(avg_confidence, 3),
+    }})
+    await db.commit()
+
+    return ClassifyResponse(
+        company_name=req.name,
+        sectors=valid_suggestions,
+        sector_codes=sector_codes,
+        source="llm",
+        region=region,
+    )
+'''
+
+
+if __name__ == "__main__":
+    content = generate()
+    TARGET.write_text(content, encoding="utf-8")
+    print(f"Generated {TARGET} ({len(content)} bytes)")

@@ -8,6 +8,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
+import { CompanyLookup } from "../components/CompanyLookup";
 import { SectorChipSelector } from "../components/SectorChipSelector";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 import { RegionSelector } from "../components/RegionSelector";
@@ -95,6 +96,15 @@ export function SectorsPage() {
           subtitle="Tasks approaching zone flip" color={ZONE_COLORS.alert}
           bgColor={ZONE_BG.alert} borderColor="#FECACA" />
       </div>
+
+      {/* Company lookup — auto-selects sectors */}
+      <CompanyLookup
+        region={region}
+        onSectorsSelected={(codes) => {
+          // Merge with existing selection, deduplicate
+          setSelectedSectors((prev) => [...new Set([...prev, ...codes])]);
+        }}
+      />
 
       {/* Composite sector selector */}
       <SectorChipSelector

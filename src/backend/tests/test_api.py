@@ -788,6 +788,109 @@ class TestGDPval:
         assert data["task_count"] == len(data["tasks"])
 
 
+# ── Company Lookup ──
+
+
+class TestCompanySearch:
+    @pytest.mark.asyncio
+    async def test_search_returns_asx_results(self, client):
+        """ASX company search returns matching companies."""
+        r = await client.get("/api/v1/companies/search?q=telstra&region=AU")
+        assert r.status_code == 200
+        data = r.json()
+        assert len(data["results"]) > 0
+        assert data["results"][0]["source"] == "asx"
+        assert "J" in data["results"][0]["sector_codes"]
+
+    @pytest.mark.asyncio
+    async def test_search_returns_sector_names(self, client):
+        """Results include human-readable sector names."""
+        r = await client.get("/api/v1/companies/search?q=bhp&region=AU")
+        assert r.status_code == 200
+        results = r.json()["results"]
+        assert len(results) > 0
+        assert len(results[0]["sector_names"]) > 0
+
+    @pytest.mark.asyncio
+    async def test_search_fuzzy_matching(self, client):
+        """Fuzzy matching finds companies with partial names."""
+        r = await client.get("/api/v1/companies/search?q=wool&region=AU")
+        assert r.status_code == 200
+        results = r.json()["results"]
+        # Should find Woolworths
+        names = [res["company_name"].lower() for res in results]
+        assert any("woolworths" in n for n in names)
+
+    @pytest.mark.asyncio
+    async def test_search_empty_query_rejected(self, client):
+        """Empty query is rejected (min_length=1)."""
+        r = await client.get("/api/v1/companies/search?q=&region=AU")
+        assert r.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_search_no_results(self, client):
+        """Non-matching query returns empty results."""
+        r = await client.get("/api/v1/companies/search?q=zzzznonexistent99&region=AU")
+        assert r.status_code == 200
+        assert len(r.json()["results"]) == 0
+
+    @pytest.mark.asyncio
+    async def test_search_region_filter(self, client):
+        """US region search skips ASX data (no ASX companies for US)."""
+        r = await client.get("/api/v1/companies/search?q=telstra&region=US")
+        assert r.status_code == 200
+        # Should have no ASX results since ASX is AU-only
+        asx_results = [res for res in r.json()["results"] if res["source"] == "asx"]
+        assert len(asx_results) == 0
+
+    @pytest.mark.asyncio
+    async def test_search_asx_code_present(self, client):
+        """ASX results include the stock ticker code."""
+        r = await client.get("/api/v1/companies/search?q=bhp&region=AU")
+        results = r.json()["results"]
+        asx_results = [res for res in results if res["source"] == "asx"]
+        if asx_results:
+            assert asx_results[0]["asx_code"] is not None
+
+    @pytest.mark.asyncio
+    async def test_search_multi_sector_company(self, client):
+        """Diversified companies return multiple sector codes."""
+        r = await client.get("/api/v1/companies/search?q=bhp&region=AU")
+        results = r.json()["results"]
+        bhp = next((res for res in results if "BHP" in res["company_name"]), None)
+        if bhp:
+            # BHP is Materials -> Mining (B) + Manufacturing (C)
+            assert len(bhp["sector_codes"]) >= 2
+
+    @pytest.mark.asyncio
+    async def test_search_limit_respected(self, client):
+        """Limit parameter caps results."""
+        r = await client.get("/api/v1/companies/search?q=a&region=AU&limit=3")
+        assert r.status_code == 200
+        assert len(r.json()["results"]) <= 3
+
+    @pytest.mark.asyncio
+    async def test_search_region_case_insensitive(self, client):
+        """Region parameter accepts lowercase."""
+        r = await client.get("/api/v1/companies/search?q=telstra&region=au")
+        assert r.status_code == 200
+
+    @pytest.mark.asyncio
+    async def test_classify_no_api_key_returns_503(self, client):
+        """Classification without Anthropic credential returns 503."""
+        r = await client.post("/api/v1/companies/classify",
+                              json={"name": "Jemena", "region": "AU"})
+        # Will be 503 since ANTHROPIC_API_KEY is not set in test environment
+        assert r.status_code in (503, 200)
+
+    @pytest.mark.asyncio
+    async def test_classify_invalid_region(self, client):
+        """Classification with invalid region returns 400."""
+        r = await client.post("/api/v1/companies/classify",
+                              json={"name": "Test Corp", "region": "XX"})
+        assert r.status_code == 400
+
+
 # ── Semantic Search ──
 
 

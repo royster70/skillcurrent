@@ -306,6 +306,37 @@ export interface CompositeSectorResponse {
   occupations: CompositeOccupation[];
 }
 
+// ── Company Lookup ──
+
+export interface CompanySearchResult {
+  company_name: string;
+  asx_code: string | null;
+  sector_codes: string[];
+  sector_names: string[];
+  source: string;
+  confidence: number | null;
+}
+
+export interface CompanySearchResponse {
+  results: CompanySearchResult[];
+  query: string;
+  region: string;
+}
+
+export interface CompanySectorSuggestion {
+  code: string;
+  name: string;
+  confidence: number | null;
+}
+
+export interface CompanyClassifyResponse {
+  company_name: string;
+  sectors: CompanySectorSuggestion[];
+  sector_codes: string[];
+  source: string;
+  region: string;
+}
+
 // ── API functions ──
 
 export const api = {
@@ -336,4 +367,18 @@ export const api = {
   gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
   compositeAnalysis: (codes: string[], region = "US") =>
     get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}`),
+  companySearch: (q: string, region = "AU") =>
+    get<CompanySearchResponse>(`/companies/search?q=${encodeURIComponent(q)}&region=${region}`),
+  companyClassify: async (name: string, region = "AU") => {
+    const res = await fetch(`${BASE}/companies/classify`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ name, region }),
+    });
+    if (!res.ok) {
+      const detail = await res.json().catch(() => ({ detail: `Error ${res.status}` }));
+      throw new Error(detail.detail || `Error ${res.status}`);
+    }
+    return res.json() as Promise<CompanyClassifyResponse>;
+  },
 };
