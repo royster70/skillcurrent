@@ -9,6 +9,7 @@
  */
 
 import { useState, useRef, useEffect, useCallback } from "react";
+import { useNavigate } from "react-router-dom";
 import { api } from "../lib/api";
 
 interface CompanyResult {
@@ -40,6 +41,7 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
   const [error, setError] = useState<string | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   const inputRef = useRef<HTMLInputElement>(null);
+  const navigate = useNavigate();
 
   // Debounced search
   const doSearch = useCallback(
@@ -84,7 +86,14 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
   }, [region]);
 
   const handleSelect = (result: CompanyResult) => {
-    onSectorsSelected(result.sector_codes);
+    if (result.sector_codes.length === 1) {
+      // Single sector — navigate directly to sector detail
+      const code = result.sector_codes[0];
+      navigate(`/sectors/${code}${region === "AU" ? "?region=AU" : ""}`);
+    } else {
+      // Multi-sector — populate chip selector for composite view
+      onSectorsSelected(result.sector_codes);
+    }
     setQuery("");
     setResults([]);
     setClassifyResult(null);
@@ -112,7 +121,14 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
 
   const handleUseClassification = () => {
     if (classifyResult) {
-      onSectorsSelected(classifyResult.codes);
+      if (classifyResult.codes.length === 1) {
+        // Single sector — navigate directly
+        const code = classifyResult.codes[0];
+        navigate(`/sectors/${code}${region === "AU" ? "?region=AU" : ""}`);
+      } else {
+        // Multi-sector — populate chip selector
+        onSectorsSelected(classifyResult.codes);
+      }
       setQuery("");
       setResults([]);
       setClassifyResult(null);
@@ -483,7 +499,9 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
                     fontFamily: "Inter, system-ui, sans-serif",
                   }}
                 >
-                  Use these sectors
+                  {classifyResult.codes.length === 1
+                    ? `View ${classifyResult.names[0].split(",")[0]} sector →`
+                    : "Use these sectors"}
                 </button>
                 <button
                   onClick={() => setClassifyResult(null)}

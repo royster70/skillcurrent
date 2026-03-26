@@ -123,7 +123,12 @@ Available sectors ({system_label}):
 Instructions:
 - Return 1-3 sectors that best describe this company's primary business activities.
 - Only include sectors where you have reasonable confidence (>= 0.6).
-- For diversified companies (e.g. conglomerates), include multiple sectors.
+- IMPORTANT: Many companies operate across multiple sectors. Think carefully about all business lines:
+  * Energy companies often span: generation/distribution (D), retail energy (D), gas networks (D), telecommunications (J), construction/maintenance (E), IT/digital (J)
+  * Banks often span: banking (K), insurance (K), wealth management (K), technology (J)
+  * Retailers often span: retail (G), wholesale (F), manufacturing (C), logistics (I)
+  * Healthcare companies may span: healthcare (Q), manufacturing (C), technology (J)
+- For diversified companies, include ALL relevant sectors even if one dominates.
 - If you don't recognise the company, make your best guess from the name alone.
 
 Return ONLY valid JSON in this exact format (no markdown, no explanation):
