@@ -45,7 +45,7 @@ npm install && npm run dev
 
 ## Current Status
 
-### Data loaded (~535,655 rows)
+### Data loaded (~537,633 rows)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -56,10 +56,11 @@ npm install && npm run dev
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | ABS/JSA 2025 | 2,743 | AU employment by occupation x ANZSIC division (FR-8.9) |
 | Derived products | 15,794 | Drift metrics (4,605) + industry profiles (9,019 US+AU) + crosswalk (21) + ANZSCO concordance (491) + AU profiles (1,084 of 9,019) |
+| ASX company data | 1,978 | ASX listed companies with GICS→ANZSIC→NAICS sector mapping (FR-8.5 company lookup) |
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 
-### Tier 1 API (19 endpoints, live)
+### Tier 1 API (21 endpoints, live)
 
 | Endpoint | Description |
 |----------|-------------|
@@ -81,6 +82,8 @@ npm install && npm run dev
 | `GET /api/v1/search?q=...` | Fuzzy search 65,496 O\*NET titles via pg\_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage) |
 | `POST /api/v1/search/semantic` | Semantic search via sentence-transformers + pgvector HNSW over 66,512 title embeddings. Accepts query text and optional job description. |
 | `GET /api/v1/datasets` | Data vintage for dashboard footers |
+| `GET /api/v1/companies/search?q=...&region=AU` | pg_trgm fuzzy search across ASX companies and LLM classification cache; returns company_name, asx_code, sector names, ANZSIC/NAICS codes |
+| `POST /api/v1/companies/classify` | Claude Haiku classifies any company name into ANZSIC/NAICS sectors; results cached in company_classifications table; returns 503 if ANTHROPIC_API_KEY not set |
 
 OpenAPI docs: http://localhost:8000/docs
 
@@ -90,7 +93,7 @@ Built with React 18, React Router, and Recharts. Dark sidebar design system with
 
 | Page | Route | Visualisations |
 |------|-------|----------------|
-| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table; SectorChipSelector for building composite multi-sector views; RegionSelector toggle (US/AU flag) switches all sector data between NAICS and ANZSIC via ?region= URL param |
+| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table; SectorChipSelector for building composite multi-sector views; RegionSelector toggle (US/AU flag) switches all sector data between NAICS and ANZSIC via ?region= URL param; CompanyLookup collapsible card with type-ahead search (pg_trgm) across ~1,978 ASX companies with ASX code badges and AI classify button (Claude Haiku) |
 | Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards (E0/E1/E2 + composite Beta), unified occupation table with multi-sector badges, auto-generated narrative summary panel |
 | Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC; GDPval coverage indicators on role rows; "GDPval Only" filter to show only benchmark occupations |
 | Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + interactive GDPval badge, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars) |
@@ -101,15 +104,15 @@ Frontend dev server: http://localhost:5173
 
 ### Tests
 
-210+ tests passing (132 backend + 45 component + 37 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 5 suites (sectors, search-to-occupation, occupations, drift, composite).
+246+ tests passing (144 backend + 56 component + 46 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup).
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v                    # 132 backend tests
+python -m pytest tests/ -v                    # 144 backend tests
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
-npm run test:e2e                              # 37 Playwright E2E tests
+npm run test:e2e                              # 46 Playwright E2E tests
 ```
 
 ## Key Documentation
@@ -147,15 +150,15 @@ workforce-ai-platform/
         api/v1/                # FastAPI endpoints + Pydantic schemas
         models/                # SQLAlchemy ORM models (25+ tables)
         services/              # Ingestion, computation, transformations
-      migrations/versions/     # Alembic migrations (001-014)
+      migrations/versions/     # Alembic migrations (001-015)
       scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (132 tests)
+      tests/                   # pytest suite (144 tests)
     frontend/
       src/
         pages/               # SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
-        components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard, RegionSelector (US/AU toggle)
+        components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard, RegionSelector (US/AU toggle), CompanyLookup (ASX company search + AI classify)
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
-      e2e/                   # Playwright E2E tests (5 suites, 37 tests)
+      e2e/                   # Playwright E2E tests (6 suites, 46 tests)
       playwright.config.ts   # Playwright configuration
 ```

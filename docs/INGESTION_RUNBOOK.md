@@ -69,6 +69,7 @@ This applies all 14 migrations in order, creating all tables documented in `docs
    b. ABS employment ingestion (depends on ABS data file)
    c. ANZSCO→SOC concordance (depends on title embeddings + ABS structure files)
    d. AU industry profiles computation (depends on abs_employment + anzsco_soc_concordance + industry_crosswalk)
+9. ASX company sectors (independent — downloads live from asx.com.au, no local file required; company_classifications table populated at API runtime)
 
 ---
 
@@ -529,6 +530,51 @@ WHERE region = 'AU';
 
 **Note on SOC code formats**: AU profiles join via `SUBSTRING(onet_soc FROM 1 FOR 7)` prefix match because `anzsco_soc_concordance` stores 8-digit SOC codes (e.g. `29-1141.00`) while Microsoft and AEI tables use 6-digit codes (e.g. `29-1141`). US profiles use exact equality because all US source tables share the 6-digit format. If MS/AEI coverage reads 0% after running this step, confirm that the latest version of `compute_industry_profiles.py` is loaded — on Windows, uvicorn `--reload` may not detect file changes; restart the server manually if needed.
 
+### 4.13 ASX Company Sectors (FR-8.5 Company Lookup)
+
+**Source**: https://www.asx.com.au/asx/research/ASXListedCompanies.csv — free public CSV, no API key required, updated regularly by ASX.
+
+**No local file required** — the script downloads the CSV directly at runtime.
+
+**Prerequisites**: Migration 015 must be applied (creates `asx_company_sectors` and `company_classifications` tables). The script does not depend on any other dataset.
+
+**Command**:
+```bash
+python -m scripts.ingest_asx_companies
+```
+
+The script:
+1. Downloads the ASX listed companies CSV from the public URL
+2. Maps each company's GICS industry group to ANZSIC division(s) and NAICS sector(s) via hardcoded concordance tables
+3. Upserts rows into `asx_company_sectors` (keyed on `asx_code`)
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| asx_company_sectors | ~1,978 |
+| company_classifications | 0 (populated at runtime by POST /api/v1/companies/classify) |
+
+Row count may drift slightly as ASX adds or removes listed companies over time. The ~1,978 figure reflects the March 2026 download.
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM asx_company_sectors;
+-- Expect ~1,978
+
+SELECT gics_group, COUNT(*) AS companies
+FROM asx_company_sectors
+GROUP BY gics_group
+ORDER BY companies DESC
+LIMIT 10;
+-- Shows top industry groups (Energy, Materials, etc.)
+
+SELECT COUNT(*) FROM company_classifications;
+-- 0 at ingestion time; rows accumulate as users classify companies via the API
+```
+
+**LLM classify endpoint**: `POST /api/v1/companies/classify` uses Claude Haiku to classify any company name not found in the ASX list. It requires `ANTHROPIC_API_KEY` to be set in the environment. If the key is absent the endpoint returns HTTP 503. Results are cached in `company_classifications` to avoid redundant API calls.
+
 ---
 
 ## 5. Full Rebuild Sequence
@@ -566,6 +612,9 @@ python -m scripts.ingest_crosswalk
 python -m scripts.ingest_abs
 python -m scripts.build_anzsco_concordance
 python -m scripts.compute_industry_profiles --region AU --year 2025
+
+# Step 7: ASX company sectors (independent — downloads live from asx.com.au)
+python -m scripts.ingest_asx_companies
 ```
 
 ## 4.10 Title Embeddings (Layer 2 Semantic Search)
@@ -595,7 +644,7 @@ SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
 
 ---
 
-**Total expected rows across all tables: ~535,655** (455,200 + 66,512 embeddings + 10,673 GDPval + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk)
+**Total expected rows across all tables: ~537,633** (455,200 + 66,512 embeddings + 10,673 GDPval + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors)
 
 ---
 
@@ -633,6 +682,8 @@ UNION ALL SELECT 'gdpval_evaluations', COUNT(*) FROM gdpval_evaluations
 UNION ALL SELECT 'abs_employment', COUNT(*) FROM abs_employment
 UNION ALL SELECT 'anzsco_soc_concordance', COUNT(*) FROM anzsco_soc_concordance
 UNION ALL SELECT 'industry_crosswalk', COUNT(*) FROM industry_crosswalk
+UNION ALL SELECT 'asx_company_sectors', COUNT(*) FROM asx_company_sectors
+UNION ALL SELECT 'company_classifications', COUNT(*) FROM company_classifications
 ORDER BY tbl;
 ```
 
@@ -650,4 +701,4 @@ python -m uvicorn app.main:app --reload --port 8000
 - OpenAPI docs: http://localhost:8000/docs
 - Health check: http://localhost:8000/health
 
-19 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search; all 4 sector endpoints accept ?region=US|AU for AU/ANZSIC data; GET /api/v1/sectors returns employment-weighted scores and workers-per-zone) — see `README.md` for the full endpoint table.
+21 Tier 1 endpoints available (including POST /api/v1/search/semantic for Layer 2 semantic search; all 4 sector endpoints accept ?region=US|AU for AU/ANZSIC data; GET /api/v1/sectors returns employment-weighted scores and workers-per-zone; GET /api/v1/companies/search for ASX company lookup; POST /api/v1/companies/classify for LLM sector classification) — see `README.md` for the full endpoint table.

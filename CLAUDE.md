@@ -60,7 +60,7 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.2 Drift Calculation (4,605 tasks, velocity via linregress)
   [x] FR-8.3 Task Classification (558 departing, 2,971 enduring, 4 below_threshold)
   [x] FR-8.4 OEWS Industry Profiles (7,935 profiles, 20 sectors, 153M workers)
-  [x] FR-8.5 Tier 1 Dashboard (6 pages: Sectors, Sector Detail, Composite Sector, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards; composite multi-sector analysis (SectorChipSelector → /sectors/composite with blended metrics, unified occupation table, narrative summary)
+  [x] FR-8.5 Tier 1 Dashboard (6 pages: Sectors, Sector Detail, Composite Sector, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards; composite multi-sector analysis (SectorChipSelector → /sectors/composite with blended metrics, unified occupation table, narrative summary); CompanyLookup collapsible card on Sectors page (type-ahead pg_trgm search across ASX companies + ASX code badges + AI classify button via Claude Haiku + purple theme)
   [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores; GDPval API live (GET /gdpval/summary, GET /gdpval/occupations/{soc_code}); GDPval badges on occupation detail header and sector role rows; GDPval filter toggle on Occupations and Sector Detail pages (filters to 44 benchmark occupations); AEI Task Intelligence panel (4 SVG visualisations); GDPval Benchmark panel (3 visualisations); task matrix API enriched with automation_pct, augmentation_pct, gdpval_benchmark_count
   [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
 
@@ -116,7 +116,9 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | gdpval_tasks | 220 | OpenAI GDPval |
 | gdpval_rubric_items | 10,453 | OpenAI GDPval |
 | gdpval_evaluations | 0 | (future model-era scores for FR-8.7) |
-| **TOTAL** | **~535,655** | |
+| asx_company_sectors | 1,978 | ASX listed companies (GICS→ANZSIC→NAICS, FR-8.5 company lookup) |
+| company_classifications | 0 | LLM classification cache (Claude Haiku, FR-8.5 company lookup) |
+| **TOTAL** | **~537,633** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy

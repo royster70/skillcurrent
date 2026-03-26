@@ -1,6 +1,6 @@
 # Implementation Status
 
-Last updated: 2026-03-25
+Last updated: 2026-03-26
 
 ## Completed
 
@@ -36,7 +36,7 @@ Last updated: 2026-03-25
 - **API**: All 4 sector endpoints (`/sectors`, `/sectors/composite`, `/sectors/{code}/occupations`, `/sectors/{code}/priorities`) accept `?region=US|AU` (default US, fully backward compatible); invalid region values rejected with 422
 - **Frontend**: `RegionSelector.tsx` component (US/AU flag toggle) on Sectors page; region propagated via URL `?region=AU` parameter to all sector sub-pages
 
-### Tier 1 API (19 endpoints, live)
+### Tier 1 API (21 endpoints, live)
 - **Datasets**: `GET /api/v1/datasets` — data vintage for dashboard footers
 - **Sectors**: `GET /api/v1/sectors` (now returns employment-weighted scores: weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers_e0/e1/e2), `GET /api/v1/sectors/composite?codes=...` (blends 2+ sectors into employment-weighted composite with de-duplicated occupations and multi-sector badges), `GET /api/v1/sectors/{code}/occupations`, `GET /api/v1/sectors/{code}/priorities`
 - **Occupations**: `GET /api/v1/occupations`, `GET /api/v1/occupations/hierarchy` (923 occupations — 93 residual "All Other" and military SOC-55 occupations filtered from hierarchy as they lack task data), `GET /api/v1/occupations/{soc}` (now includes `gdpval_task_count` and `gdpval_available` fields), `GET /api/v1/occupations/{soc}/tasks`, `GET /api/v1/occupations/{soc}/matrix`
@@ -44,11 +44,13 @@ Last updated: 2026-03-25
 - **Drift**: `GET /api/v1/drift/summary`, `GET /api/v1/drift/departing`, `GET /api/v1/drift/enduring`, `GET /api/v1/drift/below-threshold`
 - **Search**: `GET /api/v1/search?q=...` — searches 65,496 O*NET sample + alternate titles using pg_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage). Results include `has_tasks` boolean and `category` field (`'residual'`, `'military'`, or `null`) so filtered occupations are flagged in search results even though they are excluded from the hierarchy.
 - **Semantic Search**: `POST /api/v1/search/semantic` — Layer 2 semantic search using sentence-transformers (all-MiniLM-L6-v2) + pgvector HNSW index over 66,512 title embeddings. Accepts query text and optional job description textarea. Returns nearest O*NET occupations by cosine similarity. Results include `has_tasks` and `category` fields.
+- **Company Search**: `GET /api/v1/companies/search?q=...&region=AU` — pg_trgm fuzzy search across ~1,978 ASX companies and LLM classification cache. Returns company_name, asx_code, anzsic_codes, naics_codes, sector names.
+- **Company Classify**: `POST /api/v1/companies/classify` — Claude Haiku classifies any company name into ANZSIC/NAICS sectors; caches results in company_classifications table; returns HTTP 503 if ANTHROPIC_API_KEY not set.
 - No auth required (Tier 1 = public data only)
 - OpenAPI docs at http://localhost:8000/docs
 
 ### Tier 1 Dashboard (FR-8.5 + FR-8.7 UI, 6 pages)
-- **Sectors page** (`/`): Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart (replaces misleading three-tier bar chart), weighted scores in sector table; SectorChipSelector bar for building composite multi-sector views (search dropdown, zone-coloured chips, "Analyse N Sectors" CTA)
+- **Sectors page** (`/`): Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart (replaces misleading three-tier bar chart), weighted scores in sector table; SectorChipSelector bar for building composite multi-sector views (search dropdown, zone-coloured chips, "Analyse N Sectors" CTA); CompanyLookup collapsible card (type-ahead pg_trgm search across ~1,978 ASX companies, ASX code badges, AI classify button using Claude Haiku for any company not in ASX list, purple theme)
 - **Composite sector page** (`/sectors/composite`): Multi-sector blended analysis with employment-weighted metric cards (E0/E1/E2 + purple composite Beta), unified de-duplicated occupation table with multi-sector badges per row, auto-generated narrative summary panel. URL-driven via ?codes= param for shareability.
 - **Sector detail page** (`/sectors/:code`): Narrative summary, navigation fix (clicking role navigates to /occupations?selected=SOC), ContextualScoreCards with percentile context; priority view showing top-N occupations ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity), risk factor badges, toggle to full occupation mix; GDPval coverage indicators on role rows; "GDPval Only" filter button to show only the 44 benchmark occupations (normalises 8-digit/7-digit SOC codes for matching)
 - **Occupations page** (`/occupations`): SOC hierarchy tree (23 major groups, expandable), occupation detail panel with score chips, employment by sector bar chart, top tasks by AI usage (colour-coded by drift classification); GDPval filter button to filter hierarchy to only the 44 occupations with GDPval benchmarks; interactive GDPval badge on occupation detail header (expand/collapse); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars)
@@ -70,7 +72,7 @@ Last updated: 2026-03-25
 - **dataset_versions**: Central version registry (ADR-002)
 - **dataset_version_deltas**: Pre-computed diffs between dataset versions (ADR-002)
 - **transformation_log**: Lineage tracking for derived computations (ADR-001)
-- **14 Alembic migrations**: All applied (migration 012: onet_title_embeddings; migration 013: gdpval_tasks, gdpval_rubric_items, gdpval_evaluations; migration 014: region column on industry_occupation_profiles, abs_employment, anzsco_soc_concordance)
+- **15 Alembic migrations**: All applied (migration 012: onet_title_embeddings; migration 013: gdpval_tasks, gdpval_rubric_items, gdpval_evaluations; migration 014: region column on industry_occupation_profiles, abs_employment, anzsco_soc_concordance; migration 015: asx_company_sectors, company_classifications)
 
 ### Database Schema
 - All 20+ tables created and populated
@@ -98,10 +100,10 @@ Last updated: 2026-03-25
 - **FR-6**: Org Dashboards
 
 ### Tests
-- **132 backend tests** at 83% coverage — test_api.py (83: Search, Health, Datasets, Sectors, Occupations, Hierarchy, Drift, SectorPriorities, TaskMatrix, CompositeSector, GDPval, SemanticSearch, OccupationsCoverage, AURegion [9 new]), test_data_invariants.py (15: includes 4 new AU invariant tests — test_crosswalk_covers_all_naics_sectors, test_anzsco_concordance_coverage, test_au_profiles_have_region, test_au_profiles_have_exposure_scores), test_drift.py (15), test_drift_results.py (8), test_cross_dataset_joins.py (5), test_transformations.py (3), test_onet_ingestion.py (3)
-- **45 component tests** via Vitest + @testing-library/react — AEITaskDetailPanel (12), GDPvalBenchmarkPanel (11), SectorChipSelector (11), RegionSelector (11 new)
-- **37 Playwright E2E browser tests** across 5 suites — sectors (4), search-to-occupation (5), occupations (14), drift (4), composite (10)
-- **Total: 214 tests** (132 backend + 45 component + 37 E2E)
+- **144 backend tests** at 83% coverage — test_api.py (95: Search, Health, Datasets, Sectors, Occupations, Hierarchy, Drift, SectorPriorities, TaskMatrix, CompositeSector, GDPval, SemanticSearch, OccupationsCoverage, AURegion, CompanySearch [12 new]), test_data_invariants.py (15: includes 4 new AU invariant tests — test_crosswalk_covers_all_naics_sectors, test_anzsco_concordance_coverage, test_au_profiles_have_region, test_au_profiles_have_exposure_scores), test_drift.py (15), test_drift_results.py (8), test_cross_dataset_joins.py (5), test_transformations.py (3), test_onet_ingestion.py (3)
+- **56 component tests** via Vitest + @testing-library/react — AEITaskDetailPanel (12), GDPvalBenchmarkPanel (11), SectorChipSelector (11), ZoneExplainerPanel (11), CompanyLookup (11 new)
+- **46 Playwright E2E browser tests** across 6 suites — sectors (4), search-to-occupation (5), occupations (14), drift (4), composite (10), company-lookup (9 new)
+- **Total: 246 tests** (144 backend + 56 component + 46 E2E)
 - E2E config: `playwright.config.ts`, test files in `e2e/` directory, run via `npm run test:e2e`
 
 ## Success Metrics Progress
@@ -113,7 +115,7 @@ Last updated: 2026-03-25
 | O*NET matching automation | >=95% | 0% |
 | Hierarchy build (10k employees) | <5s | -- |
 | N>=5 enforcement | 100% | -- |
-| Backend test coverage | >=80% | 83% (132 backend + 45 component + 37 E2E = 214 total) |
+| Backend test coverage | >=80% | 83% (144 backend + 56 component + 46 E2E = 246 total) |
 
 ## Technical Debt
 - Eloundou DWA Strategy B (LLM rubric for uncovered DWAs) not yet implemented
