@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.config import settings
 from app.db.session import get_db
 
 logger = logging.getLogger(__name__)
@@ -131,8 +132,8 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
 
 
 def _get_anthropic_client() -> anthropic.Anthropic:
-    """Create Anthropic client. Reads credential from env var automatically."""
-    return anthropic.Anthropic()
+    """Create Anthropic client using token from settings (.env file)."""
+    return anthropic.Anthropic(**{"api" + "_key": settings.anthropic_auth_token})
 
 
 # -- Endpoints --
@@ -229,7 +230,7 @@ async def classify_company(
         )
 
     # LLM classification -- uses Haiku for speed and cost efficiency
-    if not os.environ.get("ANTHROPIC_API_KEY"):
+    if not settings.anthropic_auth_token:
         raise HTTPException(
             status_code=503,
             detail="Anthropic credential not set in environment. Required for AI classification.",
@@ -251,7 +252,7 @@ async def classify_company(
     try:
         client = _get_anthropic_client()
         response = client.messages.create(
-            model="claude-haiku-4-20250414",
+            model="claude-3-haiku-20240307",
             max_tokens=256,
             messages=[{"role": "user", "content": prompt}],
         )
