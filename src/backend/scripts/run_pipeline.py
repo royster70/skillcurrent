@@ -102,6 +102,7 @@ def _build_pipeline_dag() -> list[PipelineStage]:
         PipelineStage("aei_temporal", _noop, depends_on=[], description="AEI temporal snapshots"),
         PipelineStage("oews", _noop, depends_on=[], description="BLS OEWS employment"),
         PipelineStage("gdpval", _noop, depends_on=[], description="OpenAI GDPval benchmarks"),
+        PipelineStage("epoch_eci", _noop, depends_on=[], description="Epoch AI ECI capability benchmarks"),
         PipelineStage(
             "derive_eloundou_dwas",
             _noop,
