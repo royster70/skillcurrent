@@ -36,6 +36,22 @@ def _compute_file_hash(filepath: Path) -> str:
     return sha256.hexdigest()
 
 
+def _clean_numpy_types(rows: list[dict]) -> list[dict]:
+    """Convert numpy scalar types to native Python types for SQLAlchemy compatibility."""
+    for row in rows:
+        for key, value in row.items():
+            try:
+                if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
+                    row[key] = None
+                elif isinstance(value, np.floating):
+                    row[key] = float(value)
+                elif isinstance(value, np.integer):
+                    row[key] = int(value)
+            except (TypeError, ValueError):
+                pass
+    return rows
+
+
 async def ingest_eloundou(
     session: AsyncSession,
     data_path: str,
@@ -131,18 +147,7 @@ async def ingest_eloundou(
     logger.info("Registered Eloundou as dataset_version id=%d", version_id)
 
     # Convert to rows with proper Python types
-    rows = df.to_dict("records")
-    for row in rows:
-        for key, value in row.items():
-            try:
-                if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
-                    row[key] = None
-                elif isinstance(value, (np.floating,)):
-                    row[key] = float(value)
-                elif isinstance(value, (np.integer,)):
-                    row[key] = int(value)
-            except (TypeError, ValueError):
-                pass
+    rows = _clean_numpy_types(df.to_dict("records"))
 
     # Bulk insert
     columns = list(rows[0].keys())
