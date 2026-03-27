@@ -72,3 +72,30 @@ async def metrics(db: AsyncSession = Depends(get_db)) -> dict:
             "slowest_endpoints": [],
             "note": "api_request_log table not available — run migration 015",
         }
+
+
+@router.get("/slow-queries")
+async def slow_queries(db: AsyncSession = Depends(get_db), limit: int = 10) -> dict:
+    """Top slowest queries from pg_stat_statements. Requires pg_stat_statements extension."""
+    try:
+        result = await db.execute(
+            text("""
+                SELECT
+                    query,
+                    calls,
+                    round((mean_exec_time)::numeric, 2) AS mean_ms,
+                    round((max_exec_time)::numeric, 2) AS max_ms,
+                    round((total_exec_time)::numeric, 2) AS total_ms,
+                    round((stddev_exec_time)::numeric, 2) AS stddev_ms,
+                    rows
+                FROM pg_stat_statements
+                WHERE query NOT LIKE '%pg_stat_statements%'
+                ORDER BY mean_exec_time DESC
+                LIMIT :limit
+            """),
+            {"limit": limit},
+        )
+        rows = result.mappings().all()
+        return {"slow_queries": [dict(r) for r in rows], "limit": limit}
+    except Exception:
+        return {"slow_queries": [], "limit": limit, "note": "pg_stat_statements not available"}
