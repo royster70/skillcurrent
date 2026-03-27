@@ -4,9 +4,15 @@ These are integration tests against real data in the database.
 They validate the rules documented in docs/domain-model.md.
 """
 
+import hashlib
+import tempfile
+from pathlib import Path
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
+
+from app.utils.hashing import compute_file_hash, compute_files_hash, compute_json_hash
 
 
 async def test_eloundou_e0_gte_max_e1_e2(session: AsyncSession):
@@ -265,4 +271,82 @@ async def test_au_profiles_have_exposure_scores(session: AsyncSession):
         coverage = row.with_beta / row.total
         assert coverage >= 0.80, (
             f"Only {coverage:.0%} of AU profiles have Eloundou Beta (expected ≥80%)"
+        )
+
+
+# ── Integrity Hash Tests (ADR-002) ──
+
+
+class TestIntegrityHash:
+    """Tests for the shared hash utilities and dataset_versions integrity column.
+
+    test_all_dataset_versions_have_hash: Queries the live DB. If the DB has
+    pre-existing rows with NULL or placeholder hashes (e.g., from ingestion
+    before this fix was applied), those will be reported as failures. That is
+    the intended behaviour — run re-ingestion with the updated scripts to
+    populate real hashes.
+    """
+
+    async def test_all_dataset_versions_have_hash(self, session: AsyncSession) -> None:
+        """All dataset_versions rows must have a real integrity_hash (not NULL or placeholder)."""
+        result = await session.execute(
+            text("""
+                SELECT dataset_name, version_key, integrity_hash
+                FROM dataset_versions
+                WHERE integrity_hash IS NULL OR integrity_hash = 'multi-release'
+            """)
+        )
+        bad_rows = result.fetchall()
+        assert len(bad_rows) == 0, (
+            f"Found {len(bad_rows)} dataset_versions rows with NULL or placeholder hashes: "
+            + ", ".join(f"{r[0]}/{r[1]}={r[2]!r}" for r in bad_rows[:5])
+            + " — re-run the updated ingest scripts to populate real hashes."
+        )
+
+    def test_hash_utility_consistency(self) -> None:
+        """compute_file_hash on a temp file matches manual hashlib.sha256 computation."""
+        content = b"test content for hash verification 12345"
+        with tempfile.NamedTemporaryFile(delete=False, suffix=".bin") as f:
+            f.write(content)
+            tmp_path = Path(f.name)
+
+        try:
+            result = compute_file_hash(tmp_path)
+            expected = hashlib.sha256(content).hexdigest()
+            assert result == expected, (
+                f"compute_file_hash returned {result!r}, expected {expected!r}"
+            )
+        finally:
+            tmp_path.unlink(missing_ok=True)
+
+    def test_compute_files_hash_is_deterministic(self) -> None:
+        """compute_files_hash returns the same value when called twice with the same files."""
+        content_a = b"file a content"
+        content_b = b"file b content"
+        with (
+            tempfile.NamedTemporaryFile(delete=False, suffix="_a.bin") as fa,
+            tempfile.NamedTemporaryFile(delete=False, suffix="_b.bin") as fb,
+        ):
+            fa.write(content_a)
+            fb.write(content_b)
+            path_a = Path(fa.name)
+            path_b = Path(fb.name)
+
+        try:
+            hash1 = compute_files_hash([path_a, path_b])
+            hash2 = compute_files_hash([path_b, path_a])  # different order → same result (sorted)
+            assert hash1 == hash2, (
+                f"compute_files_hash is not deterministic: {hash1!r} != {hash2!r}"
+            )
+        finally:
+            path_a.unlink(missing_ok=True)
+            path_b.unlink(missing_ok=True)
+
+    def test_compute_json_hash_is_deterministic(self) -> None:
+        """compute_json_hash returns the same value for the same object called twice."""
+        obj = [("11", "Agriculture", "A", "Farming", "A", "exact", 1.0)]
+        hash1 = compute_json_hash(obj)
+        hash2 = compute_json_hash(obj)
+        assert hash1 == hash2, (
+            f"compute_json_hash is not deterministic: {hash1!r} != {hash2!r}"
         )

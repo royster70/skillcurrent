@@ -16,15 +16,19 @@ import asyncio
 import csv
 import io
 import sys
+from datetime import date
 from pathlib import Path
 
 import httpx
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import insert, select, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.core.config import settings  # noqa: E402
+from app.models.infrastructure import DatasetVersion, DatasetVersionDelta  # noqa: E402
+from app.utils.hashing import compute_bytes_hash  # noqa: E402
 
 ASX_CSV_URL = "https://www.asx.com.au/asx/research/ASXListedCompanies.csv"
 
@@ -93,12 +97,18 @@ ANZSIC_TO_NAICS_FALLBACK: dict[str, list[str]] = {
 
 async def main() -> None:
     engine = create_async_engine(settings.database_url)
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     # Download ASX CSV
     print(f"Downloading ASX listed companies from {ASX_CSV_URL}...")
     async with httpx.AsyncClient() as client:
         resp = await client.get(ASX_CSV_URL, follow_redirects=True)
         resp.raise_for_status()
+
+    # Compute integrity hash from raw downloaded bytes
+    raw_bytes = resp.content
+    integrity_hash = compute_bytes_hash(raw_bytes)
+    version_key = date.today().isoformat()
 
     # Parse CSV (skip first 2 header lines)
     lines = resp.text.strip().split("\n")
@@ -202,6 +212,64 @@ async def main() -> None:
                 UNIQUE (company_name_lower, region)
             )
         """))
+
+    # Register dataset version (ADR-002)
+    async with async_session() as session:
+        existing = await session.execute(
+            select(DatasetVersion).where(
+                DatasetVersion.dataset_name == "asx_companies",
+                DatasetVersion.version_key == version_key,
+            )
+        )
+        existing_row = existing.scalar_one_or_none()
+        if existing_row:
+            if existing_row.integrity_hash != integrity_hash:
+                print(
+                    f"Warning: asx_companies version {version_key} already registered but "
+                    f"source data has changed (stored hash: {existing_row.integrity_hash[:16]}..., "
+                    f"new hash: {integrity_hash[:16]}...). Updating hash."
+                )
+                from sqlalchemy import update
+                await session.execute(
+                    update(DatasetVersion)
+                    .where(DatasetVersion.id == existing_row.id)
+                    .values(integrity_hash=integrity_hash, row_count=len(companies))
+                )
+        else:
+            version_result = await session.execute(
+                insert(DatasetVersion)
+                .values(
+                    dataset_name="asx_companies",
+                    version_key=version_key,
+                    row_count=len(companies),
+                    integrity_hash=integrity_hash,
+                    source_url=ASX_CSV_URL,
+                    metadata_={
+                        "download_date": version_key,
+                        "source": "ASX listed companies CSV",
+                        "companies_classified": sum(
+                            1 for c in companies if c["anzsic_codes"] != ["Z"]
+                        ),
+                    },
+                )
+                .returning(DatasetVersion.id)
+            )
+            version_id = version_result.scalar_one()
+            await session.flush()
+
+            await session.execute(
+                insert(DatasetVersionDelta).values(
+                    dataset_name="asx_companies",
+                    from_version_id=None,
+                    to_version_id=version_id,
+                    records_added=len(companies),
+                    records_removed=0,
+                    records_changed=0,
+                    delta_detail={"type": "initial_load", "tables": {"asx_company_sectors": len(companies)}},
+                )
+            )
+
+        await session.commit()
 
     await engine.dispose()
 

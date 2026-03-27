@@ -11,7 +11,6 @@ Source: OpenAI supplementary data
 Paper: Eloundou, Manning, Mishkin, Rock (2024). Science 384:1306-1308.
 """
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -21,19 +20,12 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_file_hash
 
 logger = logging.getLogger(__name__)
 
 DATASET_NAME = "eloundou"
 DATASET_VERSION = "2024_science"
-
-
-def _compute_file_hash(filepath: Path) -> str:
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
 
 
 def _clean_numpy_types(rows: list[dict]) -> list[dict]:
@@ -50,6 +42,7 @@ def _clean_numpy_types(rows: list[dict]) -> list[dict]:
             except (TypeError, ValueError):
                 pass
     return rows
+
 
 
 async def ingest_eloundou(
@@ -73,6 +66,9 @@ async def ingest_eloundou(
     if not csv_path.exists():
         raise FileNotFoundError(f"Eloundou data file not found: {csv_path}")
 
+    # Compute integrity hash before checking existing version
+    integrity_hash = compute_file_hash(csv_path)
+
     # Check existing version
     existing = await session.execute(
         select(DatasetVersion).where(
@@ -80,8 +76,16 @@ async def ingest_eloundou(
             DatasetVersion.version_key == version,
         )
     )
-    if existing.scalar_one_or_none():
-        raise ValueError(f"Eloundou version {version} already ingested.")
+    existing_row = existing.scalar_one_or_none()
+    if existing_row:
+        if existing_row.integrity_hash != integrity_hash:
+            raise ValueError(
+                f"Eloundou version {version} already ingested but source data has changed. "
+                f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                f"New hash: {integrity_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError(f"Eloundou version {version} already ingested (unchanged).")
 
     logger.info("Starting Eloundou ingestion from %s", csv_path)
 
@@ -116,9 +120,6 @@ async def ingest_eloundou(
         logger.warning("E0 >= max(E1,E2) violated in %d GPT-4 rows", len(dv_violations))
     if len(human_violations) > 0:
         logger.warning("E0 >= max(E1,E2) violated in %d human rows", len(human_violations))
-
-    # Compute integrity hash
-    integrity_hash = _compute_file_hash(csv_path)
 
     # Register version (ADR-002)
     version_result = await session.execute(

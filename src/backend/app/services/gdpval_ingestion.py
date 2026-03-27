@@ -10,7 +10,6 @@ this enables longitudinal waterline tracking per occupation (FR-8.7).
 Source: https://huggingface.co/datasets/openai/gdpval
 """
 
-import hashlib
 import json
 import logging
 from pathlib import Path
@@ -20,6 +19,7 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_file_hash
 
 logger = logging.getLogger(__name__)
 
@@ -75,14 +75,6 @@ SOC_MAPPING: dict[str, str] = {
 }
 
 
-def _compute_file_hash(filepath: Path) -> str:
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
-
-
 def _parse_rubric(rubric_raw: str | list) -> list[dict]:
     """Parse rubric_json from parquet (may be string or list)."""
     if isinstance(rubric_raw, str):
@@ -126,18 +118,27 @@ async def ingest_gdpval(
     if not parquet_path.is_file():
         raise FileNotFoundError(f"GDPval parquet not found: {parquet_path}")
 
+    # Compute integrity hash before checking existing version
+    file_hash = compute_file_hash(parquet_path)
+
     # Check idempotency
     existing = await session.execute(
         select(DatasetVersion).where(DatasetVersion.dataset_name == DATASET_NAME)
     )
-    if existing.scalar_one_or_none():
-        raise ValueError("GDPval benchmark data already ingested.")
+    existing_row = existing.scalar_one_or_none()
+    if existing_row:
+        if existing_row.integrity_hash != file_hash:
+            raise ValueError(
+                f"GDPval benchmark data already ingested but source data has changed. "
+                f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                f"New hash: {file_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError("GDPval benchmark data already ingested (unchanged).")
 
     logger.info("Loading GDPval from %s", parquet_path)
     df = pd.read_parquet(parquet_path)
     logger.info("Loaded %d tasks across %d occupations", len(df), df["occupation"].nunique())
-
-    file_hash = _compute_file_hash(parquet_path)
 
     # ── Insert tasks ──
     task_rows = []

@@ -16,12 +16,15 @@ import asyncio
 import sys
 from pathlib import Path
 
-from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine
+from sqlalchemy import insert, select, text
+from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.orm import sessionmaker
 
 # Add backend to path
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.core.config import settings  # noqa: E402
+from app.models.infrastructure import DatasetVersion, DatasetVersionDelta  # noqa: E402
+from app.utils.hashing import compute_json_hash  # noqa: E402
 
 # ── NAICS ↔ ANZSIC sector-level concordance ──
 #
@@ -103,6 +106,56 @@ CROSSWALK_DATA = [
 
 async def main() -> None:
     engine = create_async_engine(settings.database_url)
+    async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+    # Compute hash of the static crosswalk data
+    integrity_hash = compute_json_hash(CROSSWALK_DATA)
+
+    async with async_session() as session:
+        # Idempotency: only register if not already present
+        existing = await session.execute(
+            select(DatasetVersion).where(
+                DatasetVersion.dataset_name == "industry_crosswalk",
+                DatasetVersion.version_key == "isic_rev4_bridge_v1",
+            )
+        )
+        existing_row = existing.scalar_one_or_none()
+        if not existing_row:
+            version_result = await session.execute(
+                insert(DatasetVersion)
+                .values(
+                    dataset_name="industry_crosswalk",
+                    version_key="isic_rev4_bridge_v1",
+                    row_count=len(CROSSWALK_DATA),
+                    integrity_hash=integrity_hash,
+                    source_url="https://unstats.un.org/unsd/classifications/Econ/isic",
+                    metadata_={
+                        "description": "NAICS 2022 ↔ ANZSIC 2006 via ISIC Rev.4 bridge",
+                        "sources": [
+                            "Statistics Canada NAICS↔ISIC concordance",
+                            "UN Statistics Division ANZSIC↔ISIC comparison",
+                            "ABS ANZSIC 2006 Rev.2 classification structure",
+                        ],
+                    },
+                )
+                .returning(DatasetVersion.id)
+            )
+            version_id = version_result.scalar_one()
+            await session.flush()
+
+            await session.execute(
+                insert(DatasetVersionDelta).values(
+                    dataset_name="industry_crosswalk",
+                    from_version_id=None,
+                    to_version_id=version_id,
+                    records_added=len(CROSSWALK_DATA),
+                    records_removed=0,
+                    records_changed=0,
+                    delta_detail={"type": "initial_load", "tables": {"industry_crosswalk": len(CROSSWALK_DATA)}},
+                )
+            )
+
+        await session.commit()
 
     async with engine.begin() as conn:
         # Clear existing crosswalk data

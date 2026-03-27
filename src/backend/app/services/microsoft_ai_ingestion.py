@@ -14,7 +14,6 @@ Files ingested:
   5. physical_tasks.csv          -> ms_ai_physical_tasks
 """
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -24,24 +23,12 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_files_hash
 
 logger = logging.getLogger(__name__)
 
 DATASET_NAME = "microsoft_working_with_ai"
 DATASET_VERSION = "2025-07"  # arXiv:2507.07935, data period Jan-Sept 2024
-
-
-def _compute_files_hash(data_path: Path, filenames: list[str]) -> str:
-    """Compute combined SHA-256 hash across all dataset files."""
-    sha256 = hashlib.sha256()
-    for filename in sorted(filenames):
-        filepath = data_path / filename
-        if filepath.exists():
-            sha256.update(filename.encode())
-            with open(filepath, "rb") as f:
-                for chunk in iter(lambda: f.read(8192), b""):
-                    sha256.update(chunk)
-    return sha256.hexdigest()
 
 
 def _read_csv_safe(data_path: Path, filename: str) -> pd.DataFrame:
@@ -114,19 +101,6 @@ async def ingest_microsoft_ai(
     if not path.is_dir():
         raise FileNotFoundError(f"Microsoft AI data directory not found: {data_path}")
 
-    # Check for existing version
-    existing = await session.execute(
-        select(DatasetVersion).where(
-            DatasetVersion.dataset_name == DATASET_NAME,
-            DatasetVersion.version_key == version,
-        )
-    )
-    if existing.scalar_one_or_none():
-        raise ValueError(
-            f"Microsoft Working with AI version {version} already ingested. "
-            f"Versions are immutable."
-        )
-
     files = [
         "ai_applicability_scores.csv",
         "soc_metrics.csv",
@@ -139,6 +113,29 @@ async def ingest_microsoft_ai(
     for f in files:
         if not (path / f).exists():
             raise FileNotFoundError(f"Required file missing: {path / f}")
+
+    # Compute integrity hash before checking existing version
+    integrity_hash = compute_files_hash([path / f for f in files])
+
+    # Check for existing version
+    existing = await session.execute(
+        select(DatasetVersion).where(
+            DatasetVersion.dataset_name == DATASET_NAME,
+            DatasetVersion.version_key == version,
+        )
+    )
+    existing_row = existing.scalar_one_or_none()
+    if existing_row:
+        if existing_row.integrity_hash != integrity_hash:
+            raise ValueError(
+                f"Microsoft Working with AI version {version} already ingested but source data has changed. "
+                f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                f"New hash: {integrity_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError(
+            f"Microsoft Working with AI version {version} already ingested (unchanged)."
+        )
 
     logger.info("Starting Microsoft AI dataset ingestion from %s", data_path)
 
@@ -166,9 +163,6 @@ async def ingest_microsoft_ai(
     total_rows = sum(
         len(df) for df in [scores_df, soc_metrics_df, iwa_metrics_df, soc_to_iwas_df, physical_df]
     )
-
-    # Compute integrity hash
-    integrity_hash = _compute_files_hash(path, files)
 
     # ── Register version (ADR-002) ──
     version_result = await session.execute(
