@@ -110,6 +110,16 @@ CREATE TABLE dataset_versions (
 );
 ```
 
+### Implementation debt: integrity_hash not yet computed
+
+The `integrity_hash` column exists in `dataset_versions` (TEXT, nullable) but is currently stored as NULL for all rows. No hash computation logic has been implemented.
+
+**Risk**: Silent data corruption during re-ingestion would go undetected.
+
+**Resolution required**: Each ingestion script should compute `hashlib.sha256()` over the source file bytes before loading, store the hex digest in `integrity_hash`, and on re-ingestion compare against the stored value — raising a `DataIntegrityError` if they differ.
+
+**Priority**: Medium. The risk is low in a controlled dev environment but must be resolved before any production ingestion pipeline.
+
 ### Version FK pattern on derived tables
 
 ```sql

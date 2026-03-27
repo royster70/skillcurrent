@@ -178,17 +178,27 @@ Explicitly deferred:
 - Register in `app/main.py`
 - Enable `pg_stat_statements` in Docker command
 
-### Phase 2 (same session)
+### Phase 2 (completed)
 
-- `GET /api/v1/admin/slow-queries` endpoint
-- `GET /api/v1/admin/request-stats` endpoint (P50/P95 per path)
-- `tests/test_performance.py` baseline suite
+- [x] `GET /api/v1/admin/slow-queries` — pg_stat_statements top 10 slowest queries
+- [x] `GET /api/v1/admin/metrics` — P50/P95/max per path (last hour) — delivered as `/admin/metrics`
+- [x] `tests/test_performance.py` — baseline structure tests (4 tests)
+- [x] Correlation ID (`X-Request-ID`) — UUID4 generated per request, returned in response header, stored in `api_request_log.request_id` (migration 016)
+- [x] `TestP95Thresholds` — P95 threshold enforcement (`pytest -m slow`), thresholds per ADR
+- [x] `contextvars.ContextVar` — request_id available to all layers within a request scope
 
 ### Phase 3 (future)
 
 - Auto-prune scheduled task
 - Performance dashboard page in frontend
 - Regression detection alerts
+
+### Addendum — Rob Pike alignment
+
+These Phase 2 additions directly implement Pike's Rule 1/2 ("Measure. Don't guess"):
+- Correlation IDs link HTTP latency (api_request_log) to SQL cost (pg_stat_statements) — a slow endpoint can now be traced to its slow query
+- P95 threshold tests make "measure" a hard gate, not a dashboard people check occasionally
+- /admin/slow-queries makes the measurement surface-able without needing direct DB access
 
 ## Consequences
 
