@@ -2,6 +2,7 @@ from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
 from app.api.v1.router import api_router
+from app.middleware.timing import TimingMiddleware
 
 app = FastAPI(
     title="Workforce AI Impact Analysis Platform",
@@ -17,6 +18,9 @@ app.add_middleware(
     allow_methods=["GET"],
     allow_headers=["*"],
 )
+
+# Request timing (ADR-007) — always adds X-Request-Duration-Ms header
+app.add_middleware(TimingMiddleware)
 
 app.include_router(api_router)
 
