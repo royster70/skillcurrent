@@ -1,6 +1,6 @@
 ---
 date: 2026-03-22
-status: proposed
+status: accepted
 agents: []
 prd_section: "8.3 Key Technologies"
 ---
@@ -17,6 +17,10 @@ Five decisions warranted explicit recording:
 3. Versioned master data with schema-enforced provenance (not audit logs or event sourcing)
 4. pgvector in PostgreSQL (not a dedicated vector database)
 5. SQLAlchemy + Alembic over Drizzle ORM (not a TypeScript-all-the-way stack)
+
+Two further decisions were added after initial implementation revealed enforcement gaps:
+6. Pre-commit hooks — enforced, not advisory (black, ruff, mypy as structural constraints)
+7. McCabe complexity limit — max-complexity = 10 (ruff C90 ruleset)
 
 ---
 
@@ -195,6 +199,49 @@ If the platform were a CRUD application (forms, user management, content serving
 - If the NLP pipeline moves to a hosted API (no local model inference), the primary Python dependency weakens
 - If Drizzle or an alternative TypeScript ORM gains mature pgvector and recursive CTE support
 - If the backend is decomposed into microservices where the API layer (TypeScript) is separated from the computation layer (Python)
+
+---
+
+## Decision 6: Pre-commit Hooks — Enforced, Not Advisory
+
+### The choice
+
+All formatting, linting, and type-checking tools (black, ruff, mypy) are wired into a `.pre-commit-config.yaml` at the project root. These checks run on every `git commit`, making them load-bearing rather than advisory.
+
+### Why this was non-obvious
+
+black, ruff, and mypy were configured from day one but only ran manually. Without hooks, a developer can commit code that violates formatting or type rules — the tools are installed but optional. Pre-commit makes the toolchain a structural constraint, not a convention.
+
+### Hooks configured
+
+- `black` (line-length=100, python3.12) — formatting
+- `ruff` with `--fix` — linting + auto-fix where possible
+- `mypy --strict` — type checking (scoped to `src/backend/app/`)
+- `pre-commit-hooks`: trailing-whitespace, end-of-file-fixer, check-yaml, check-merge-conflict, check-added-large-files (500KB limit)
+
+### Rejected alternative
+
+GitHub Actions only — catches violations after push, not before commit. Slower feedback loop. The failure arrives when a PR is already open rather than at the moment the bad code was written.
+
+---
+
+## Decision 7: McCabe Complexity Limit — max-complexity = 10
+
+### The choice
+
+ruff's C90 ruleset is enabled with `max-complexity = 10`. Functions exceeding cyclomatic complexity 10 are a lint error, not a warning.
+
+### Why 10
+
+Pike's Rule 3 ("Fancy algorithms are buggier than simple ones"). Complexity 10 is the standard threshold from McCabe's original paper — it's where empirical defect rates begin to rise. Functions that need more than 10 decision paths are almost always candidates for decomposition.
+
+### Why ruff C90 over radon or flake8-complexity
+
+ruff already runs on every file; adding C90 costs zero additional tooling. radon and flake8-complexity would require separate installation and configuration.
+
+### When to revisit
+
+If a legitimately complex algorithm (e.g., a matching cascade with many explicit rule branches) consistently hits the limit, increase to 12 for that module with a `# noqa: C901` annotation and a comment explaining why. Do not raise the global limit.
 
 ---
 
