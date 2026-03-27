@@ -16,7 +16,6 @@ Files ingested:
   9. Emerging Tasks.txt         -> onet_emerging_tasks
 """
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -25,6 +24,7 @@ from sqlalchemy import delete, insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_files_hash
 
 logger = logging.getLogger(__name__)
 
@@ -174,26 +174,6 @@ def _read_onet_file(
     return df
 
 
-def _compute_file_hash(filepath: Path) -> str:
-    """Compute SHA-256 hash of file contents for integrity checking."""
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
-
-
-def _compute_dataset_hash(data_path: Path, filenames: list[str]) -> str:
-    """Compute combined hash across all O*NET files for version integrity."""
-    sha256 = hashlib.sha256()
-    for filename in sorted(filenames):
-        filepath = data_path / filename
-        if filepath.exists():
-            sha256.update(filename.encode())
-            sha256.update(_compute_file_hash(filepath).encode())
-    return sha256.hexdigest()
-
-
 async def _check_existing_version(
     session: AsyncSession, version_key: str
 ) -> DatasetVersion | None:
@@ -308,15 +288,6 @@ async def ingest_onet(
     if not path.is_dir():
         raise FileNotFoundError(f"O*NET data directory not found: {data_path}")
 
-    # Check for existing version
-    existing = await _check_existing_version(session, version)
-    if existing:
-        raise ValueError(
-            f"O*NET version {version} already ingested "
-            f"(ingested_at={existing.ingested_at}). "
-            f"Versions are immutable — use a new version_key for updated data."
-        )
-
     onet_files = [
         "Occupation Data.txt",
         "Task Statements.txt",
@@ -334,10 +305,26 @@ async def ingest_onet(
         if not (path / filename).exists():
             raise FileNotFoundError(f"Required O*NET file missing: {path / filename}")
 
-    logger.info("Starting O*NET %s ingestion from %s", version, data_path)
+    # Compute integrity hash across all files before checking existing version
+    integrity_hash = compute_files_hash([path / f for f in onet_files])
 
-    # Compute integrity hash across all files
-    integrity_hash = _compute_dataset_hash(path, onet_files)
+    # Check for existing version
+    existing = await _check_existing_version(session, version)
+    if existing:
+        if existing.integrity_hash != integrity_hash:
+            raise ValueError(
+                f"O*NET version {version} already ingested but source data has changed. "
+                f"Stored hash: {existing.integrity_hash[:16]}... "
+                f"New hash: {integrity_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError(
+            f"O*NET version {version} already ingested "
+            f"(ingested_at={existing.ingested_at}). "
+            f"Versions are immutable — use a new version_key for updated data."
+        )
+
+    logger.info("Starting O*NET %s ingestion from %s", version, data_path)
 
     # ── Read all files ──
     logger.info("Reading O*NET files...")

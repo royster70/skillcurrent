@@ -13,7 +13,6 @@ Release formats:
 Source: https://huggingface.co/datasets/Anthropic/EconomicIndex (CC-BY)
 """
 
-import hashlib
 import logging
 from dataclasses import dataclass
 from datetime import date
@@ -25,6 +24,7 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_files_hash
 
 logger = logging.getLogger(__name__)
 
@@ -82,14 +82,6 @@ API_RELEASES = [
         platform="1p_api",
     ),
 ]
-
-
-def _compute_file_hash(filepath: Path) -> str:
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
 
 
 def _df_to_rows(df: pd.DataFrame) -> list[dict]:
@@ -219,14 +211,39 @@ async def ingest_aei_temporal(
     if not base_path.is_dir():
         raise FileNotFoundError(f"AEI data directory not found: {data_path}")
 
+    # Compute integrity hash from all source files before checking existing version
+    source_files_for_check: list[Path] = [
+        base_path / "release_2025_02_10" / "onet_task_mappings.csv",
+        base_path / "release_2025_03_27" / "task_pct_v2.csv",
+        base_path / "release_2025_03_27" / "automation_vs_augmentation_by_task.csv",
+        base_path / "release_2025_09_15" / "data" / "intermediate"
+        / "aei_raw_claude_ai_2025-08-04_to_2025-08-11.csv",
+        base_path / "release_2025_09_15" / "data" / "intermediate"
+        / "aei_raw_1p_api_2025-08-04_to_2025-08-11.csv",
+        base_path / "release_2026_01_15" / "data" / "intermediate"
+        / "aei_raw_claude_ai_2025-11-13_to_2025-11-20.csv",
+        base_path / "release_2026_01_15" / "data" / "intermediate"
+        / "aei_raw_1p_api_2025-11-13_to_2025-11-20.csv",
+    ]
+    existing_for_check = [p for p in source_files_for_check if p.exists()]
+    early_hash = compute_files_hash(existing_for_check)
+
     # Check if any temporal snapshots already exist
     existing = await session.execute(
         select(DatasetVersion).where(
             DatasetVersion.dataset_name == DATASET_NAME,
         )
     )
-    if existing.scalar_one_or_none():
-        raise ValueError("AEI temporal snapshots already ingested.")
+    existing_row = existing.scalar_one_or_none()
+    if existing_row:
+        if existing_row.integrity_hash != early_hash:
+            raise ValueError(
+                f"AEI temporal snapshots already ingested but source data has changed. "
+                f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                f"New hash: {early_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError("AEI temporal snapshots already ingested (unchanged).")
 
     logger.info("Starting AEI temporal ingestion from %s", data_path)
 
@@ -290,13 +307,14 @@ async def ingest_aei_temporal(
     logger.info("  1P API: %d tasks", r4_api_count)
 
     # ── Register dataset version (ADR-002) ──
+    # Use the hash computed at the start of the function (early_hash)
     version_result = await session.execute(
         insert(DatasetVersion)
         .values(
             dataset_name=DATASET_NAME,
             version_key="all_releases",
             row_count=total_rows,
-            integrity_hash="multi-release",
+            integrity_hash=early_hash,
             source_url="https://huggingface.co/datasets/Anthropic/EconomicIndex",
             metadata_={
                 "license": "CC-BY",

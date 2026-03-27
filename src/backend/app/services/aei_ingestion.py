@@ -6,7 +6,6 @@ Economic Index labor_market_impacts directory.
 Source: https://huggingface.co/datasets/Anthropic/EconomicIndex (CC-BY)
 """
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -16,23 +15,12 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_files_hash
 
 logger = logging.getLogger(__name__)
 
 DATASET_NAME = "aei"
 DATASET_VERSION = "labor_market_2026"
-
-
-def _compute_files_hash(data_path: Path, filenames: list[str]) -> str:
-    sha256 = hashlib.sha256()
-    for filename in sorted(filenames):
-        filepath = data_path / filename
-        if filepath.exists():
-            sha256.update(filename.encode())
-            with open(filepath, "rb") as f:
-                for chunk in iter(lambda: f.read(8192), b""):
-                    sha256.update(chunk)
-    return sha256.hexdigest()
 
 
 def _df_to_rows(df: pd.DataFrame) -> list[dict]:
@@ -73,6 +61,9 @@ async def ingest_aei_labor_market(
         if not (path / f).exists():
             raise FileNotFoundError(f"AEI file not found: {path / f}")
 
+    # Compute integrity hash before checking existing version
+    integrity_hash = compute_files_hash([path / f for f in files])
+
     # Check existing version
     existing = await session.execute(
         select(DatasetVersion).where(
@@ -80,8 +71,16 @@ async def ingest_aei_labor_market(
             DatasetVersion.version_key == version,
         )
     )
-    if existing.scalar_one_or_none():
-        raise ValueError(f"AEI version {version} already ingested.")
+    existing_row = existing.scalar_one_or_none()
+    if existing_row:
+        if existing_row.integrity_hash != integrity_hash:
+            raise ValueError(
+                f"AEI version {version} already ingested but source data has changed. "
+                f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                f"New hash: {integrity_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError(f"AEI version {version} already ingested (unchanged).")
 
     logger.info("Starting AEI labor market ingestion from %s", data_path)
 
@@ -94,7 +93,6 @@ async def ingest_aei_labor_market(
     task_df["dataset_version"] = version
 
     total_rows = len(job_df) + len(task_df)
-    integrity_hash = _compute_files_hash(path, files)
 
     # Register version (ADR-002)
     version_result = await session.execute(

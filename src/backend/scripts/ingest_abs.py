@@ -15,19 +15,19 @@ Data files:
 """
 
 import asyncio
-import hashlib
 import logging
 import sys
-from datetime import date
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
 from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 from app.core.config import settings  # noqa: E402
+from app.models.infrastructure import DatasetVersion, DatasetVersionDelta  # noqa: E402
+from app.utils.hashing import compute_file_hash  # noqa: E402
 
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
@@ -159,16 +159,32 @@ async def main() -> None:
     rows = build_employment_rows(emp_df, ind_df)
     logger.info("  %d employment rows generated", len(rows))
 
-    # Compute integrity hash
-    content_hash = hashlib.sha256(
-        str(sorted([(r["anzsco_code"], r["anzsic_code"], r["employment"]) for r in rows])).encode()
-    ).hexdigest()[:16]
+    # Compute integrity hash from the source file
+    integrity_hash = compute_file_hash(OCC_FILE)
 
     # Insert into database
     engine = create_async_engine(settings.database_url)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
+        # Check if version already registered
+        existing = await session.execute(
+            select(DatasetVersion).where(
+                DatasetVersion.dataset_name == "abs_employment",
+                DatasetVersion.version_key == "nov-2025-revised",
+            )
+        )
+        existing_row = existing.scalar_one_or_none()
+        if existing_row:
+            if existing_row.integrity_hash != integrity_hash:
+                raise ValueError(
+                    "abs_employment version nov-2025-revised already ingested but source data has changed. "
+                    f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                    f"New hash: {integrity_hash[:16]}... "
+                    "Delete the existing dataset_versions row to force re-ingest."
+                )
+            raise ValueError("abs_employment version nov-2025-revised already ingested (unchanged).")
+
         # Clear existing ABS data for this release year
         await session.execute(
             text("DELETE FROM abs_employment WHERE release_year = :year"),
@@ -191,24 +207,42 @@ async def main() -> None:
             batch = rows[i : i + batch_size]
             await session.execute(insert_sql, batch)
 
-        # Register dataset version
-        await session.execute(text("""
-            INSERT INTO dataset_versions
-                (dataset_name, version_key, source_url, integrity_hash, row_count, ingested_at, metadata)
-            VALUES
-                ('abs_employment', :version, :source, :hash, :rows, NOW(),
-                 '{"notes": "JSA Occupation Profiles Nov 2025 (Revised). Employment distributed across top 3 industries per occupation using 50/30/20 rank weights."}'::jsonb)
-            ON CONFLICT (dataset_name, version_key) DO UPDATE SET
-                integrity_hash = EXCLUDED.integrity_hash,
-                row_count = EXCLUDED.row_count,
-                ingested_at = NOW(),
-                metadata = EXCLUDED.metadata
-        """), {
-            "version": "nov-2025-revised",
-            "source": "https://www.jobsandskills.gov.au/data/occupation-and-industry-profiles",
-            "hash": content_hash,
-            "rows": len(rows),
-        })
+        # Register dataset version (ADR-002)
+        version_result = await session.execute(
+            insert(DatasetVersion)
+            .values(
+                dataset_name="abs_employment",
+                version_key="nov-2025-revised",
+                row_count=len(rows),
+                integrity_hash=integrity_hash,
+                source_url="https://www.jobsandskills.gov.au/data/occupation-and-industry-profiles",
+                metadata_={
+                    "notes": (
+                        "JSA Occupation Profiles Nov 2025 (Revised). "
+                        "Employment distributed across top 3 industries per occupation "
+                        "using 50/30/20 rank weights."
+                    ),
+                    "source_file": OCC_FILE.name,
+                    "release_year": RELEASE_YEAR,
+                },
+            )
+            .returning(DatasetVersion.id)
+        )
+        version_id = version_result.scalar_one()
+        await session.flush()
+
+        # Record version delta
+        await session.execute(
+            insert(DatasetVersionDelta).values(
+                dataset_name="abs_employment",
+                from_version_id=None,
+                to_version_id=version_id,
+                records_added=len(rows),
+                records_removed=0,
+                records_changed=0,
+                delta_detail={"type": "initial_load", "tables": {"abs_employment": len(rows)}},
+            )
+        )
 
         await session.commit()
 

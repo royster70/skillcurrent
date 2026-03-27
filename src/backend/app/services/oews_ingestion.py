@@ -7,7 +7,6 @@ Source: https://www.bls.gov/oes/tables.htm
 Data: May 2024 Occupational Employment and Wage Statistics
 """
 
-import hashlib
 import logging
 from pathlib import Path
 
@@ -17,19 +16,12 @@ from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
+from app.utils.hashing import compute_file_hash
 
 logger = logging.getLogger(__name__)
 
 DATASET_NAME = "oews"
 DATASET_VERSION = "2024"
-
-
-def _compute_file_hash(filepath: Path) -> str:
-    sha256 = hashlib.sha256()
-    with open(filepath, "rb") as f:
-        for chunk in iter(lambda: f.read(8192), b""):
-            sha256.update(chunk)
-    return sha256.hexdigest()
 
 
 def _clean_numeric(series: pd.Series, target_type: str = "int") -> pd.Series:
@@ -65,6 +57,9 @@ async def ingest_oews(
     if not filepath.exists():
         raise FileNotFoundError(f"OEWS file not found: {filepath}")
 
+    # Compute integrity hash before checking existing version
+    integrity_hash = compute_file_hash(filepath)
+
     # Check existing version
     existing = await session.execute(
         select(DatasetVersion).where(
@@ -72,8 +67,16 @@ async def ingest_oews(
             DatasetVersion.version_key == version,
         )
     )
-    if existing.scalar_one_or_none():
-        raise ValueError(f"OEWS version {version} already ingested.")
+    existing_row = existing.scalar_one_or_none()
+    if existing_row:
+        if existing_row.integrity_hash != integrity_hash:
+            raise ValueError(
+                f"OEWS version {version} already ingested but source data has changed. "
+                f"Stored hash: {existing_row.integrity_hash[:16]}... "
+                f"New hash: {integrity_hash[:16]}... "
+                "Delete the existing dataset_versions row to force re-ingest."
+            )
+        raise ValueError(f"OEWS version {version} already ingested (unchanged).")
 
     logger.info("Starting OEWS ingestion from %s", filepath)
 
@@ -102,9 +105,6 @@ async def ingest_oews(
     before = len(result_df)
     result_df = result_df.dropna(subset=["employment", "mean_annual_wage"], how="all")
     logger.info("Dropped %d fully suppressed rows, %d remaining", before - len(result_df), len(result_df))
-
-    # Compute integrity hash
-    integrity_hash = _compute_file_hash(filepath)
 
     # Register version (ADR-002)
     version_result = await session.execute(
