@@ -65,7 +65,15 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
 
 Cross-cutting:
-  [ ] Observability: API timing middleware (api_request_log), pg_stat_statements, performance baseline tests (ADR-007)
+  [x] Observability (ADR-007 Phases 1 & 2 complete):
+      - Migration 015: api_request_log table (method, path, status_code, duration_ms, timestamp)
+      - Migration 016: request_id column + index (correlation ID linkage)
+      - TimingMiddleware: X-Request-Duration-Ms + X-Request-ID on every response; optional DB logging (enable_request_logging setting)
+      - contextvars.ContextVar: request_id available to all layers within a request scope
+      - GET /api/v1/admin/health, /admin/metrics, /admin/slow-queries (pg_stat_statements top 10)
+      - tests/test_performance.py: 12 tests — middleware headers, admin endpoints, P95 thresholds (pytest -m slow)
+      - Toolchain: ruff C90 rule, max-complexity=10; .pre-commit-config.yaml (black + ruff + mypy on every commit)
+      - Deferred: frontend Web Vitals, OpenTelemetry (post-microservices), alerting (post-production)
 
 Tier 2 (sequential — each stage blocks the next):
   [ ] FR-1 (Org Hierarchy) → FR-7 (Privacy Controls) → FR-6 (Dashboards)
@@ -121,13 +129,15 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | gdpval_evaluations | 0 | (future model-era scores for FR-8.7) |
 | asx_company_sectors | 1,978 | ASX listed companies (GICS→ANZSIC→NAICS, FR-8.5 company lookup) |
 | company_classifications | 0 | LLM classification cache (Claude Haiku, FR-8.5 company lookup) |
+| api_request_log | 0 | Live request telemetry (ADR-007, 30-day retention) |
 | **TOTAL** | **~537,633** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
 - **Matching**: sentence-transformers (all-MiniLM-L6-v2), pgvector cosine similarity
 - **Frontend**: TypeScript, React 18, Recharts / D3
-- **Dev tools**: black (line 100), ruff, mypy --strict, pytest, vitest, Playwright (E2E)
+- **Dev tools**: black (line 100), ruff (C90 + max-complexity=10), mypy --strict, pytest, vitest, Playwright (E2E)
+- **Enforcement**: `.pre-commit-config.yaml` — black + ruff + mypy run on every `git commit` (load-bearing, not advisory)
 - **Windows terminal**: Claude Code via `claude` command in PowerShell or WSL2
 
 ## Key Reference Docs (read when working in these areas)
@@ -141,6 +151,40 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 - Performance & observability: ADR-007 (`ai_working/decisions/ADR-007-performance-instrumentation.md`)
 - ADRs: `ai_working/decisions/`
 - Discoveries & patterns: `ai_working/discoveries/`
+
+## Engineering Principles (Rob Pike — enforced, not aspirational)
+
+These are structural constraints, not style preferences. They are enforced by tooling where possible.
+
+### Rule 1 & 2 — Measure. Don't guess.
+- Every HTTP request records `duration_ms` and `request_id` in `api_request_log`
+- `X-Request-Duration-Ms` and `X-Request-ID` headers on every response — visible in browser devtools
+- `GET /api/v1/admin/slow-queries` surfaces `pg_stat_statements` top 10 — slow SQL is always queryable
+- `GET /api/v1/admin/metrics` returns P50/P95/max per path for the last hour
+- `tests/test_performance.py` includes P95 threshold assertions (`pytest -m slow`) — perf regressions are caught, not discovered by users
+- Correlation: `X-Request-ID` links HTTP latency rows to SQL cost rows — slow endpoints can be traced to slow queries
+- **Do not add a performance optimisation without first running `pytest -m slow` and querying `/admin/slow-queries`**
+
+### Rule 3 & 4 — Simple algorithms, simple data structures.
+- `ruff` C90 rule enforced: `max-complexity = 10`. Functions exceeding cyclomatic complexity 10 are a lint error.
+- If a function hits the limit, decompose it — do not raise the global threshold or add `# noqa: C901` without a comment explaining why.
+- Prefer flat data structures. If a query requires more than two JOINs to answer a simple question, the schema is wrong.
+- No clever abstractions without a demonstrated need. Demonstrate the need with a failing test or a measured bottleneck.
+
+### Rule 5 — Data dominates.
+- Schema is the source of truth. If the data model is right, the service layer should be near-trivial.
+- Every derived record carries `NOT NULL` FK references to the source versions that produced it (ADR-002). Provenance is structural, not optional.
+- `integrity_hash` must be computed on ingest (SHA-256 of source file bytes). **Known gap: not yet implemented in all ingestion scripts.** Fix before any production pipeline.
+- Data invariants are pytest tests (`tests/test_data_invariants.py`), not comments. If an invariant can be violated silently, it will be.
+
+### Toolchain enforcement checklist (for new contributors)
+```
+1. Install pre-commit:  pip install pre-commit && pre-commit install
+2. Verify hooks run:    pre-commit run --all-files
+3. Run perf baseline:  cd src/backend && pytest tests/test_performance.py -m slow -v
+4. Check complexity:   cd src/backend && ruff check app/ --select C90
+5. Check invariants:   cd src/backend && pytest tests/test_data_invariants.py -v
+```
 
 ## Commit Convention
 `feat(FR-X):`, `fix(FR-X):`, `test(FR-X):`, `refactor:`, `docs:`, `chore:`
