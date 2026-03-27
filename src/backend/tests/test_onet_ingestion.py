@@ -12,9 +12,9 @@ import pytest
 from app.services.onet_ingestion import (
     _NUMERIC_COLS,
     _TASK_RATING_COLS,
-    _compute_dataset_hash,
     _read_onet_file,
 )
+from app.utils.hashing import compute_files_hash
 
 
 def _write_tsv(path: Path, filename: str, header: str, rows: list[str]) -> Path:
@@ -81,13 +81,13 @@ async def test_compute_dataset_hash_deterministic(tmp_path: Path):
     (tmp_path / "file_a.txt").write_text(content, encoding="utf-8")
     (tmp_path / "file_b.txt").write_text(content, encoding="utf-8")
 
-    filenames = ["file_a.txt", "file_b.txt"]
+    paths = [tmp_path / "file_a.txt", tmp_path / "file_b.txt"]
 
-    hash1 = _compute_dataset_hash(tmp_path, filenames)
-    hash2 = _compute_dataset_hash(tmp_path, filenames)
+    hash1 = compute_files_hash(paths)
+    hash2 = compute_files_hash(paths)
     assert hash1 == hash2, "Same files should produce the same hash"
 
     # Modify one file — hash should change
     (tmp_path / "file_a.txt").write_text("Col1\tCol2\nchanged\tdata\n", encoding="utf-8")
-    hash3 = _compute_dataset_hash(tmp_path, filenames)
+    hash3 = compute_files_hash(paths)
     assert hash3 != hash1, "Different file content should produce a different hash"
