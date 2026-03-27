@@ -875,6 +875,12 @@ class TestCompanySearch:
         r = await client.get("/api/v1/companies/search?q=telstra&region=au")
         assert r.status_code == 200
 
+
+
+# ── Company Classification ──
+
+
+class TestCompanyClassify:
     @pytest.mark.asyncio
     async def test_classify_no_api_key_returns_503(self, client):
         """Classification without Anthropic credential returns 503."""
@@ -889,6 +895,86 @@ class TestCompanySearch:
         r = await client.post("/api/v1/companies/classify",
                               json={"name": "Test Corp", "region": "XX"})
         assert r.status_code == 400
+
+    @pytest.mark.asyncio
+    async def test_classify_missing_name_returns_422(self, client):
+        """POST classify without name field returns 422 validation error."""
+        r = await client.post("/api/v1/companies/classify",
+                              json={"region": "AU"})
+        assert r.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_classify_missing_body_returns_422(self, client):
+        """POST classify with no JSON body returns 422."""
+        r = await client.post("/api/v1/companies/classify")
+        assert r.status_code == 422
+
+    @pytest.mark.asyncio
+    async def test_classify_valid_request_schema(self, client):
+        """Valid classify request returns 503 (no key) or 200 with correct schema."""
+        r = await client.post("/api/v1/companies/classify",
+                              json={"name": "BHP Group", "region": "AU"})
+        assert r.status_code in (503, 200)
+        if r.status_code == 200:
+            data = r.json()
+            assert "company_name" in data
+            assert "sectors" in data
+            assert "sector_codes" in data
+            assert "source" in data
+            assert "region" in data
+
+    @pytest.mark.asyncio
+    async def test_classify_cached_result(self, client):
+        """Cached classification is returned with source='cached'."""
+        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+        from sqlalchemy import text
+
+        TEST_DB_URL = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
+        engine = create_async_engine(TEST_DB_URL, echo=False)
+        session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+
+        # Insert a cached classification row
+        async with session_factory() as session:
+            await session.execute(text("""
+                INSERT INTO company_classifications
+                    (company_name_lower, region, sector_codes, sector_names, confidence)
+                VALUES
+                    ('test cached corp', 'AU', '{B}', '{Mining}', 0.95)
+                ON CONFLICT (company_name_lower, region) DO NOTHING
+            """))
+            await session.commit()
+
+        try:
+            r = await client.post("/api/v1/companies/classify",
+                                  json={"name": "Test Cached Corp", "region": "AU"})
+            assert r.status_code == 200
+            data = r.json()
+            assert data["source"] == "cached"
+            assert data["company_name"] == "Test Cached Corp"
+            assert "B" in data["sector_codes"]
+        finally:
+            # Clean up
+            async with session_factory() as session:
+                await session.execute(text("""
+                    DELETE FROM company_classifications
+                    WHERE company_name_lower = 'test cached corp' AND region = 'AU'
+                """))
+                await session.commit()
+            await engine.dispose()
+
+    @pytest.mark.asyncio
+    async def test_classify_region_case_insensitive(self, client):
+        """Lowercase region is accepted (not 400)."""
+        r = await client.post("/api/v1/companies/classify",
+                              json={"name": "Test Corp", "region": "au"})
+        assert r.status_code != 400
+
+    @pytest.mark.asyncio
+    async def test_classify_us_region_accepted(self, client):
+        """US region is a valid classification region."""
+        r = await client.post("/api/v1/companies/classify",
+                              json={"name": "Test Corp", "region": "US"})
+        assert r.status_code != 400
 
 
 # ── Semantic Search ──

@@ -536,7 +536,7 @@ WHERE region = 'AU';
 
 **No local file required** — the script downloads the CSV directly at runtime.
 
-**Prerequisites**: Migration 015 must be applied (creates `asx_company_sectors` and `company_classifications` tables). The script does not depend on any other dataset.
+**Prerequisites**: No Alembic migration required. The `ingest_asx_companies.py` script creates the `asx_company_sectors` and `company_classifications` tables directly using `CREATE TABLE IF NOT EXISTS`. The script does not depend on any other dataset.
 
 **Command**:
 ```bash

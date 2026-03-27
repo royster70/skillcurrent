@@ -205,6 +205,20 @@ CREATE TABLE company_classifications (
 | Classification accuracy concerns raised | Add human review workflow for cached classifications |
 | High LLM API volume | Consider batch classification or pre-classification of common company names |
 
+## Implementation Notes
+
+Discrepancies between this ADR and the shipped implementation (verified 2026-03-27):
+
+1. **Model version**: Decision 3 states "claude-haiku-4-5-20251001" but the implementation in `companies.py` uses `claude-3-haiku-20240307`. The older Haiku model was used for initial development; model name is a single-line change when upgrading.
+
+2. **`company_classifications` schema**: The ADR shows `company_name TEXT`, `sectors JSONB`, and `model_used TEXT`. The actual table uses `company_name_lower TEXT` (normalised to lowercase for case-insensitive cache lookup), `sector_codes TEXT[]` and `sector_names TEXT[]` (PostgreSQL arrays instead of JSONB), `confidence FLOAT`, and omits `model_used`. The array-based design is simpler for the downstream SQL queries that filter by sector code.
+
+3. **Classify request field name**: The ADR endpoint description says the request body accepts `{company_name, region}`. The Pydantic `ClassifyRequest` model uses `{name, region}` — shorter field name in the API contract.
+
+4. **`asx_company_sectors` schema**: The ADR shows singular `anzsic_code TEXT` and `naics_code TEXT` columns. The actual table uses `anzsic_codes TEXT[]` and `naics_codes TEXT[]` (arrays) to support companies mapped to multiple sectors through the GICS concordance.
+
+These are implementation refinements that improved the working code. The architectural decisions (hybrid ASX+LLM strategy, GICS concordance chain, caching, single-sector navigation, collapsible card UX) are all implemented as specified.
+
 ## References
 
 - ADR-004: Australian data integration (FR-8.9 crosswalk infrastructure reused here)
