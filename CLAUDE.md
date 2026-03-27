@@ -65,7 +65,8 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
   [x] FR-8.8 Data Refresh Pipeline: scripts/run_pipeline.py (16-stage DAG, --dry-run/--stages/--from-stage); GET /admin/pipeline/status + /admin/pipeline/dag; APScheduler AsyncIOScheduler (pipeline_auto_run=False, cron="0 2 * * 0"); 7 tests
   [x] ADR-002 Integrity: app/utils/hashing.py (compute_file_hash, compute_files_hash, compute_bytes_hash, compute_json_hash); hash verification on re-ingest for all 7 service + 3 script ingestors; aei_temporal placeholder 'multi-release' hash replaced with real SHA-256; 19/19 data invariant tests; 161 total tests
-  [ ] FR-8.6/FR-8.7 GPTVal Waterline: migration 017 (gptval_benchmarks table) + ingest_epoch_eci.py (Epoch AI ECI CSV, CC-BY free download → gptval_benchmarks); then GET /gdpval/waterline velocity endpoint
+  [x] FR-8.6/FR-8.7 GPTVal Waterline: migration 017 (gptval_benchmarks); scripts/ingest_epoch_eci.py (Epoch AI ECI, CC-BY runtime download → 408 rows, 39 benchmarks × 32 model eras); ERA_MAP 50+ model groups → platform era keys; GET /api/v1/gdpval/waterline (velocity per benchmark, sorted by descending rate of improvement, overall +0.030/era); epoch_eci stage added to run_pipeline.py DAG
+      NOTE: FR-8.7 P0b (compute_gdpval_waterline.py — Claude API evaluation runner for 220 tasks × 4 model eras → gdpval_evaluations) deferred pending user budget decision (~$100-145)
 
 Cross-cutting:
   [x] Observability (ADR-007 Phases 1 & 2 complete):
@@ -92,7 +93,7 @@ Tier 2 (sequential — each stage blocks the next):
 - **AEI**: HuggingFace CC-BY — labor market (756 jobs, 17,998 tasks) + temporal (16,976 snapshots across 4 model eras). LOADED.
 - **BLS OEWS**: US headcount weighting by occupation × industry (NAICS). 8,573 rows. LOADED.
 - **ABS/JSA**: JSA Occupation Profiles Nov 2025 (Revised). ANZSCO × ANZSIC employment by occupation. 2,743 rows across 19 ANZSIC divisions. LOADED.
-- **GPTVal**: Longitudinal AI capability benchmarks; versioned by model era (sonnet-3.5, 3.7, 4, 4.5...). NOT LOADED.
+- **Epoch AI ECI (GPTVal P0a)**: CC-BY, runtime download from epoch.ai. 408 rows loaded — 39 benchmarks × 32 model eras, covering Claude 2 through Claude 4.6 + GPT/Gemini/Llama families. Enables `GET /gdpval/waterline` velocity endpoint. LOADED.
 - **OpenAI GDPval**: MIT license — 220 real-world knowledge tasks across 44 occupations and 9 NAICS sectors. Tasks mapped to O*NET SOC codes (43 exact + 1 contextual match). Rubric-graded evaluations (10,453 items). gdpval_evaluations table ready for model-era scores to enable FR-8.7 waterline velocity. LOADED.
 
 ## Data Load Status
@@ -129,11 +130,12 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | onet_title_embeddings | 66,512 | Derived (sentence-transformers, Layer 2 semantic search) |
 | gdpval_tasks | 220 | OpenAI GDPval |
 | gdpval_rubric_items | 10,453 | OpenAI GDPval |
-| gdpval_evaluations | 0 | (future model-era scores for FR-8.7) |
+| gdpval_evaluations | 0 | (future model-era scores for FR-8.7 P0b — Claude API runner) |
+| gptval_benchmarks | 408 | Epoch AI ECI (FR-8.7 P0a — 39 benchmarks × 32 model eras) |
 | asx_company_sectors | 1,978 | ASX listed companies (GICS→ANZSIC→NAICS, FR-8.5 company lookup) |
 | company_classifications | 0 | LLM classification cache (Claude Haiku, FR-8.5 company lookup) |
 | api_request_log | 0 | Live request telemetry (ADR-007, 30-day retention) |
-| **TOTAL** | **~537,633** | |
+| **TOTAL** | **~538,041** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
