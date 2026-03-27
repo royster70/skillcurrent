@@ -63,6 +63,9 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.5 Tier 1 Dashboard (6 pages: Sectors, Sector Detail, Composite Sector, Occupations, Drift, Search) — data storytelling: employment-weighted scores, bubble chart, narratives, ContextualScoreCards; composite multi-sector analysis (SectorChipSelector → /sectors/composite with blended metrics, unified occupation table, narrative summary); CompanyLookup collapsible card on Sectors page (type-ahead pg_trgm search across ASX companies + ASX code badges + AI classify button via Claude Haiku + purple theme)
   [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores; GDPval API live (GET /gdpval/summary, GET /gdpval/occupations/{soc_code}); GDPval badges on occupation detail header and sector role rows; GDPval filter toggle on Occupations and Sector Detail pages (filters to 44 benchmark occupations); AEI Task Intelligence panel (4 SVG visualisations); GDPval Benchmark panel (3 visualisations); task matrix API enriched with automation_pct, augmentation_pct, gdpval_benchmark_count
   [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
+  [x] FR-8.8 Data Refresh Pipeline: scripts/run_pipeline.py (16-stage DAG, --dry-run/--stages/--from-stage); GET /admin/pipeline/status + /admin/pipeline/dag; APScheduler AsyncIOScheduler (pipeline_auto_run=False, cron="0 2 * * 0"); 7 tests
+  [x] ADR-002 Integrity: app/utils/hashing.py (compute_file_hash, compute_files_hash, compute_bytes_hash, compute_json_hash); hash verification on re-ingest for all 7 service + 3 script ingestors; aei_temporal placeholder 'multi-release' hash replaced with real SHA-256; 19/19 data invariant tests; 161 total tests
+  [ ] FR-8.6/FR-8.7 GPTVal Waterline: migration 017 (gptval_benchmarks table) + ingest_epoch_eci.py (Epoch AI ECI CSV, CC-BY free download → gptval_benchmarks); then GET /gdpval/waterline velocity endpoint
 
 Cross-cutting:
   [x] Observability (ADR-007 Phases 1 & 2 complete):
@@ -184,6 +187,7 @@ These are structural constraints, not style preferences. They are enforced by to
 3. Run perf baseline:  cd src/backend && pytest tests/test_performance.py -m slow -v
 4. Check complexity:   cd src/backend && ruff check app/ --select C90
 5. Check invariants:   cd src/backend && pytest tests/test_data_invariants.py -v
+6. Pipeline dry-run:   cd src/backend && python -m scripts.run_pipeline --dry-run
 ```
 
 ## Commit Convention
