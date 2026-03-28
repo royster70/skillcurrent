@@ -43,6 +43,12 @@ FR-8.7 Longitudinal waterline tracking · FR-8.9 Industry crosswalk (NAICS↔ANZ
 - Crosswalk is a configuration layer — drift engine and O*NET analysis do not change per country
 - MVP: US only (NAICS + OEWS). AU crosswalk populated per engagement.
 
+**Australian Census data (FR-8.9 extension, 2026-03-29)**:
+- `abs_census_wpp` (W12A): 180 rows — ANZSIC division × ANZSCO major group, Census 2021 headcounts. Primary source for occupation mix per AU sector.
+- `abs_census_w13` (W13): 159 rows — ANZSCO sub-major group × Sex (M/F/P), national level. Enables gender diversity analytics at occupation-category level.
+- `anzsic_subdivisions`: 214 rows — JSA Industry Data Table 3 sub-sector employment (e.g., "Electricity Generation", "Electricity Distribution", "Gas Supply" within Division D). Injected into AU classify prompt to give the LLM sub-sector resolution for diversified company classification.
+- These three tables are loaded independently via `ingest_abs_census_wpp.py`, `ingest_abs_census_w13.py`, and `ingest_anzsic_subdivisions.py` respectively (see INGESTION_RUNBOOK sections 4.12e–g).
+
 ## Key Schema
 
 ```sql
@@ -110,6 +116,22 @@ CREATE TABLE industry_crosswalk (
     PRIMARY KEY(source_system, source_code, target_system, target_code)
 );
 ```
+
+## AU Occupation Mix Endpoint (FR-8.9 extension)
+
+`GET /api/v1/sectors/{code}/occupation-mix` — returns Census W12A occupation mix for an AU sector (ANZSIC division). Response shape: `{ anzsic_code, occupation_mix: [{ anzsco_major_group, employed_count, share_pct }] }`.
+
+This endpoint powers the `occupation_mix` array that is now included on:
+- `GET /api/v1/sectors?region=AU` — list endpoint includes occupation mix per division
+- `GET /api/v1/sectors/composite?region=AU` — composite sector response includes blended occupation mix weighted by division employment
+
+The `_load_au_occupation_mix()` helper in `composite_sector.py` blends occupation mix arrays from multiple ANZSIC divisions, weighting by each division's employment share.
+
+**Classifier enrichment**: The AU LLM classify prompt (`POST /api/v1/companies/classify`) now injects the top 6 subdivisions per ANZSIC division (with headcounts) from `anzsic_subdivisions`. This gives Claude Haiku 4.5 sub-sector context to distinguish, for example, AGL (generation + gas supply + retail telco) from AusNet (distribution + transmission only) within Division D.
+
+**`ClassifyResponse` additions**:
+- `workforce_profile` — W12A Census occupation mix blended across the company's classified sectors (powered by `_load_workforce_profile()`)
+- `single_sector_asx` — boolean flag on `CompanySearchResult`; set when an ASX lookup maps to exactly one sector, indicating the company may be a candidate for LLM reclassification to capture secondary business lines
 
 ## Task Matrix API Enrichment (FR-8.7)
 

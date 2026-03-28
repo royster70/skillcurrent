@@ -1036,6 +1036,55 @@ def exposure_fixture_data():
     return pd.read_csv("tests/fixtures/exposure_scores.csv")
 ```
 
+## AU Classification Eval Suite (tests/test_au_classification.py)
+
+Added 2026-03-29. Tests the enriched Claude Haiku 4.5 company classifier with subdivision context.
+
+### Test Categories (4 classes, 19 tests total)
+
+| Class | Count | Description |
+|-------|-------|-------------|
+| `TestSearchFlags` | 4 | Validates `single_sector_asx` flag on ASX search results — companies with a single GICS-mapped sector get the flag; multi-sector conglomerates do not |
+| `TestWorkforceProfile` | 2 | Census W12A mix loads correctly for a known ANZSIC division; composite-sector blending weights two division mixes by their employment share |
+| `TestLLMClassification` | 11 (mark=llm) | Parametrized eval over 10 ASX companies (AGL, AusNet, Wesfarmers, Woolworths, Telstra, CSL, Origin, Macquarie, ANZ, REA). Each asserts `expected_primary` sector appears, optionally checks `expected_any` for multi-sector, and asserts `not_expected` codes are absent |
+| `TestSubdivisionData` | 2 | DB: 214 rows in `anzsic_subdivisions`; 19 distinct `anzsic_division_code` values; Division D contains generation/distribution/gas sub-sectors |
+
+### Running the eval
+
+```bash
+# All non-LLM AU tests (fast, no API key needed)
+pytest tests/test_au_classification.py -m "not llm" -v
+
+# Full eval including LLM classification (~$0.01, requires ANTHROPIC_AUTH_TOKEN)
+pytest tests/test_au_classification.py -m llm -v
+
+# Skip LLM tests project-wide
+pytest -m "not llm"
+```
+
+### Eval results (2026-03-29 baseline, claude-haiku-4-5-20251001 + subdivision context)
+
+| Metric | Result |
+|--------|--------|
+| Primary sector correct | 10/10 (100%) |
+| Multi-sector detection | 10/11 (91%) — AusNet correctly single-sector; all diversified companies returned 2+ sectors |
+| Improvement vs claude-3-haiku baseline | 64% → 91% multi-sector detection |
+
+### `llm` marker — pyproject.toml registration
+
+The `llm` marker is registered in `pyproject.toml` under `[tool.pytest.ini_options]`:
+
+```toml
+markers = [
+    "llm: Tests that call LLM APIs (require ANTHROPIC_AUTH_TOKEN, incur cost)",
+    ...
+]
+```
+
+This ensures `pytest --markers` lists it and `-m "not llm"` works cleanly in CI.
+
+---
+
 ## Test Categories (pytest markers)
 
 ```python
@@ -1047,7 +1096,7 @@ def pytest_configure(config):
     config.addinivalue_line("markers", "slow: Slow-running tests")
     config.addinivalue_line("markers", "benchmark: Performance benchmarks")
     config.addinivalue_line("markers", "external: Tests requiring external APIs")
-    config.addinivalue_line("markers", "llm: Tests using LLM APIs")
+    config.addinivalue_line("markers", "llm: Tests using LLM APIs (require API key, incur cost)")
     config.addinivalue_line("markers", "load: Load testing")
 
 # Usage
@@ -1139,6 +1188,20 @@ jobs:
 3. **Update CI/CD**: Add new tests to pipeline
 4. **Document scenarios**: Complex test cases need inline comments
 5. **Review success metrics**: 95% automated, <1% orphans, Nâ‰¥5 enforced
+
+## Current Test Count
+
+| Suite | Tests | Notes |
+|-------|-------|-------|
+| test_data_invariants.py | 19 | Data invariant checks (ADR-002) |
+| test_performance.py | 12 | Middleware headers, admin endpoints, P95 thresholds (mark=slow) |
+| test_au_classification.py | 19 | AU classification eval (11 mark=llm, 8 non-LLM) |
+| Other existing suites | 89 | FR-8.x coverage, pipeline DAG, FR-8.9 AU region, etc. |
+| **Total** | **139** | 120 pre-session + 19 new AU classification tests |
+
+LLM tests (`-m llm`) are excluded from CI by default. Run manually before releasing classifier changes.
+
+---
 
 ## Implementation Checklist
 

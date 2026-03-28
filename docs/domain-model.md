@@ -142,6 +142,16 @@ augmentation_pct = task_iteration_pct + learning_pct + validation_pct
 
 **CRITICAL**: The drift engine and O*NET task analysis are completely independent of which industry classification system is active. Industry crosswalk affects only: (a) which NAICS/ANZSIC label is shown in the UI, and (b) which headcount weighting source is used. The underlying SOC codes and task drift calculations never change.
 
+**AU Census tables** (loaded as of 2026-03-29):
+
+| Table | Rows | Source | Purpose |
+|-------|------|--------|---------|
+| `abs_census_wpp` | 180 | ABS 2021 Census W12A | ANZSIC division × ANZSCO major group headcounts — drives `GET /sectors/{code}/occupation-mix` |
+| `abs_census_w13` | 159 | ABS 2021 Census W13 | ANZSCO sub-major group × Sex — diversity analytics |
+| `anzsic_subdivisions` | 214 | JSA Industry Data Table 3 | Sub-sector employment labels and headcounts — injected into AU LLM classify prompt |
+
+**ANZSIC subdivision context rule**: The `anzsic_subdivisions` table is used only as prompt context for LLM classification. It does not affect sector codes stored in `industry_occupation_profiles` or `asx_company_sectors`. The platform's sector analysis remains at ANZSIC division level (A–S). If subdivision-level routing is ever required, that is a schema change, not a prompt change.
+
 ---
 
 ## 6. O*NET Title Matching — 3-Layer Cascade
@@ -225,7 +235,9 @@ C-suite protection:
 | AEI snapshots | On each new HuggingFace release (~quarterly) | Append to `aei_task_snapshots`; recompute drift |
 | O*NET | Annual (usually July) | Version bump; re-run matching + scoring for all employees |
 | BLS OEWS | Annual (May release) | Update `oews_employment` table; recompute industry profiles |
-| ABS/JSA | Annual | Update per engagement when loaded |
+| ABS/JSA Occupation Profiles | Annual | Update per engagement when loaded |
+| ABS Census WPP (W12A/W13) | Per Census release (~5 years) | Re-run `ingest_abs_census_wpp.py` + `ingest_abs_census_w13.py`; 2026 Census expected |
+| ANZSIC subdivisions | Per JSA Industry Data release (~annual) | Re-run `ingest_anzsic_subdivisions.py` from Table 3 of JSA Industry Data |
 | GPTVal | Per model release | Append new model era rows; update velocity calculations |
 | Microsoft "Working with AI" | Per paper release | Update on new dataset release; re-score occupations |
 | Eloundou scores | Static (occupation-level loaded) | DWA-level derivation is a computation step, not a new data load |

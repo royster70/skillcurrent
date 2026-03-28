@@ -663,6 +663,74 @@ Model evaluation scores per task per era for FR-8.7 longitudinal waterline track
 - **Migration**: 013
 - **Populated by**: future model evaluation pipeline (FR-8.7)
 
+### abs_census_wpp
+
+ABS 2021 Census Working Population Profiles — W12A table. ANZSIC division × ANZSCO major group headcounts at national level (AUS). Primary data source for the `GET /sectors/{code}/occupation-mix` endpoint. 180 rows (20 ANZSIC divisions × 9 ANZSCO major groups including "not stated").
+
+Source: ABS 2021 Census Working Population Profiles (CC-BY 4.0), `2021Census_W12A_AUS_POW_AUS.csv`
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsic_division_code | TEXT | NO | ANZSIC division letter (A–S) |
+| anzsic_division_name | TEXT | NO | ANZSIC division label (e.g., "Manufacturing") |
+| anzsco_major_group | TEXT | YES | ANZSCO major group code (1–9); NULL for "not stated" |
+| anzsco_major_group_name | TEXT | YES | ANZSCO major group label (e.g., "Professionals") |
+| employed_count | INTEGER | NO | Headcount from 2021 Census |
+| census_year | INTEGER | NO | Census year (2021) |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`anzsic_division_code`, `anzsco_major_group`)
+- **Indexes**: `ix_abs_census_wpp_anzsic_division`
+- **Migration**: 018
+- **Populated by**: `python -m scripts.ingest_abs_census_wpp`
+- **Used by**: `GET /api/v1/sectors/{code}/occupation-mix`; `occupation_mix` field on AU sector list and composite sector responses; `workforce_profile` on `ClassifyResponse`
+
+### abs_census_w13
+
+ABS 2021 Census Working Population Profiles — W13 table. ANZSCO sub-major group × Sex at national level (AUS). 159 rows (53 ANZSCO sub-major groups × 3 sex categories: M, F, P).
+
+Source: ABS 2021 Census Working Population Profiles (CC-BY 4.0), `2021Census_W13_AUS_POW_AUS.csv`
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsco_submajor_group | TEXT | NO | ANZSCO sub-major group code (2-digit, e.g., "11") |
+| anzsco_submajor_name | TEXT | NO | Sub-major group label (e.g., "Chief Executives, General Managers and Legislators") |
+| sex | TEXT | NO | "M" (male), "F" (female), or "P" (persons/total) |
+| employed_count | INTEGER | NO | Headcount from 2021 Census |
+| census_year | INTEGER | NO | Census year (2021) |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`anzsco_submajor_group`, `sex`)
+- **Indexes**: `ix_abs_census_w13_submajor`
+- **Migration**: 019
+- **Populated by**: `python -m scripts.ingest_abs_census_w13`
+- **Used by**: Diversity analytics at occupation-category level (planned Tier 1 enhancement)
+
+### anzsic_subdivisions
+
+JSA/ABS Industry Data Table 3 — sub-sector employment by ANZSIC subdivision. 214 rows covering all 19 ANZSIC divisions (not all 20 — Division Q Health Care not subdivided in JSA Table 3 as distinct sub-sectors). Each row is one ANZSIC subdivision (2–4 letter code, e.g., "D26") with 2025 employment headcount.
+
+Source: JSA `industry_data_-_november_2025_revised.xlsx` Table 3 (same file as abs_employment)
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsic_division_code | TEXT | NO | Parent ANZSIC division letter (A–S) |
+| anzsic_division_name | TEXT | NO | Division label |
+| anzsic_subdivision_code | TEXT | NO | ANZSIC subdivision code (2–4 chars, e.g., "D26") |
+| anzsic_subdivision_name | TEXT | NO | Subdivision label (e.g., "Electricity Supply") |
+| employment | INTEGER | NO | Employment headcount (JSA 2025, thousands rounded) |
+| release_year | INTEGER | NO | Data release year (2025) |
+
+- **Primary key**: `id`
+- **Unique constraint**: `anzsic_subdivision_code`
+- **Indexes**: `ix_anzsic_subdivisions_division_code`
+- **Migration**: 020
+- **Populated by**: `python -m scripts.ingest_anzsic_subdivisions`
+- **Used by**: AU company classify prompt enrichment — top 6 subdivisions per division injected into the Claude Haiku 4.5 prompt to provide sub-sector context; not used in sector analysis queries
+
 ---
 
 ## Join Paths
@@ -765,6 +833,21 @@ gdpval_evaluations.task_id = gdpval_tasks.task_id   -- FK enforced (future score
 
 The `OccupationDetail` schema exposes `gdpval_task_count` and `gdpval_available` derived from a COUNT subquery on `gdpval_tasks` filtered by `onet_soc`.
 
+### AU Census occupation mix to sector
+
+The Census W12A occupation mix joins to sector endpoints via ANZSIC division code:
+
+```sql
+abs_census_wpp.anzsic_division_code = industry_occupation_profiles.naics_code
+-- where industry_occupation_profiles.region = 'AU'
+```
+
+The `GET /sectors/{code}/occupation-mix` endpoint queries `abs_census_wpp` directly by `anzsic_division_code`. The composite sector response blends multiple divisions by their employment-weighted share using `_load_au_occupation_mix()` in `composite_sector.py`.
+
+### ANZSIC subdivisions to classify prompt
+
+`anzsic_subdivisions` does not participate in any join at query time. It is loaded once into memory by `_build_au_sector_list_with_subs()` and formatted into the Claude Haiku 4.5 classify prompt as inline text. No FK relationship to any other table.
+
 ---
 
 ## Migration History
@@ -784,3 +867,10 @@ The `OccupationDetail` schema exposes `gdpval_task_count` and `gdpval_available`
 | 011 | Add pg_trgm extension + GIN trigram indexes on onet_sample_titles and onet_alternate_titles for fuzzy search |
 | 012 | onet_title_embeddings table with pgvector HNSW index for Layer 2 semantic search (66,512 embeddings) |
 | 013 | gdpval_tasks, gdpval_rubric_items, gdpval_evaluations — OpenAI GDPval benchmark for FR-8.7 waterline tracking |
+| 014 | abs_employment, anzsco_soc_concordance, industry_crosswalk; add region column to industry_occupation_profiles (FR-8.9 AU data integration) |
+| 015 | api_request_log table for request telemetry (ADR-007 Phase 1 observability) |
+| 016 | Add request_id column + index to api_request_log (ADR-007 Phase 2 correlation IDs) |
+| 017 | gptval_benchmarks (FR-8.7 P0a — Epoch AI ECI benchmarks, 39 benchmarks × 32 model eras) |
+| 018 | abs_census_wpp — ABS 2021 Census W12A (ANZSIC division × ANZSCO major group, 180 rows) |
+| 019 | abs_census_w13 — ABS 2021 Census W13 (ANZSCO sub-major group × Sex, 159 rows) |
+| 020 | anzsic_subdivisions — JSA Industry Data Table 3 sub-sector employment (214 rows) |

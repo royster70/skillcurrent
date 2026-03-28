@@ -50,7 +50,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all 14 migrations in order, creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all migrations in order (currently 020), creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -683,7 +683,7 @@ SELECT COUNT(*) FROM company_classifications;
 -- 0 at ingestion time; rows accumulate as users classify companies via the API
 ```
 
-**LLM classify endpoint**: `POST /api/v1/companies/classify` uses Claude Haiku to classify any company name not found in the ASX list. It requires `ANTHROPIC_API_KEY` to be set in the environment. If the key is absent the endpoint returns HTTP 503. Results are cached in `company_classifications` to avoid redundant API calls.
+**LLM classify endpoint**: `POST /api/v1/companies/classify` uses `claude-haiku-4-5-20251001` (upgraded from claude-3-haiku on 2026-03-28) to classify any company name not found in the ASX list. The prompt is enriched with the top 6 ANZSIC subdivisions per division (from `anzsic_subdivisions`) so the model has sub-sector resolution for diversified companies. JSON fence stripping is applied to handle Haiku 4.5's markdown-wrapped responses. It requires `ANTHROPIC_API_KEY` to be set in the environment. If the key is absent the endpoint returns HTTP 503. Results are cached in `company_classifications` to avoid redundant API calls.
 
 ---
 
@@ -731,7 +731,13 @@ python -m scripts.ingest_abs
 python -m scripts.build_anzsco_concordance
 python -m scripts.compute_industry_profiles --region AU --year 2025
 
+# Step 6b: AU Census data (independent — no cross-dependencies within AU data)
+python -m scripts.ingest_abs_census_wpp    # abs_census_wpp: 180 rows (W12A)
+python -m scripts.ingest_abs_census_w13    # abs_census_w13: 159 rows (W13)
+python -m scripts.ingest_anzsic_subdivisions  # anzsic_subdivisions: 214 rows
+
 # Step 7: ASX company sectors (independent — downloads live from asx.com.au)
+# Note: requires anzsic_subdivisions to be loaded for enriched classify prompt
 python -m scripts.ingest_asx_companies
 ```
 
@@ -802,6 +808,9 @@ UNION ALL SELECT 'anzsco_soc_concordance', COUNT(*) FROM anzsco_soc_concordance
 UNION ALL SELECT 'industry_crosswalk', COUNT(*) FROM industry_crosswalk
 UNION ALL SELECT 'asx_company_sectors', COUNT(*) FROM asx_company_sectors
 UNION ALL SELECT 'company_classifications', COUNT(*) FROM company_classifications
+UNION ALL SELECT 'abs_census_wpp', COUNT(*) FROM abs_census_wpp
+UNION ALL SELECT 'abs_census_w13', COUNT(*) FROM abs_census_w13
+UNION ALL SELECT 'anzsic_subdivisions', COUNT(*) FROM anzsic_subdivisions
 ORDER BY tbl;
 ```
 

@@ -291,12 +291,55 @@ Default: `region=US`. Invalid region values return 400.
 - 70%+ ANZSCO unit groups auto-accepted at >= 0.85 confidence (achieved: 70.5%)
 - AU employment total within 20% of ABS reported total (achieved: 17.3M vs 21.2M = 18% gap)
 
+## Addendum — Census WPP + Subdivisions (2026-03-29)
+
+Three additional AU datasets were added to extend FR-8.9 with Census cross-tabulation and sub-sector context:
+
+### Decision 8: ABS Census WPP (W12A/W13) for Occupation Mix
+
+**Context**: The JSA Occupation Profiles data (ABS employment) provides total employment per occupation, but not the within-sector occupational composition needed for the `GET /sectors/{code}/occupation-mix` endpoint.
+
+**Choice**: Load ABS 2021 Census Working Population Profiles:
+- **W12A** (`abs_census_wpp`, 180 rows): ANZSIC division × ANZSCO major group (9 major groups including "not stated"). Provides headcount cross-tabulation for the occupation mix endpoint.
+- **W13** (`abs_census_w13`, 159 rows): ANZSCO sub-major group × Sex (M/F/P), national level. Enables diversity analytics at occupation-category level.
+
+**Rejected alternative**: Deriving occupation mix from `abs_employment` + `anzsco_soc_concordance`. The concordance is unit-group level (491 rows), not major-group level, and the distribution across industries is approximated (50/30/20). Census provides the actual observed cross-tabulation.
+
+**Trade-off**: Census is 2021 data; JSA Occupation Profiles is 2025 (Revised). These two data sources have a 4-year lag. For Tier 1 sector benchmarking, the occupation composition structure changes slowly enough that 2021 Census mix applied to 2025 headcount totals is acceptable. Flag for update when 2026 Census is released.
+
+### Decision 9: ANZSIC Subdivisions for LLM Classify Context
+
+**Context**: ANZSIC 2006 has only 19 divisions — too coarse for diversified company classification. Classifying "AGL Energy" returns Division D ("Electricity, Gas, Water and Waste Services") but misses its retail energy and telco arms. The LLM cannot distinguish between electricity generators, distributors, gas suppliers, and water utilities within one division.
+
+**Choice**: Load JSA Industry Data Table 3 (`anzsic_subdivisions`, 214 rows) and inject the top 6 subdivisions per division into the AU classify prompt. Example prompt fragment for Division D: "Electricity, Gas, Water and Waste Services: Electricity Generation (32,900), Electricity Distribution (31,800), Gas Supply (11,300), ...".
+
+**Rejected alternative**: Expanding the LLM response to return subdivision codes (506 ANZSIC classes). Rejected because: (a) the platform's sector analysis is built on division-level codes; (b) `industry_occupation_profiles` uses ANZSIC division letters as `naics_code` values for AU rows; returning subdivision codes would break the downstream sector routing without a significant schema change.
+
+**Effect**: Multi-sector detection improved from 64% (claude-3-haiku, no subdivision context) to 91% (claude-haiku-4-5-20251001, subdivision-enriched prompt) on the 10-company eval suite.
+
+### Migrations
+
+| Migration | Table | Rows |
+|-----------|-------|------|
+| 018 | `abs_census_wpp` | 180 |
+| 019 | `abs_census_w13` | 159 |
+| 020 | `anzsic_subdivisions` | 214 |
+
+### API additions
+
+- `GET /api/v1/sectors/{code}/occupation-mix` — Census occupation mix per AU ANZSIC division
+- `occupation_mix` array added to AU sector list and composite sector responses
+- `workforce_profile` field added to `ClassifyResponse` (W12A blended mix across classified sectors)
+- `single_sector_asx` flag added to `CompanySearchResult`
+
 ## References
 
 - ADR-001: Data lineage and catalog strategy (transformation tracking)
 - ADR-002: Reference dataset versioning (version provenance for AU data)
 - ADR-003: Toolchain selection (pgvector for semantic matching)
+- ADR-005: Company-to-industry mapping (subdivision context for LLM classify)
 - CLAUDE.md: Build dependency chain (FR-8.9 Industry Crosswalk)
 - ABS/JSA Occupation Profiles: jobsandskills.gov.au
+- ABS 2021 Census Working Population Profiles: abs.gov.au
 - ISIC Rev.4 correspondence tables: unstats.un.org
 - O*NET 28.1: onetcenter.org
