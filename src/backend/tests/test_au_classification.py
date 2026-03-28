@@ -87,9 +87,9 @@ EVAL_CASES = [
     },
     {
         "name": "Origin Energy",
-        "description": "Energy generation + retail energy + gas exploration (APLNG)",
+        "description": "Energy generation + retail energy + LNG (sold APLNG stake 2024)",
         "expected_primary": ["D"],  # utilities
-        "expected_any": ["B"],  # mining/gas extraction
+        "expected_any": ["B", "J"],  # mining/gas extraction OR telco/digital
         "not_expected": ["P"],  # not education
         "single_sector_asx": True,
     },

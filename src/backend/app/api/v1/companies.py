@@ -115,7 +115,7 @@ NAICS_SECTORS = {
 
 # -- LLM Classification Prompt --
 
-CLASSIFY_PROMPT = """You are classifying a company into industry sectors based on its name and your knowledge of the company.
+CLASSIFY_PROMPT = """You are classifying an Australian company into ANZSIC industry sectors.
 
 Company: {name}
 Country/Region: {region_label}
@@ -124,14 +124,15 @@ Available sectors ({system_label}):
 {sector_list}
 
 Instructions:
-- Return 1-3 sectors that best describe this company's primary business activities.
+- Return 1-3 sectors that describe this company's business activities.
 - Only include sectors where you have reasonable confidence (>= 0.6).
-- IMPORTANT: Many companies operate across multiple sectors. Think carefully about all business lines:
-  * Energy companies often span: generation/distribution (D), retail energy (D), gas networks (D), telecommunications (J), construction/maintenance (E), IT/digital (J)
-  * Banks often span: banking (K), insurance (K), wealth management (K), technology (J)
-  * Retailers often span: retail (G), wholesale (F), manufacturing (C), logistics (I)
-  * Healthcare companies may span: healthcare (Q), manufacturing (C), technology (J)
-- For diversified companies, include ALL relevant sectors even if one dominates.
+- CRITICAL: Most large Australian companies operate across multiple sectors. You MUST consider secondary and tertiary business lines, not just the dominant one:
+  * AGL Energy: D (generation/gas), PLUS retail energy customers and AGL Telco
+  * Wesfarmers: G (Bunnings, Kmart), PLUS C (chemicals/manufacturing), F (wholesale)
+  * CSL: C (pharmaceutical manufacturing), PLUS Q (plasma collection, health services)
+  * Woolworths: G (supermarkets), PLUS H (hotels/pubs via Endeavour), K (insurance)
+- Use the sub-sector detail above to identify which divisions genuinely apply.
+- A company with 2-3 sectors is NORMAL for ASX-listed companies. Returning only 1 sector for a diversified company is usually wrong.
 - If you don't recognise the company, make your best guess from the name alone.
 
 Return ONLY valid JSON in this exact format (no markdown, no explanation):
@@ -332,11 +333,14 @@ async def classify_company(
     try:
         client = _get_anthropic_client()
         response = client.messages.create(
-            model="claude-3-haiku-20240307",
+            model="claude-haiku-4-5-20251001",
             max_tokens=256,
             messages=[{"role": "user", "content": prompt}],
         )
         raw_text = response.content[0].text.strip()
+        # Strip markdown code fences if present (Haiku 4.5 sometimes wraps JSON)
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         parsed = json.loads(raw_text)
         suggestions = parsed.get("sectors", [])
 
