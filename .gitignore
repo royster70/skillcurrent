@@ -46,6 +46,7 @@ playwright-report/
 .claude/*
 !.claude/agents/
 !.claude/commands/
+!.claude/skills/
 
 # Binary docs (presentations, PDFs — keep in local docs, not in git)
 *.pptx
