@@ -151,7 +151,15 @@ def _build_pipeline_dag() -> list[PipelineStage]:
         PipelineStage(
             "compute_profiles_au",
             _noop,
-            depends_on=["ingest_abs", "build_anzsco_concordance", "ingest_crosswalk"],
+            depends_on=[
+                "ingest_abs",
+                "build_anzsco_concordance",
+                "ingest_crosswalk",
+                "eloundou",        # exposure scores (same as US profiles)
+                "microsoft_ai",    # AI applicability scores
+                "aei_labor",       # AEI job exposure
+                "compute_drift",   # drift velocity
+            ],
             optional=True,
             description="AU industry profiles",
         ),
@@ -172,9 +180,9 @@ def _build_pipeline_dag() -> list[PipelineStage]:
         PipelineStage(
             "ingest_asx_companies",
             _noop,
-            depends_on=["ingest_anzsic_subdivisions"],
+            depends_on=["ingest_crosswalk", "ingest_anzsic_subdivisions"],
             optional=True,
-            description="ASX listed companies (classify uses subdivisions)",
+            description="ASX companies (GICS→ANZSIC via crosswalk, classify uses subdivisions)",
         ),
     ]
 
