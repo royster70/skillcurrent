@@ -58,4 +58,5 @@ asyncio_mode = "auto"
 testpaths = ["tests"]
 markers = [
     "slow: performance baseline tests requiring a warm DB (run with -m slow)",
+    "llm: tests that call the Anthropic API (Haiku, ~$0.001/call)",
 ]
