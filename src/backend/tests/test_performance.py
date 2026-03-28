@@ -22,6 +22,8 @@ TEST_DB_URL = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_
 # Thresholds from ADR-007 (milliseconds, P95)
 BASELINE_THRESHOLDS = {
     "/api/v1/sectors": 200,
+    "/api/v1/sectors?region=AU": 400,  # AU loads occupation_mix (extra query)
+    "/api/v1/sectors/D/occupation-mix": 200,  # Census W12A query (small table)
     "/api/v1/occupations": 500,
     "/api/v1/gdpval/summary": 200,
     "/api/v1/admin/health": 50,
@@ -160,6 +162,24 @@ class TestP95Thresholds:
         """GET /api/v1/gdpval/summary P95 must be under 200 ms."""
         await self._assert_p95(
             client, "/api/v1/gdpval/summary", BASELINE_THRESHOLDS["/api/v1/gdpval/summary"]
+        )
+
+    @pytest.mark.asyncio
+    async def test_p95_sectors_au(self, client):
+        """GET /api/v1/sectors?region=AU P95 must be under 400 ms (loads occupation_mix)."""
+        await self._assert_p95(
+            client,
+            "/api/v1/sectors?region=AU",
+            BASELINE_THRESHOLDS["/api/v1/sectors?region=AU"],
+        )
+
+    @pytest.mark.asyncio
+    async def test_p95_occupation_mix(self, client):
+        """GET /api/v1/sectors/D/occupation-mix P95 must be under 200 ms."""
+        await self._assert_p95(
+            client,
+            "/api/v1/sectors/D/occupation-mix",
+            BASELINE_THRESHOLDS["/api/v1/sectors/D/occupation-mix"],
         )
 
     @pytest.mark.asyncio

@@ -156,11 +156,25 @@ def _build_pipeline_dag() -> list[PipelineStage]:
             description="AU industry profiles",
         ),
         PipelineStage(
-            "ingest_asx_companies",
+            "ingest_census_wpp",
             _noop,
             depends_on=[],
             optional=True,
-            description="ASX listed companies",
+            description="ABS Census 2021 WPP (W12A + W13)",
+        ),
+        PipelineStage(
+            "ingest_anzsic_subdivisions",
+            _noop,
+            depends_on=[],
+            optional=True,
+            description="ANZSIC subdivisions (JSA Industry Data Table 3)",
+        ),
+        PipelineStage(
+            "ingest_asx_companies",
+            _noop,
+            depends_on=["ingest_anzsic_subdivisions"],
+            optional=True,
+            description="ASX listed companies (classify uses subdivisions)",
         ),
     ]
 
