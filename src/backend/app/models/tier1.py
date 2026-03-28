@@ -181,3 +181,65 @@ class ANZSCOSOCConcordance(Base):
         Index("ix_anzsco_soc_onet", "onet_soc"),
         Index("ix_anzsco_soc_confidence", "confidence"),
     )
+
+
+class ABSCensusWPP(Base):
+    """ABS 2021 Census WPP W12A — Industry × Occupation (ANZSIC division × ANZSCO major group)."""
+
+    __tablename__ = "abs_census_wpp"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    geography_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsic_division_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsic_division_abbrev: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsic_division_name: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_major_group: Mapped[int | None] = mapped_column(Integer)
+    anzsco_major_group_abbrev: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_major_group_name: Mapped[str] = mapped_column(Text, nullable=False)
+    employed_count: Mapped[int | None] = mapped_column(Integer)
+    census_year: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2021")
+    source_table: Mapped[str] = mapped_column(Text, nullable=False, server_default="W12A")
+    integrity_hash: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "geography_code", "anzsic_division_abbrev",
+            "anzsco_major_group_abbrev", "census_year",
+            name="uq_abs_census_wpp_cell",
+        ),
+        Index("ix_abs_census_wpp_anzsic", "anzsic_division_code"),
+        Index("ix_abs_census_wpp_anzsco", "anzsco_major_group"),
+        Index("ix_abs_census_wpp_geo_year", "geography_code", "census_year"),
+    )
+
+
+class ABSCensusW13(Base):
+    """ABS 2021 Census WPP W13 — Occupation (ANZSCO sub-major group) × Sex."""
+
+    __tablename__ = "abs_census_w13"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    geography_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_major_group: Mapped[int | None] = mapped_column(Integer)
+    anzsco_major_group_name: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_submajor_code: Mapped[str | None] = mapped_column(Text)
+    anzsco_submajor_abbrev: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsco_submajor_name: Mapped[str] = mapped_column(Text, nullable=False)
+    sex: Mapped[str] = mapped_column(Text, nullable=False)
+    employed_count: Mapped[int | None] = mapped_column(Integer)
+    census_year: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2021")
+    source_table: Mapped[str] = mapped_column(Text, nullable=False, server_default="W13")
+    integrity_hash: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "geography_code", "anzsco_submajor_abbrev", "sex", "census_year",
+            name="uq_abs_census_w13_cell",
+        ),
+        Index("ix_abs_census_w13_major", "anzsco_major_group"),
+        Index("ix_abs_census_w13_submajor", "anzsco_submajor_code"),
+        Index("ix_abs_census_w13_sex", "sex"),
+        Index("ix_abs_census_w13_geo_year", "geography_code", "census_year"),
+    )
