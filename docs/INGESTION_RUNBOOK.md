@@ -72,7 +72,10 @@ This applies all 14 migrations in order, creating all tables documented in `docs
    b. ABS employment ingestion (depends on ABS data file)
    c. ANZSCO→SOC concordance (depends on title embeddings + ABS structure files)
    d. AU industry profiles computation (depends on abs_employment + anzsco_soc_concordance + industry_crosswalk)
-9. ASX company sectors (independent — downloads live from asx.com.au, no local file required; company_classifications table populated at API runtime)
+   e. Census WPP W12A (independent — ANZSIC division × ANZSCO major group Census 2021)
+   f. Census WPP W13 (independent — ANZSCO sub-major group × Sex Census 2021)
+   g. ANZSIC subdivisions (independent — 214 sub-sectors from JSA Industry Data Table 3)
+9. ASX company sectors (independent — downloads live from asx.com.au, no local file required; company_classifications table populated at API runtime via Haiku 4.5 with subdivision-enriched prompt)
 
 ---
 
@@ -584,6 +587,59 @@ WHERE region = 'AU';
 
 **Note on SOC code formats**: AU profiles join via `SUBSTRING(onet_soc FROM 1 FOR 7)` prefix match because `anzsco_soc_concordance` stores 8-digit SOC codes (e.g. `29-1141.00`) while Microsoft and AEI tables use 6-digit codes (e.g. `29-1141`). US profiles use exact equality because all US source tables share the 6-digit format. If MS/AEI coverage reads 0% after running this step, confirm that the latest version of `compute_industry_profiles.py` is loaded — on Windows, uvicorn `--reload` may not detect file changes; restart the server manually if needed.
 
+#### 4.12e ABS Census WPP — W12A Industry × Occupation (FR-8.9)
+
+**Source**: `2021Census_W12A_AUS_POW_AUS.csv` from ABS 2021 Census Working Population Profiles (CC-BY 4.0). Wide-format CSV, 1 header + 1 AUS data row, melted to long format.
+
+```bash
+python -m scripts.ingest_abs_census_wpp
+python -m scripts.ingest_abs_census_wpp --dry-run  # parse without DB writes
+```
+
+Target table: `abs_census_wpp` — 180 rows (20 ANZSIC divisions × 9 ANZSCO major groups including "not stated"). Provides Census headcount cross-tabulation used for occupation mix endpoint and sector enrichment.
+
+Verify:
+```sql
+SELECT count(*) FROM abs_census_wpp;  -- expect 180
+SELECT anzsic_division_name, SUM(employed_count) FROM abs_census_wpp
+  WHERE anzsco_major_group IS NOT NULL GROUP BY anzsic_division_name ORDER BY 2 DESC LIMIT 5;
+```
+
+#### 4.12f ABS Census WPP — W13 Occupation × Sex (FR-8.9)
+
+**Source**: `2021Census_W13_AUS_POW_AUS.csv`. ANZSCO sub-major groups (~51 categories) × Sex (M/F/P), national level.
+
+```bash
+python -m scripts.ingest_abs_census_w13
+python -m scripts.ingest_abs_census_w13 --dry-run
+```
+
+Target table: `abs_census_w13` — 159 rows. Gender breakdown per occupation category for diversity analytics.
+
+Verify:
+```sql
+SELECT sex, count(*), sum(employed_count) FROM abs_census_w13 GROUP BY sex ORDER BY sex;
+-- M: 53 rows, F: 53 rows, P: 53 rows; P total ~12M
+```
+
+#### 4.12g ANZSIC Subdivisions (FR-8.9)
+
+**Source**: `industry_data_-_november_2025_revised.xlsx` Table 3 — Employment by sector. Same Excel file used for abs_employment (Table 1/5).
+
+```bash
+python -m scripts.ingest_anzsic_subdivisions
+python -m scripts.ingest_anzsic_subdivisions --dry-run
+```
+
+Target table: `anzsic_subdivisions` — 214 rows (214 sub-sectors across 19 ANZSIC divisions with JSA 2025 employment headcounts). Injected into AU company classify prompt to give Haiku sub-sector context for multi-sector classification.
+
+Verify:
+```sql
+SELECT count(*) FROM anzsic_subdivisions;  -- expect 214
+SELECT anzsic_division_code, count(*) FROM anzsic_subdivisions GROUP BY 1 ORDER BY 1;
+-- 19 divisions, Manufacturing (C) has the most subdivisions (55)
+```
+
 ### 4.13 ASX Company Sectors (FR-8.5 Company Lookup)
 
 **Source**: https://www.asx.com.au/asx/research/ASXListedCompanies.csv — free public CSV, no API key required, updated regularly by ASX.
@@ -706,7 +762,7 @@ SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
 
 ---
 
-**Total expected rows across all tables: ~538,041** (455,200 + 66,512 embeddings + 10,673 GDPval + 408 gptval_benchmarks + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors)
+**Total expected rows across all tables: ~538,594** (455,200 + 66,512 embeddings + 10,673 GDPval + 408 gptval_benchmarks + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors + 553 Census/subdivisions: 180 abs_census_wpp + 159 abs_census_w13 + 214 anzsic_subdivisions)
 
 ---
 

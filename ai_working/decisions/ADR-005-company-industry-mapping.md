@@ -124,9 +124,13 @@ Collapsible card on `SectorsPage`, integrated between the ZoneExplainer and Sect
 
 ANZSIC 2006 has only 19 divisions — far too coarse for diversified companies. ASX GICS provides better sector granularity (24 Industry Groups, 69 Industries) but the platform standardises on NAICS/ANZSIC for employment weighting.
 
-LLM classification inherits this limitation — it can only classify into the 19 ANZSIC divisions (AU) or 20 NAICS sectors (US) available in the platform.
+**Partial mitigation (FR-8.9, 2026-03-28):** ANZSIC subdivision data (214 sub-sectors from JSA Industry Data Table 3) is now injected into the AU classify prompt. While the LLM still returns division-level codes (A–S), the subdivision context enables much better multi-sector classification for diversified companies. Example: Division D is presented with "Electricity Generation (32,900), Electricity Distribution (31,800), Gas Supply (11,300)" rather than just "Electricity, Gas, Water and Waste Services" — allowing the LLM to distinguish AGL (generation + retail + gas + telco) from AusNet (distribution + transmission only).
 
-Future improvement: sub-division ANZSIC classes (506 available) would give much better resolution but require ABS employment data at class level. This data is available via ABS TableBuilder but requires registration and manual export — not freely downloadable like the JSA Occupation Profiles used for the current 19-division integration.
+Additionally, `workforce_profile` (Census W12A occupation mix blended across classified sectors) is now returned in `ClassifyResponse`, and `single_sector_asx` flags ASX results that likely need LLM reclassification.
+
+Eval results (10 ASX companies): 10/10 primary sector correct, multi-sector detection working for diversified companies (Wesfarmers→G+C+F, CSL→C+Q, Woolworths→G+H, Origin→D+J).
+
+Full sub-division ANZSIC classification (506 classes) remains a future option if ABS TableBuilder data is obtained.
 
 ## Implementation
 
@@ -199,7 +203,7 @@ CREATE TABLE company_classifications (
 
 | Trigger | Likely action |
 |---------|--------------|
-| Sub-division ANZSIC data obtained (ABS TableBuilder) | Expand LLM classification to 506 ANZSIC classes |
+| Sub-division ANZSIC data obtained (ABS TableBuilder) | Expand LLM classification to 506 ANZSIC classes (214 subdivisions already enriching prompt context) |
 | US company registry integration requested | Add SEC/EDGAR or D&B data source alongside LLM |
 | Haiku model deprecated | Update model name in configuration; test classification quality |
 | Classification accuracy concerns raised | Add human review workflow for cached classifications |
@@ -209,7 +213,7 @@ CREATE TABLE company_classifications (
 
 Discrepancies between this ADR and the shipped implementation (verified 2026-03-27):
 
-1. **Model version**: Decision 3 states "claude-haiku-4-5-20251001" but the implementation in `companies.py` uses `claude-3-haiku-20240307`. The older Haiku model was used for initial development; model name is a single-line change when upgrading.
+1. **Model version**: ~~Decision 3 states "claude-haiku-4-5-20251001" but the implementation uses claude-3-haiku-20240307.~~ **Resolved 2026-03-28:** Upgraded to `claude-haiku-4-5-20251001`. JSON fence stripping added to handle Haiku 4.5's markdown-wrapped responses. Multi-sector detection improved from 64% to 91% accuracy (eval suite: 10 companies).
 
 2. **`company_classifications` schema**: The ADR shows `company_name TEXT`, `sectors JSONB`, and `model_used TEXT`. The actual table uses `company_name_lower TEXT` (normalised to lowercase for case-insensitive cache lookup), `sector_codes TEXT[]` and `sector_names TEXT[]` (PostgreSQL arrays instead of JSONB), `confidence FLOAT`, and omits `model_used`. The array-based design is simpler for the downstream SQL queries that filter by sector code.
 
