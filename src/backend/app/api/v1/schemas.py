@@ -1,9 +1,6 @@
 """Pydantic response models for Tier 1 API endpoints."""
 
-from datetime import date
-
 from pydantic import BaseModel
-
 
 # ── Dataset Versions ──
 
@@ -22,6 +19,25 @@ class DatasetVersionsResponse(BaseModel):
 
 
 # ── Sectors ──
+
+
+class OccupationMixEntry(BaseModel):
+    """One row of Census occupation mix — ANZSCO major group within an ANZSIC division."""
+
+    anzsco_major_group: int | None = None
+    major_group_name: str
+    employed_count: int
+    share_pct: float  # 0-100, rounded to 1dp
+
+
+class SectorOccupationMix(BaseModel):
+    """Census 2021 occupation mix for an AU sector (ANZSIC division)."""
+
+    anzsic_division_code: str
+    anzsic_division_name: str
+    census_year: int = 2021
+    total_employed: int
+    mix: list[OccupationMixEntry]
 
 
 class SectorSummary(BaseModel):
@@ -43,6 +59,8 @@ class SectorSummary(BaseModel):
     workers_e0: int = 0
     workers_e1: int = 0
     workers_e2: int = 0
+    # Census occupation mix (AU only, None for US)
+    occupation_mix: list[OccupationMixEntry] | None = None
 
 
 class SectorsResponse(BaseModel):

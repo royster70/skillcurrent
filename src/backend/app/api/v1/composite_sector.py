@@ -10,9 +10,41 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.schemas import OccupationMixEntry
 from app.db.session import get_db
 
 router = APIRouter(prefix="/sectors", tags=["sectors"])
+
+
+async def _load_au_occupation_mix(
+    db: AsyncSession, code_list: list[str],
+) -> list[OccupationMixEntry] | None:
+    """Load aggregated Census occupation mix for selected AU sectors."""
+    mix_r = await db.execute(text("""
+        SELECT anzsco_major_group, anzsco_major_group_name,
+               SUM(employed_count) AS employed_count
+        FROM abs_census_wpp
+        WHERE anzsic_division_code = ANY(:codes)
+          AND geography_code = 'AUS' AND census_year = 2021
+          AND anzsco_major_group IS NOT NULL
+        GROUP BY anzsco_major_group, anzsco_major_group_name
+        ORDER BY SUM(employed_count) DESC NULLS LAST
+    """), {"codes": code_list})
+    mix_rows = mix_r.fetchall()
+    if not mix_rows:
+        return None
+    mix_total = sum(row[2] or 0 for row in mix_rows)
+    return [
+        OccupationMixEntry(
+            anzsco_major_group=row[0],
+            major_group_name=row[1],
+            employed_count=row[2] or 0,
+            share_pct=(
+                round((row[2] or 0) / mix_total * 100, 1) if mix_total > 0 else 0
+            ),
+        )
+        for row in mix_rows
+    ]
 
 
 class CompositeOccupation(BaseModel):
@@ -39,6 +71,7 @@ class CompositeSectorResponse(BaseModel):
     workers_e0: int = 0
     workers_e1: int = 0
     workers_e2: int = 0
+    occupation_mix: list[OccupationMixEntry] | None = None
     occupations: list[CompositeOccupation]
 
 
@@ -174,6 +207,11 @@ async def composite_sector_analysis(
             drift_classification=row[9],
         ))
 
+    # Aggregate Census occupation mix across selected AU sectors
+    occupation_mix = (
+        await _load_au_occupation_mix(db, code_list) if region == "AU" else None
+    )
+
     return CompositeSectorResponse(
         codes=code_list,
         sector_names=[found[c] for c in code_list],
@@ -191,5 +229,6 @@ async def composite_sector_analysis(
         workers_e0=workers_e0,
         workers_e1=workers_e1,
         workers_e2=workers_e2,
+        occupation_mix=occupation_mix,
         occupations=occupations,
     )

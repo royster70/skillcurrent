@@ -5,9 +5,11 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas import (
+    OccupationMixEntry,
     OccupationSummary,
-    SectorSummary,
+    SectorOccupationMix,
     SectorsResponse,
+    SectorSummary,
 )
 from app.db.session import get_db
 
@@ -75,7 +77,89 @@ async def list_sectors(
         )
         for row in r.fetchall()
     ]
+    # Enrich AU sectors with Census occupation mix from abs_census_wpp (W12A)
+    if region == "AU" and sectors:
+        mix_r = await db.execute(text("""
+            SELECT anzsic_division_code, anzsco_major_group,
+                   anzsco_major_group_name, employed_count
+            FROM abs_census_wpp
+            WHERE geography_code = 'AUS' AND census_year = 2021
+              AND anzsco_major_group IS NOT NULL
+            ORDER BY anzsic_division_code, employed_count DESC NULLS LAST
+        """))
+        # Group by division code and compute shares
+        mix_by_div: dict[str, list[OccupationMixEntry]] = {}
+        div_totals: dict[str, int] = {}
+        for row in mix_r.fetchall():
+            div_code = row[0]
+            count = row[3] or 0
+            div_totals[div_code] = div_totals.get(div_code, 0) + count
+            mix_by_div.setdefault(div_code, []).append(
+                (row[1], row[2], count)
+            )
+        for div_code, entries in mix_by_div.items():
+            total = div_totals.get(div_code, 0)
+            mix_by_div[div_code] = [
+                OccupationMixEntry(
+                    anzsco_major_group=e[0],
+                    major_group_name=e[1],
+                    employed_count=e[2],
+                    share_pct=round(e[2] / total * 100, 1) if total > 0 else 0,
+                )
+                for e in entries
+            ]
+        for sector in sectors:
+            sector.occupation_mix = mix_by_div.get(sector.naics_code)
+
     return SectorsResponse(sectors=sectors, total_sectors=len(sectors), region=region)
+
+
+@router.get("/{sector_code}/occupation-mix", response_model=SectorOccupationMix)
+async def get_sector_occupation_mix(
+    sector_code: str,
+    db: AsyncSession = Depends(get_db),
+) -> SectorOccupationMix:
+    """Census 2021 occupation mix for an AU sector (ANZSIC division).
+
+    Returns the breakdown of ANZSCO major groups within this sector,
+    with employed counts and percentage shares from W12A.
+    """
+    r = await db.execute(text("""
+        SELECT anzsic_division_code, anzsic_division_name,
+               anzsco_major_group, anzsco_major_group_name,
+               employed_count, census_year
+        FROM abs_census_wpp
+        WHERE anzsic_division_code = :code
+          AND geography_code = 'AUS' AND census_year = 2021
+          AND anzsco_major_group IS NOT NULL
+        ORDER BY employed_count DESC NULLS LAST
+    """), {"code": sector_code.upper()})
+    rows = r.fetchall()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No Census occupation mix for sector {sector_code}",
+        )
+
+    total = sum(row[4] or 0 for row in rows)
+    mix = [
+        OccupationMixEntry(
+            anzsco_major_group=row[2],
+            major_group_name=row[3],
+            employed_count=row[4] or 0,
+            share_pct=round((row[4] or 0) / total * 100, 1) if total > 0 else 0,
+        )
+        for row in rows
+    ]
+
+    return SectorOccupationMix(
+        anzsic_division_code=rows[0][0],
+        anzsic_division_name=rows[0][1],
+        census_year=rows[0][5],
+        total_employed=total,
+        mix=mix,
+    )
 
 
 @router.get("/{naics_code}/occupations", response_model=list[OccupationSummary])
