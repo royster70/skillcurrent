@@ -126,8 +126,16 @@ augmentation_pct = task_iteration_pct + learning_pct + validation_pct
 ## 5. Industry Classification & Crosswalk
 
 **US**: NAICS 2022 — 20 sectors, used with BLS OEWS for headcount weighting  
-**Australia/NZ**: ANZSIC 2006 Rev.2 — 19 divisions (A–S), used with ABS/JSA data  
+**Australia/NZ**: ANZSIC 2006 Rev.2 — 19 divisions (A–S), used with ABS/JSA data
 **Bridge**: ISIC Rev.4 — UN standard that both NAICS and ANZSIC map to via official concordance tables
+
+**ANZSIC 2006 hierarchy** (4 levels, platform uses top 2):
+- **Divisions** (19: A–S) — sector-level analysis, stored in `industry_occupation_profiles.naics_code` for AU rows
+- **Subdivisions** (96 codes, 214 named sub-sectors in JSA data) — LLM classify prompt context only (ADR-008)
+- Groups (216 codes) — not currently used
+- Classes (506 codes) — not currently used; would require ABS TableBuilder access
+
+Last revision: 2006 (Rev.2, current). ABS consulted on ISIC Rev.5 adoption in 2022; next revision TBD.
 
 **Crosswalk table** (`industry_crosswalk`):
 ```

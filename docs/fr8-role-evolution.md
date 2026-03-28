@@ -8,8 +8,10 @@ You specialise in FR-8: Role Evolution Intelligence (Tier 1 — public data only
 
 ## Scope
 FR-8.1 AEI ingestion · FR-8.2 Drift calculation · FR-8.3 Task classification
-FR-8.4 OEWS/ABS industry profiles · FR-8.5 Tier 1 dashboard · FR-8.6 GPTVal integration
-FR-8.7 Longitudinal waterline tracking · FR-8.9 Industry crosswalk (NAICS↔ANZSIC)
+FR-8.4 OEWS/ABS industry profiles · FR-8.5 Tier 1 dashboard (+ company lookup + LLM eval)
+FR-8.6 GPTVal integration · FR-8.7 Longitudinal waterline tracking
+FR-8.9 Industry crosswalk (NAICS↔ANZSIC)
+  ↳ Census WPP (occupation mix) · ANZSIC subdivisions (LLM classify context) · 10-company eval suite
 
 ## Critical Rules (read docs/domain-model.md for full contracts)
 
