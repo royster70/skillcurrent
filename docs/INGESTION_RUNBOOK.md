@@ -64,6 +64,9 @@ This applies all 14 migrations in order, creating all tables documented in `docs
 5. US Industry profiles computation (depends on OEWS + Eloundou + Microsoft AI + AEI + drift data)
 6. Title embeddings (depends on O*NET sample + alternate titles being loaded)
 7. GDPval ingestion (independent — no dependencies on other datasets)
+   a. Ingest GDPval tasks + rubric items (section 4.11)
+   b. Epoch ECI benchmarks — runtime download, no local file (section 4.11b)
+   c. GDPval evaluation runner — requires Anthropic API key, ~$30-50 (section 4.11c)
 8. AU data (optional, requires title embeddings for ANZSCO concordance):
    a. Industry crosswalk (NAICS↔ANZSIC mappings — no file dependencies)
    b. ABS employment ingestion (depends on ABS data file)
@@ -381,7 +384,7 @@ Once ingested, GDPval data is served immediately by two API endpoints with no ad
 - `GET /api/v1/gdpval/summary` — portfolio overview (task counts, rubric items, sector list, per-occupation counts)
 - `GET /api/v1/gdpval/occupations/{soc_code}` — full task + rubric detail for one occupation
 
-The `GET /api/v1/occupations/{soc}` endpoint also returns `gdpval_task_count` and `gdpval_available` fields derived from a live COUNT subquery. Future model evaluation scores are written to `gdpval_evaluations` by a separate model-era scoring pipeline (FR-8.7, not yet built).
+The `GET /api/v1/occupations/{soc}` endpoint also returns `gdpval_task_count` and `gdpval_available` fields derived from a live COUNT subquery. Future model evaluation scores are written to `gdpval_evaluations` by a separate model-era scoring pipeline — see section 4.11c.
 
 **Verification**:
 ```sql
@@ -392,6 +395,57 @@ SELECT COUNT(*) FROM gdpval_rubric_items;
 SELECT occupation_title, onet_soc FROM gdpval_tasks GROUP BY occupation_title, onet_soc ORDER BY occupation_title;
 -- Should show 44 distinct occupations, all with non-NULL onet_soc
 ```
+
+### 4.11b Epoch ECI Benchmarks (FR-8.7 P0a — GPTVal Waterline)
+
+Source: Epoch AI ECI benchmark data (CC-BY license, runtime HTTPS download from epoch.ai — no local file required).
+
+```bash
+cd src/backend
+python -m scripts.ingest_epoch_eci
+```
+
+Target table: `gptval_benchmarks` — 408 rows (39 benchmarks × 32 model eras, covering Claude 2 through Claude 4.6 + GPT/Gemini/Llama families).
+
+This is P0a of FR-8.7 (GPTVal Waterline). It enables the `GET /api/v1/gdpval/waterline` velocity endpoint. P0b (evaluation runner) is a separate step — see section 4.11c.
+
+Pipeline stage: `epoch_eci` in `run_pipeline.py` DAG.
+
+**Verification**:
+```sql
+SELECT count(*) FROM gptval_benchmarks;  -- expect 408
+SELECT benchmark_name, count(*) FROM gptval_benchmarks GROUP BY benchmark_name ORDER BY count(*) DESC LIMIT 5;
+```
+
+### 4.11c GDPval Evaluation Runner (FR-8.7 P0b)
+
+Requires: GDPval ingest (section 4.11) complete + Anthropic API credentials in `src/backend/.env`.
+
+```bash
+cd src/backend
+
+# Cost estimate first:
+python -m scripts.compute_gdpval_waterline --estimate
+
+# Run all 4 eras (~$30-50):
+python -m scripts.compute_gdpval_waterline
+
+# Run specific eras:
+python -m scripts.compute_gdpval_waterline --eras claude-4-sonnet claude-4.5-sonnet
+```
+
+Model eras: claude-4-sonnet, claude-4-opus, claude-4.5-sonnet, claude-4.5-opus. Judge model: claude-haiku-4-5.
+
+Resume-safe: `ON CONFLICT DO NOTHING` — safe to re-run any era.
+
+Expected rows in `gdpval_evaluations`: 880 (220 tasks × 4 eras) when complete.
+
+**Verification**:
+```sql
+SELECT model_era, count(*), avg(completion_pct) FROM gdpval_evaluations GROUP BY model_era ORDER BY model_era;
+```
+
+See ADR-006 for the P0a/P0b acquisition pattern distinction.
 
 ### 4.12 Australian Data Integration (FR-8.9)
 
@@ -607,6 +661,14 @@ python -m scripts.embed_titles
 # Step 5: GDPval (independent — can run at any point after migrations)
 python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
 
+# Step 5b: Epoch ECI benchmarks (P0a — runtime download, no local file required)
+python -m scripts.ingest_epoch_eci
+
+# Step 5c: GDPval evaluation runner (P0b — requires ANTHROPIC_API_KEY, ~$30-50)
+# Run --estimate first to confirm cost before committing
+python -m scripts.compute_gdpval_waterline --estimate
+python -m scripts.compute_gdpval_waterline
+
 # Step 6: Australian data (requires title embeddings from Step 4)
 python -m scripts.ingest_crosswalk
 python -m scripts.ingest_abs
@@ -644,7 +706,7 @@ SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
 
 ---
 
-**Total expected rows across all tables: ~537,633** (455,200 + 66,512 embeddings + 10,673 GDPval + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors)
+**Total expected rows across all tables: ~538,041** (455,200 + 66,512 embeddings + 10,673 GDPval + 408 gptval_benchmarks + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors)
 
 ---
 

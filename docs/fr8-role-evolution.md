@@ -28,6 +28,9 @@ FR-8.7 Longitudinal waterline tracking · FR-8.9 Industry crosswalk (NAICS↔ANZ
 - Waterline velocity tracks how fast AI applicability/exposure changes per model era transition
 - Eloundou Beta scores provide the theoretical baseline (923 occupations loaded); Microsoft AI applicability provides the empirical complement
 - Store by `(metric_name, model_era, measurement_date)` — immutable compound key
+- **P0a (implemented)**: `scripts/ingest_epoch_eci.py` — downloads Epoch AI ECI data at runtime (CC-BY, no local file). Loads 408 rows into `gptval_benchmarks` (39 benchmarks × 32 model eras, Claude 2 through Claude 4.6 + GPT/Gemini/Llama). Enables `GET /api/v1/gdpval/waterline` — velocity per benchmark sorted by descending rate of improvement, overall +0.030/era. Pipeline stage: `epoch_eci`.
+- **P0b (in progress)**: `scripts/compute_gdpval_waterline.py` — Claude API runner grading 220 GDPval tasks × 4 model eras (claude-4-sonnet, claude-4-opus, claude-4.5-sonnet, claude-4.5-opus) → `gdpval_evaluations`. Uses Claude Haiku as judge model. `ON CONFLICT DO NOTHING` — resume-safe across runs. ~$30-50 for all 4 eras. Target: 880 rows when complete (220 tasks × 4 eras).
+- See ADR-006 for the P0a/P0b acquisition pattern distinction.
 
 **Microsoft "Working with AI" (current empirical baseline)**:
 - 332 IWA-level metrics from Bing Copilot usage (Jan–Sept 2024)
@@ -81,6 +84,19 @@ CREATE TABLE gptval_benchmarks (
     PRIMARY KEY(metric_name, model_era)
 );
 
+-- GDPval model-era evaluation scores (populated by compute_gdpval_waterline.py — P0b)
+CREATE TABLE gdpval_evaluations (
+    task_id             TEXT NOT NULL,
+    model_era           TEXT NOT NULL,
+    model_name          TEXT,
+    evaluation_date     DATE,
+    total_score         FLOAT,
+    max_possible_score  FLOAT,
+    completion_pct      FLOAT,
+    notes               TEXT,
+    PRIMARY KEY(task_id, model_era)
+);
+
 -- Industry crosswalk
 CREATE TABLE industry_crosswalk (
     source_system   TEXT NOT NULL,           -- 'NAICS_2022'
@@ -102,6 +118,14 @@ The `GET /api/v1/occupations/{soc}/matrix` endpoint now returns:
 - `gdpval_benchmark_count` per occupation (count of matching `gdpval_tasks`)
 
 These fields power the GDPval overlay strip on the TaskMatrix chart and the AEI auto/aug split visualisation on the Occupations page.
+
+### GDPval Waterline Endpoint
+
+`GET /api/v1/gdpval/waterline` — returns velocity per benchmark from `gptval_benchmarks`, sorted by descending rate of improvement. Powered by P0a (Epoch ECI ingest). Overall waterline: +0.030/era across all 39 benchmarks.
+
+Response shape: `{ benchmarks: [{ benchmark_name, velocity, model_eras_covered, latest_score }], overall_velocity }`.
+
+Once P0b evaluation scores are loaded into `gdpval_evaluations`, this endpoint will be extended to include occupation-level waterline trajectories per model era.
 
 ## Success Metrics
 - AEI drift computed for ≥3,000 O*NET tasks
