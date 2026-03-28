@@ -17,6 +17,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.api.v1.schemas import OccupationMixEntry
 from app.core.config import settings
 from app.db.session import get_db
 
@@ -41,6 +42,7 @@ class CompanySearchResult(BaseModel):
     sector_names: list[str] = []
     source: str  # "asx", "cached", "llm"
     confidence: float | None = None
+    single_sector_asx: bool = False  # True when ASX lookup returned only 1 ANZSIC code
 
 
 class CompanySearchResponse(BaseModel):
@@ -60,6 +62,7 @@ class ClassifyResponse(BaseModel):
     sector_codes: list[str]
     source: str  # "cached" or "llm"
     region: str
+    workforce_profile: list[OccupationMixEntry] | None = None
 
 
 # -- Sector reference data --
@@ -141,6 +144,64 @@ def _get_anthropic_client() -> anthropic.Anthropic:
     return anthropic.Anthropic(**{"api" + "_key": settings.anthropic_auth_token})
 
 
+# -- Helpers --
+
+
+async def _build_au_sector_list_with_subs(db: AsyncSession) -> str:
+    """Build ANZSIC sector list enriched with subdivision context for AU prompts."""
+    subs_r = await db.execute(text("""
+        SELECT anzsic_division_code, subdivision_name, employment
+        FROM anzsic_subdivisions
+        WHERE release_year = 2025 AND employment IS NOT NULL
+        ORDER BY anzsic_division_code, employment DESC
+    """))
+    subs_by_div: dict[str, list[tuple[str, int]]] = {}
+    for row in subs_r.fetchall():
+        subs_by_div.setdefault(row[0], []).append((row[1], row[2]))
+
+    lines = []
+    for code, name in ANZSIC_DIVISIONS.items():
+        line = f"  {code}: {name}"
+        subs = subs_by_div.get(code, [])
+        if subs:
+            # Top 6 subdivisions with headcounts
+            sub_strs = [
+                f"{s[0]} ({s[1]:,})" for s in subs[:6]
+            ]
+            line += "\n     Sub-sectors: " + ", ".join(sub_strs)
+        lines.append(line)
+    return "\n".join(lines)
+
+
+async def _load_workforce_profile(
+    db: AsyncSession, sector_codes: list[str],
+) -> list[OccupationMixEntry] | None:
+    """Load blended Census occupation mix for given ANZSIC sector codes."""
+    mix_r = await db.execute(text("""
+        SELECT anzsco_major_group, anzsco_major_group_name,
+               SUM(employed_count) AS employed_count
+        FROM abs_census_wpp
+        WHERE anzsic_division_code = ANY(:codes)
+          AND geography_code = 'AUS' AND census_year = 2021
+          AND anzsco_major_group IS NOT NULL
+        GROUP BY anzsco_major_group, anzsco_major_group_name
+        ORDER BY SUM(employed_count) DESC NULLS LAST
+    """), {"codes": sector_codes})
+    rows = mix_r.fetchall()
+    if not rows:
+        return None
+    total = sum(row[2] or 0 for row in rows)
+    return [
+        OccupationMixEntry(
+            anzsco_major_group=row[0],
+            major_group_name=row[1],
+            employed_count=row[2] or 0,
+            share_pct=round((row[2] or 0) / total * 100, 1) if total > 0 else 0,
+        )
+        for row in rows
+    ]
+
+
 # -- Endpoints --
 
 
@@ -169,15 +230,17 @@ async def search_companies(
 
         for row in asx_r.fetchall():
             codes = row[2] if row[2] else []
-            names = [ANZSIC_DIVISIONS.get(c, c) for c in codes if c != "Z"]
+            valid_codes = [c for c in codes if c != "Z"]
+            names = [ANZSIC_DIVISIONS.get(c, c) for c in valid_codes]
             if names:
                 results.append(CompanySearchResult(
                     company_name=row[0],
                     asx_code=row[1],
-                    sector_codes=[c for c in codes if c != "Z"],
+                    sector_codes=valid_codes,
                     sector_names=names,
                     source="asx",
                     confidence=round(float(row[4]), 2) if row[4] else None,
+                    single_sector_asx=len(valid_codes) == 1,
                 ))
 
     # Layer 2: Check LLM classification cache
@@ -225,6 +288,11 @@ async def classify_company(
     if cached_row:
         codes = cached_row[0] or []
         names = cached_row[1] or []
+        profile = (
+            await _load_workforce_profile(db, codes)
+            if region == "AU" and codes
+            else None
+        )
         return ClassifyResponse(
             company_name=req.name,
             sectors=[SectorSuggestion(code=c, name=n, confidence=cached_row[2])
@@ -232,6 +300,7 @@ async def classify_company(
             sector_codes=codes,
             source="cached",
             region=region,
+            workforce_profile=profile,
         )
 
     # LLM classification -- uses Haiku for speed and cost efficiency
@@ -245,7 +314,13 @@ async def classify_company(
     system_label = "ANZSIC 2006 Divisions" if region == "AU" else "NAICS 2022 Sectors"
     region_label = "Australia" if region == "AU" else "United States"
 
-    sector_list = "\n".join(f"  {code}: {name}" for code, name in sectors_ref.items())
+    # AU: enrich sector list with subdivision context from JSA data
+    if region == "AU":
+        sector_list = await _build_au_sector_list_with_subs(db)
+    else:
+        sector_list = "\n".join(
+            f"  {code}: {name}" for code, name in sectors_ref.items()
+        )
 
     prompt = CLASSIFY_PROMPT.format(
         name=req.name,
@@ -308,10 +383,16 @@ async def classify_company(
     })
     await db.commit()
 
+    profile = (
+        await _load_workforce_profile(db, sector_codes)
+        if region == "AU"
+        else None
+    )
     return ClassifyResponse(
         company_name=req.name,
         sectors=valid_suggestions,
         sector_codes=sector_codes,
         source="llm",
         region=region,
+        workforce_profile=profile,
     )

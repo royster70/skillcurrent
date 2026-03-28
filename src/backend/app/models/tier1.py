@@ -243,3 +243,28 @@ class ABSCensusW13(Base):
         Index("ix_abs_census_w13_sex", "sex"),
         Index("ix_abs_census_w13_geo_year", "geography_code", "census_year"),
     )
+
+
+class ANZSICSubdivision(Base):
+    """ANZSIC subdivision employment from JSA Industry Data Table 3."""
+
+    __tablename__ = "anzsic_subdivisions"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    anzsic_division_code: Mapped[str] = mapped_column(Text, nullable=False)
+    anzsic_division_name: Mapped[str] = mapped_column(Text, nullable=False)
+    subdivision_name: Mapped[str] = mapped_column(Text, nullable=False)
+    employment: Mapped[int | None] = mapped_column(Integer)
+    release_year: Mapped[int] = mapped_column(
+        Integer, nullable=False, server_default="2025"
+    )
+    integrity_hash: Mapped[str | None] = mapped_column(Text)
+    created_at: Mapped[datetime] = mapped_column(server_default=func.now())
+
+    __table_args__ = (
+        UniqueConstraint(
+            "anzsic_division_code", "subdivision_name", "release_year",
+            name="uq_anzsic_subdivisions_row",
+        ),
+        Index("ix_anzsic_subdivisions_division", "anzsic_division_code"),
+    )
