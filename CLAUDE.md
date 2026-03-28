@@ -66,7 +66,7 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.8 Data Refresh Pipeline: scripts/run_pipeline.py (16-stage DAG, --dry-run/--stages/--from-stage); GET /admin/pipeline/status + /admin/pipeline/dag; APScheduler AsyncIOScheduler (pipeline_auto_run=False, cron="0 2 * * 0"); 7 tests
   [x] ADR-002 Integrity: app/utils/hashing.py (compute_file_hash, compute_files_hash, compute_bytes_hash, compute_json_hash); hash verification on re-ingest for all 7 service + 3 script ingestors; aei_temporal placeholder 'multi-release' hash replaced with real SHA-256; 19/19 data invariant tests; 161 total tests
   [x] FR-8.6/FR-8.7 GPTVal Waterline: migration 017 (gptval_benchmarks); scripts/ingest_epoch_eci.py (Epoch AI ECI, CC-BY runtime download → 408 rows, 39 benchmarks × 32 model eras); ERA_MAP 50+ model groups → platform era keys; GET /api/v1/gdpval/waterline (velocity per benchmark, sorted by descending rate of improvement, overall +0.030/era); epoch_eci stage added to run_pipeline.py DAG
-      NOTE: FR-8.7 P0b (compute_gdpval_waterline.py — Claude API evaluation runner for 220 tasks × 4 model eras → gdpval_evaluations) deferred pending user budget decision (~$100-145)
+      NOTE: FR-8.7 P0b (compute_gdpval_waterline.py — Claude API evaluation runner for 220 tasks × 4 model eras → gdpval_evaluations) IN PROGRESS (~$50 actual cost, all 4 eras running)
 
 Cross-cutting:
   [x] Observability (ADR-007 Phases 1 & 2 complete):

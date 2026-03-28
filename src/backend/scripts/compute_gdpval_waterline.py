@@ -20,19 +20,19 @@ Usage:
     python -m scripts.compute_gdpval_waterline
 
     # 2-era budget run (~$15-20):
-    python -m scripts.compute_gdpval_waterline --eras claude-3.5-sonnet claude-4-sonnet
+    python -m scripts.compute_gdpval_waterline --eras claude-4-sonnet claude-4.5-sonnet
 
     # Resume interrupted run (ON CONFLICT DO NOTHING -- safe to re-run):
-    python -m scripts.compute_gdpval_waterline --eras claude-3.5-sonnet
+    python -m scripts.compute_gdpval_waterline --eras claude-4-sonnet
 
     # Concurrency (default 5 simultaneous tasks):
     python -m scripts.compute_gdpval_waterline --concurrency 3
 
-Model eras available:
-    claude-3.5-sonnet  -> claude-3-5-sonnet-20241022
-    claude-3.7-sonnet  -> claude-3-7-sonnet-20250219
-    claude-4-sonnet    -> claude-sonnet-4-5-20251101
-    claude-4-opus      -> claude-opus-4-5-20251101
+Model eras available (Claude 4 generation on this account):
+    claude-4-sonnet    -> claude-sonnet-4-20250514
+    claude-4-opus      -> claude-opus-4-20250514
+    claude-4.5-sonnet  -> claude-sonnet-4-5-20250929
+    claude-4.5-opus    -> claude-opus-4-5-20251101
 
 Requires: Anthropic API credentials loaded from src/backend/.env
 """
@@ -67,22 +67,24 @@ logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(mess
 logger = logging.getLogger(__name__)
 
 # Model era -> API model name
+# Note: Only Claude 4 generation models are available on this prepay account.
+# This gives us a 4-point waterline: Sonnet 4 → Opus 4 → Sonnet 4.5 → Opus 4.5
 ERA_MODELS: dict[str, str] = {
-    "claude-3.5-sonnet": "claude-3-5-sonnet-20241022",
-    "claude-3.7-sonnet": "claude-3-7-sonnet-20250219",
-    "claude-4-sonnet": "claude-sonnet-4-5-20251101",
-    "claude-4-opus": "claude-opus-4-5-20251101",
+    "claude-4-sonnet": "claude-sonnet-4-20250514",
+    "claude-4-opus": "claude-opus-4-20250514",
+    "claude-4.5-sonnet": "claude-sonnet-4-5-20250929",
+    "claude-4.5-opus": "claude-opus-4-5-20251101",
 }
 
 # Pricing per 1M tokens (input / output) -- estimation only
 ERA_PRICING: dict[str, tuple[float, float]] = {
-    "claude-3.5-sonnet": (3.00, 15.00),
-    "claude-3.7-sonnet": (3.00, 15.00),
     "claude-4-sonnet": (3.00, 15.00),
     "claude-4-opus": (15.00, 75.00),
+    "claude-4.5-sonnet": (3.00, 15.00),
+    "claude-4.5-opus": (15.00, 75.00),
 }
 
-JUDGE_MODEL = "claude-haiku-4-5-20251101"
+JUDGE_MODEL = "claude-haiku-4-5-20251001"
 JUDGE_PRICING = (0.25, 1.25)
 
 TASK_SYSTEM_PROMPT = """\
