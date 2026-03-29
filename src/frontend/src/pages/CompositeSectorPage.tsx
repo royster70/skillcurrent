@@ -8,23 +8,26 @@
  * - Auto-generated narrative summary
  */
 
-import { useMemo } from "react";
+import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
-import { api, type CompositeSectorResponse } from "../lib/api";
+import { api, type CompositeSectorResponse, type SubdivisionEntry } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
+import { OccupationMixPanel } from "../components/OccupationMixPanel";
+import { InsightCallout } from "../components/InsightCallout";
 
 export function CompositeSectorPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const codes = (searchParams.get("codes") || "").split(",").filter(Boolean);
   const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
+  const company = searchParams.get("company") || undefined;
 
   const { data, loading, error } = useApi(
-    () => codes.length >= 2 ? api.compositeAnalysis(codes, region) : Promise.reject("Need 2+ codes"),
-    [searchParams.get("codes"), region],
+    () => codes.length >= 2 ? api.compositeAnalysis(codes, region, company) : Promise.reject("Need 2+ codes"),
+    [searchParams.get("codes"), region, company],
   );
 
   if (codes.length < 2) {
@@ -90,13 +93,27 @@ function CompositeContent({
     <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
       {/* Header */}
       <div>
-        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
-          Composite Sector Analysis
-        </h1>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
-          {data.codes.length} sectors combined · {fmtEmp(totalEmp)} workers
-          · employment-weighted exposure profile
-        </p>
+        {data.company_name ? (
+          <>
+            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
+              {data.company_name}
+            </h1>
+            <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+              {data.codes.length} sectors · {fmtEmp(totalEmp)} workers
+              · composite AI exposure profile
+            </p>
+          </>
+        ) : (
+          <>
+            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
+              Composite Sector Analysis
+            </h1>
+            <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+              {data.codes.length} sectors combined · {fmtEmp(totalEmp)} workers
+              · employment-weighted exposure profile
+            </p>
+          </>
+        )}
       </div>
 
       {/* Sector chips (read-only) + back link */}
@@ -173,6 +190,30 @@ function CompositeContent({
 
       {/* Zone explainer — collapsed by default */}
       <ZoneExplainerPanel />
+
+      {/* AU-only: Subdivision breakdown by sector + Occupation mix */}
+      {region === "AU" && data.subdivisions && (
+        <CompositeSubdivisions
+          subdivisions={data.subdivisions}
+          sectorNames={Object.fromEntries(data.codes.map((c, i) => [c, data.sector_names[i]]))}
+        />
+      )}
+
+      {region === "AU" && data.occupation_mix && (
+        <div style={{ display: "flex", gap: 16 }}>
+          <div style={{ flex: 1 }}>
+            <OccupationMixPanel mix={data.occupation_mix} />
+          </div>
+          <div style={{ flex: 1 }}>
+            <InsightCallout title="Blended workforce composition">
+              This occupation mix combines Census data across {data.codes.length} ANZSIC divisions.
+              {data.company_name
+                ? ` For ${data.company_name}, the actual role distribution may differ from national averages based on their specific subdivision focus.`
+                : " The actual role distribution for a specific company may differ based on their subdivision focus."}
+            </InsightCallout>
+          </div>
+        </div>
+      )}
 
       {/* Occupation table */}
       <div style={{
@@ -309,7 +350,9 @@ function generateNarrative(data: CompositeSectorResponse): string {
     .filter((o) => o.eloundou_beta != null)
     .sort((a, b) => (b.eloundou_beta || 0) - (a.eloundou_beta || 0))[0];
 
-  let narrative = `This composite spans ${nameStr} — representing ${fmtEmp(totalEmp)} workers.`;
+  let narrative = data.company_name
+    ? `${data.company_name} operates across ${nameStr} — representing ${fmtEmp(totalEmp)} workers in the combined national workforce.`
+    : `This composite spans ${nameStr} — representing ${fmtEmp(totalEmp)} workers.`;
 
   if (beta != null) {
     narrative += ` The blended weighted Beta of ${beta.toFixed(3)} places the composite in the ${zone} zone.`;
@@ -324,6 +367,114 @@ function generateNarrative(data: CompositeSectorResponse): string {
   }
 
   return narrative;
+}
+
+// ── AU Subdivision breakdown per sector ──
+
+function CompositeSubdivisions({
+  subdivisions,
+  sectorNames,
+}: {
+  subdivisions: Record<string, SubdivisionEntry[]>;
+  sectorNames: Record<string, string>;
+}) {
+  const [expanded, setExpanded] = useState<Set<string>>(new Set());
+  const codes = Object.keys(subdivisions);
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 12, border: "1.5px solid #E0E7FF",
+      overflow: "hidden",
+    }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "14px 20px", borderBottom: "1px solid #E0E7FF",
+      }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#312E81" }}>
+            Sub-sector Breakdown
+          </div>
+          <div style={{ fontSize: 12, color: "#6366F1", marginTop: 2 }}>
+            ANZSIC subdivisions within each division — employment from JSA 2025
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            if (expanded.size === codes.length) {
+              setExpanded(new Set());
+            } else {
+              setExpanded(new Set(codes));
+            }
+          }}
+          style={{
+            background: "none", border: "1px solid #C7D2FE", borderRadius: 6,
+            padding: "4px 10px", fontSize: 11, cursor: "pointer",
+            color: "#4F46E5", fontWeight: 500,
+          }}
+        >
+          {expanded.size === codes.length ? "Collapse all" : "Expand all"}
+        </button>
+      </div>
+      {codes.map((code) => {
+        const subs = subdivisions[code];
+        const isOpen = expanded.has(code);
+        const maxEmp = Math.max(...subs.map(s => s.employment ?? 0));
+        return (
+          <div key={code} style={{ borderTop: "1px solid #EEF2FF" }}>
+            <button
+              onClick={() => {
+                const next = new Set(expanded);
+                if (next.has(code)) next.delete(code); else next.add(code);
+                setExpanded(next);
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, width: "100%",
+                padding: "10px 20px", background: "none", border: "none",
+                cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none"
+                stroke="#6366F1" strokeWidth={2.5} strokeLinecap="round"
+                style={{ transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              <span style={{ fontWeight: 600, fontSize: 13, color: "#312E81" }}>
+                {code}
+              </span>
+              <span style={{ fontSize: 13, color: "#4B5563" }}>
+                {sectorNames[code] || code}
+              </span>
+              <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>
+                {subs.length} subdivisions
+              </span>
+            </button>
+            {isOpen && (
+              <div style={{ padding: "0 20px 12px 40px", display: "flex", flexDirection: "column", gap: 4 }}>
+                {subs.map((sub) => (
+                  <div key={sub.subdivision_name} style={{ display: "flex", alignItems: "center", gap: 8 }}>
+                    <div style={{
+                      height: 6, borderRadius: 3, background: "#818CF8",
+                      width: `${Math.max(4, (sub.employment ?? 0) / maxEmp * 140)}px`,
+                      transition: "width 0.2s",
+                    }} />
+                    <span style={{ fontSize: 12, color: "#374151", minWidth: 0, flex: 1 }}>
+                      {sub.subdivision_name}
+                    </span>
+                    <span style={{ fontSize: 11, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+                      {sub.employment ? `${(sub.employment / 1000).toFixed(0)}K` : "—"}
+                    </span>
+                    <span style={{ fontSize: 10, color: "#6366F1", width: 40, textAlign: "right" }}>
+                      {sub.share_pct}%
+                    </span>
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
 }
 
 // ── Style + helpers ──

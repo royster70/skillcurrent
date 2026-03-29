@@ -25,7 +25,7 @@ interface CompanyResult {
 
 interface Props {
   region: string;
-  onSectorsSelected: (codes: string[]) => void;
+  onSectorsSelected: (codes: string[], companyName?: string) => void;
 }
 
 export function CompanyLookup({ region, onSectorsSelected }: Props) {
@@ -96,7 +96,7 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
       navigate(`/sectors/${code}${region === "AU" ? "?region=AU" : ""}`);
     } else {
       // Multi-sector — populate chip selector for composite view
-      onSectorsSelected(result.sector_codes);
+      onSectorsSelected(result.sector_codes, result.company_name);
     }
     setQuery("");
     setResults([]);
@@ -133,7 +133,7 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
         navigate(`/sectors/${code}${region === "AU" ? "?region=AU" : ""}`);
       } else {
         // Multi-sector — populate chip selector
-        onSectorsSelected(classifyResult.codes);
+        onSectorsSelected(classifyResult.codes, classifyResult.name);
       }
       setQuery("");
       setResults([]);

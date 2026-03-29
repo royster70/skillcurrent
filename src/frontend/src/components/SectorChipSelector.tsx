@@ -16,9 +16,10 @@ interface Props {
   selected: string[];
   onChange: (codes: string[]) => void;
   region?: string;
+  companyName?: string | null;
 }
 
-export function SectorChipSelector({ sectors, selected, onChange, region = "US" }: Props) {
+export function SectorChipSelector({ sectors, selected, onChange, region = "US", companyName }: Props) {
   const [open, setOpen] = useState(false);
   const [search, setSearch] = useState("");
   const dropdownRef = useRef<HTMLDivElement>(null);
@@ -59,7 +60,9 @@ export function SectorChipSelector({ sectors, selected, onChange, region = "US" 
 
   function handleAnalyse() {
     if (selected.length >= 2) {
-      navigate(`/sectors/composite?codes=${selected.join(",")}${region === "AU" ? "&region=AU" : ""}`);
+      const params = [`codes=${selected.join(",")}`, region === "AU" ? "region=AU" : ""];
+      if (companyName) params.push(`company=${encodeURIComponent(companyName)}`);
+      navigate(`/sectors/composite?${params.filter(Boolean).join("&")}`);
     }
   }
 

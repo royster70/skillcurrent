@@ -21,10 +21,12 @@ export function SectorsPage() {
   const navigate = useNavigate();
   const [pieMode, setPieMode] = useState<"workers" | "occupations">("workers");
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
+  const [companyName, setCompanyName] = useState<string | null>(null);
 
   const setRegion = (r: string) => {
     setSearchParams(r === "US" ? {} : { region: r });
     setSelectedSectors([]);
+    setCompanyName(null);
   };
 
   if (loading) return <div>Loading sectors...</div>;
@@ -100,9 +102,10 @@ export function SectorsPage() {
       {/* Company lookup — auto-selects sectors */}
       <CompanyLookup
         region={region}
-        onSectorsSelected={(codes) => {
+        onSectorsSelected={(codes, name) => {
           // Merge with existing selection, deduplicate
           setSelectedSectors((prev) => [...new Set([...prev, ...codes])]);
+          if (name) setCompanyName(name);
         }}
       />
 
@@ -112,6 +115,7 @@ export function SectorsPage() {
         selected={selectedSectors}
         onChange={setSelectedSectors}
         region={region}
+        companyName={companyName}
       />
 
       {/* Charts row */}

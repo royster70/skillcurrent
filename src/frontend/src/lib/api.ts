@@ -310,6 +310,7 @@ export interface CompositeOccupation {
 export interface CompositeSectorResponse {
   codes: string[];
   sector_names: string[];
+  company_name: string | null;
   total_employment: number;
   occupation_count: number;
   weighted_eloundou_beta: number | null;
@@ -318,6 +319,8 @@ export interface CompositeSectorResponse {
   workers_e0: number;
   workers_e1: number;
   workers_e2: number;
+  occupation_mix: OccupationMixEntry[] | null;
+  subdivisions: Record<string, SubdivisionEntry[]> | null;
   occupations: CompositeOccupation[];
 }
 
@@ -383,8 +386,8 @@ export const api = {
   driftEnduring: (page = 1, size = 20) => get<DriftListResponse>(`/drift/enduring?page=${page}&page_size=${size}`),
   gdpvalSummary: () => get<GDPvalSummaryResponse>("/gdpval/summary"),
   gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
-  compositeAnalysis: (codes: string[], region = "US") =>
-    get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}`),
+  compositeAnalysis: (codes: string[], region = "US", company?: string) =>
+    get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}${company ? `&company=${encodeURIComponent(company)}` : ""}`),
   sectorSubdivisions: (code: string) => get<SubdivisionEntry[]>(`/sectors/${code}/subdivisions`),
   sectorOccupationMix: (code: string) => get<{ anzsic_division_code: string; anzsic_division_name: string; census_year: number; total_employed: number; mix: OccupationMixEntry[] }>(`/sectors/${code}/occupation-mix`),
   companySearch: (q: string, region = "AU") =>

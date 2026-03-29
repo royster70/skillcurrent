@@ -10,7 +10,7 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.schemas import OccupationMixEntry
+from app.api.v1.schemas import OccupationMixEntry, SubdivisionEntry
 from app.db.session import get_db
 
 router = APIRouter(prefix="/sectors", tags=["sectors"])
@@ -47,6 +47,39 @@ async def _load_au_occupation_mix(
     ]
 
 
+async def _load_au_subdivisions(
+    db: AsyncSession, code_list: list[str],
+) -> dict[str, list[SubdivisionEntry]] | None:
+    """Load subdivisions for each AU sector in the composite."""
+    r = await db.execute(text("""
+        SELECT anzsic_division_code, subdivision_name, employment
+        FROM anzsic_subdivisions
+        WHERE anzsic_division_code = ANY(:codes)
+          AND release_year = 2025 AND employment IS NOT NULL
+        ORDER BY anzsic_division_code, employment DESC
+    """), {"codes": code_list})
+    rows = r.fetchall()
+    if not rows:
+        return None
+    # Group by division, compute share_pct within each
+    from collections import defaultdict
+    grouped: dict[str, list[tuple[str, int]]] = defaultdict(list)
+    for div_code, name, emp in rows:
+        grouped[div_code].append((name, emp))
+    result: dict[str, list[SubdivisionEntry]] = {}
+    for div_code, subs in grouped.items():
+        total = sum(e for _, e in subs)
+        result[div_code] = [
+            SubdivisionEntry(
+                subdivision_name=name,
+                employment=emp,
+                share_pct=round(emp / total * 100, 1) if total > 0 else 0,
+            )
+            for name, emp in subs[:8]  # Top 8 per sector
+        ]
+    return result
+
+
 class CompositeOccupation(BaseModel):
     onet_soc: str
     occupation_title: str
@@ -63,6 +96,7 @@ class CompositeOccupation(BaseModel):
 class CompositeSectorResponse(BaseModel):
     codes: list[str]
     sector_names: list[str]
+    company_name: str | None = None  # Populated when accessed via company lookup
     total_employment: int
     occupation_count: int
     weighted_eloundou_beta: float | None = None
@@ -72,6 +106,7 @@ class CompositeSectorResponse(BaseModel):
     workers_e1: int = 0
     workers_e2: int = 0
     occupation_mix: list[OccupationMixEntry] | None = None
+    subdivisions: dict[str, list[SubdivisionEntry]] | None = None
     occupations: list[CompositeOccupation]
 
 
@@ -83,6 +118,7 @@ async def composite_sector_analysis(
         examples=["62,54,51"],
     ),
     region: str = Query("US", pattern="^(US|AU|us|au)$", description="US (NAICS) or AU (ANZSIC)"),
+    company: str | None = Query(None, description="Company name for context (passed from company lookup)"),
     db: AsyncSession = Depends(get_db),
 ) -> CompositeSectorResponse:
     """Blend multiple sectors into a composite impact profile.
@@ -207,14 +243,18 @@ async def composite_sector_analysis(
             drift_classification=row[9],
         ))
 
-    # Aggregate Census occupation mix across selected AU sectors
+    # Aggregate Census occupation mix + subdivisions for AU sectors
     occupation_mix = (
         await _load_au_occupation_mix(db, code_list) if region == "AU" else None
+    )
+    subdivisions = (
+        await _load_au_subdivisions(db, code_list) if region == "AU" else None
     )
 
     return CompositeSectorResponse(
         codes=code_list,
         sector_names=[found[c] for c in code_list],
+        company_name=company,
         total_employment=total_employment,
         occupation_count=len(occupations),
         weighted_eloundou_beta=(
@@ -230,5 +270,6 @@ async def composite_sector_analysis(
         workers_e1=workers_e1,
         workers_e2=workers_e2,
         occupation_mix=occupation_mix,
+        subdivisions=subdivisions,
         occupations=occupations,
     )
