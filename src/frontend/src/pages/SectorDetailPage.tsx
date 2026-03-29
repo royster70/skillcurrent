@@ -6,6 +6,9 @@ import { api, type PriorityRole, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, CLASSIFICATION_COLORS, GDPVAL_COLORS } from "../lib/constants";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
+import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
+import { OccupationMixPanel } from "../components/OccupationMixPanel";
+import { InsightCallout } from "../components/InsightCallout";
 
 export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
@@ -14,6 +17,7 @@ export function SectorDetailPage() {
   const navigate = useNavigate();
   const [showFullMix, setShowFullMix] = useState(false);
   const [gdpvalFilter, setGdpvalFilter] = useState(false);
+  const [subsExpanded, setSubsExpanded] = useState(false);
 
   const { data, loading, error } = useApi(
     () => api.sectorPriorities(code!, 10, region), [code, region]
@@ -138,6 +142,31 @@ export function SectorDetailPage() {
 
       {/* Zone explainer — collapsed by default */}
       <ZoneExplainerPanel />
+
+      {/* AU-only panels: Subdivision breakdown + Occupation mix + Insight */}
+      {region === "AU" && code && (
+        <>
+          <SubdivisionBarPanel
+            sectorCode={code}
+            expanded={subsExpanded}
+            onToggle={() => setSubsExpanded(!subsExpanded)}
+          />
+          {sectorContext?.current?.occupation_mix && (
+            <div style={{ display: "flex", gap: 16 }}>
+              <div style={{ flex: 1 }}>
+                <OccupationMixPanel mix={sectorContext.current.occupation_mix} />
+              </div>
+              <div style={{ flex: 1 }}>
+                <InsightCallout title="Sub-sectors shape the role mix">
+                  Different ANZSIC subdivisions within this sector employ distinct occupation profiles.
+                  Expand the sub-sector breakdown above to see which activities drive employment,
+                  then compare with the workforce composition to understand where AI exposure concentrates.
+                </InsightCallout>
+              </div>
+            </div>
+          )}
+        </>
+      )}
 
       {/* Charts row */}
       <div style={{ display: "flex", gap: 16 }}>

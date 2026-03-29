@@ -10,7 +10,8 @@
 
 import { useState, useRef, useEffect, useCallback } from "react";
 import { useNavigate } from "react-router-dom";
-import { api } from "../lib/api";
+import { api, type SubdivisionEntry, type OccupationMixEntry } from "../lib/api";
+import { WorkforceProfileCards } from "./WorkforceProfileCards";
 
 interface CompanyResult {
   company_name: string;
@@ -19,6 +20,7 @@ interface CompanyResult {
   sector_names: string[];
   source: string;
   confidence: number | null;
+  single_sector_asx?: boolean;
 }
 
 interface Props {
@@ -36,6 +38,8 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
     codes: string[];
     names: string[];
     confidence: number | null;
+    matched_subdivisions?: Record<string, SubdivisionEntry[]> | null;
+    workforce_profile?: OccupationMixEntry[] | null;
   } | null>(null);
   const [expanded, setExpanded] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -110,6 +114,8 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
         codes: resp.sector_codes,
         names: resp.sectors.map((s) => s.name),
         confidence: resp.sectors[0]?.confidence ?? null,
+        matched_subdivisions: resp.matched_subdivisions,
+        workforce_profile: resp.workforce_profile,
       });
     } catch (e: unknown) {
       const msg = e instanceof Error ? e.message : "Classification failed";
@@ -352,6 +358,19 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
                         AI
                       </span>
                     )}
+                    {r.single_sector_asx && (
+                      <span
+                        style={{
+                          fontSize: 9,
+                          color: "#7C3AED",
+                          fontFamily: "Inter, system-ui, sans-serif",
+                          opacity: 0.7,
+                        }}
+                        title="AI can identify additional sectors for this company"
+                      >
+                        AI can refine &rarr;
+                      </span>
+                    )}
                   </div>
                   <div style={{ display: "flex", gap: 4, alignItems: "center" }}>
                     {r.sector_codes.map((code) => (
@@ -484,6 +503,45 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
                   </span>
                 ))}
               </div>
+              {/* Subdivision breadcrumbs — L2 detail under each sector */}
+              {classifyResult.matched_subdivisions && (
+                <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
+                  {classifyResult.codes.map((code) => {
+                    const subs = classifyResult.matched_subdivisions?.[code];
+                    if (!subs || subs.length === 0) return null;
+                    return (
+                      <div key={code} style={{ paddingLeft: 12 }}>
+                        <span style={{ fontSize: 10, color: "#7C3AED", fontWeight: 600, fontFamily: "Inter, system-ui, sans-serif" }}>
+                          {code}:
+                        </span>
+                        {subs.slice(0, 3).map((sub) => (
+                          <span
+                            key={sub.subdivision_name}
+                            style={{
+                              fontSize: 10, color: "#6D28D9", background: "#F5F3FF",
+                              padding: "1px 6px", borderRadius: 3, marginLeft: 4,
+                              fontFamily: "Inter, system-ui, sans-serif",
+                            }}
+                          >
+                            {sub.subdivision_name}
+                          </span>
+                        ))}
+                      </div>
+                    );
+                  })}
+                </div>
+              )}
+
+              {/* Workforce profile cards */}
+              {classifyResult.workforce_profile && (
+                <div style={{ marginTop: 10 }}>
+                  <div style={{ fontSize: 11, color: "#6D28D9", marginBottom: 6, fontWeight: 500, fontFamily: "Inter, system-ui, sans-serif" }}>
+                    Workforce Composition (Census 2021)
+                  </div>
+                  <WorkforceProfileCards profile={classifyResult.workforce_profile} />
+                </div>
+              )}
+
               <div style={{ display: "flex", gap: 8, marginTop: 10 }}>
                 <button
                   onClick={handleUseClassification}

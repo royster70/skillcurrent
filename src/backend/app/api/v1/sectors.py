@@ -10,6 +10,7 @@ from app.api.v1.schemas import (
     SectorOccupationMix,
     SectorsResponse,
     SectorSummary,
+    SubdivisionEntry,
 )
 from app.db.session import get_db
 
@@ -111,7 +112,71 @@ async def list_sectors(
         for sector in sectors:
             sector.occupation_mix = mix_by_div.get(sector.naics_code)
 
+    # Enrich AU sectors with ANZSIC subdivisions from JSA Industry Data Table 3
+    if region == "AU" and sectors:
+        subs_r = await db.execute(text("""
+            SELECT anzsic_division_code, subdivision_name, employment
+            FROM anzsic_subdivisions
+            WHERE release_year = 2025 AND employment IS NOT NULL
+            ORDER BY anzsic_division_code, employment DESC
+        """))
+        subs_by_div: dict[str, list[tuple[str, int]]] = {}
+        div_totals: dict[str, int] = {}
+        for row in subs_r.fetchall():
+            div_code = row[0]
+            emp = row[2] or 0
+            subs_by_div.setdefault(div_code, []).append((row[1], emp))
+            div_totals[div_code] = div_totals.get(div_code, 0) + emp
+        for sector in sectors:
+            entries = subs_by_div.get(sector.naics_code, [])
+            if entries:
+                total = div_totals.get(sector.naics_code, 0)
+                sector.subdivisions = [
+                    SubdivisionEntry(
+                        subdivision_name=name,
+                        employment=emp,
+                        share_pct=round(emp / total * 100, 1) if total > 0 else 0,
+                    )
+                    for name, emp in entries
+                ]
+
     return SectorsResponse(sectors=sectors, total_sectors=len(sectors), region=region)
+
+
+@router.get("/{sector_code}/subdivisions", response_model=list[SubdivisionEntry])
+async def get_sector_subdivisions(
+    sector_code: str,
+    db: AsyncSession = Depends(get_db),
+) -> list[SubdivisionEntry]:
+    """ANZSIC subdivisions for an AU sector from JSA Industry Data Table 3.
+
+    Returns employment breakdown by subdivision within the given
+    ANZSIC division code (e.g. "D" → Electricity Generation, Gas Supply, etc.).
+    """
+    r = await db.execute(text("""
+        SELECT subdivision_name, employment
+        FROM anzsic_subdivisions
+        WHERE anzsic_division_code = :code
+          AND release_year = 2025 AND employment IS NOT NULL
+        ORDER BY employment DESC
+    """), {"code": sector_code.upper()})
+    rows = r.fetchall()
+
+    if not rows:
+        raise HTTPException(
+            status_code=404,
+            detail=f"No subdivisions for sector {sector_code}",
+        )
+
+    total = sum(row[1] or 0 for row in rows)
+    return [
+        SubdivisionEntry(
+            subdivision_name=row[0],
+            employment=row[1] or 0,
+            share_pct=round((row[1] or 0) / total * 100, 1) if total > 0 else 0,
+        )
+        for row in rows
+    ]
 
 
 @router.get("/{sector_code}/occupation-mix", response_model=SectorOccupationMix)

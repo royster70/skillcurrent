@@ -22,6 +22,19 @@ export interface DatasetsResponse {
   total_rows: number;
 }
 
+export interface SubdivisionEntry {
+  subdivision_name: string;
+  employment: number | null;
+  share_pct: number;
+}
+
+export interface OccupationMixEntry {
+  anzsco_major_group: number | null;
+  major_group_name: string;
+  employed_count: number;
+  share_pct: number;
+}
+
 export interface SectorSummary {
   naics_code: string;
   naics_title: string;
@@ -39,6 +52,8 @@ export interface SectorSummary {
   workers_e0: number;
   workers_e1: number;
   workers_e2: number;
+  occupation_mix?: OccupationMixEntry[] | null;
+  subdivisions?: SubdivisionEntry[] | null;
 }
 
 export interface SectorsResponse {
@@ -315,6 +330,7 @@ export interface CompanySearchResult {
   sector_names: string[];
   source: string;
   confidence: number | null;
+  single_sector_asx?: boolean;
 }
 
 export interface CompanySearchResponse {
@@ -335,6 +351,8 @@ export interface CompanyClassifyResponse {
   sector_codes: string[];
   source: string;
   region: string;
+  workforce_profile?: OccupationMixEntry[] | null;
+  matched_subdivisions?: Record<string, SubdivisionEntry[]> | null;
 }
 
 // ── API functions ──
@@ -367,6 +385,8 @@ export const api = {
   gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
   compositeAnalysis: (codes: string[], region = "US") =>
     get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}`),
+  sectorSubdivisions: (code: string) => get<SubdivisionEntry[]>(`/sectors/${code}/subdivisions`),
+  sectorOccupationMix: (code: string) => get<{ anzsic_division_code: string; anzsic_division_name: string; census_year: number; total_employed: number; mix: OccupationMixEntry[] }>(`/sectors/${code}/occupation-mix`),
   companySearch: (q: string, region = "AU") =>
     get<CompanySearchResponse>(`/companies/search?q=${encodeURIComponent(q)}&region=${region}`),
   companyClassify: async (name: string, region = "AU") => {

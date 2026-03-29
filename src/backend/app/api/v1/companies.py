@@ -56,6 +56,12 @@ class ClassifyRequest(BaseModel):
     region: str = "AU"
 
 
+class SubdivisionEntry(BaseModel):
+    subdivision_name: str
+    employment: int | None = None
+    share_pct: float = 0
+
+
 class ClassifyResponse(BaseModel):
     company_name: str
     sectors: list[SectorSuggestion]
@@ -63,6 +69,7 @@ class ClassifyResponse(BaseModel):
     source: str  # "cached" or "llm"
     region: str
     workforce_profile: list[OccupationMixEntry] | None = None
+    matched_subdivisions: dict[str, list[SubdivisionEntry]] | None = None
 
 
 # -- Sector reference data --
@@ -203,6 +210,45 @@ async def _load_workforce_profile(
     ]
 
 
+async def _load_matched_subdivisions(
+    db: AsyncSession, sector_codes: list[str],
+) -> dict[str, list[SubdivisionEntry]] | None:
+    """Load top 5 ANZSIC subdivisions per sector code from JSA data."""
+    if not sector_codes:
+        return None
+    r = await db.execute(text("""
+        SELECT anzsic_division_code, subdivision_name, employment
+        FROM anzsic_subdivisions
+        WHERE anzsic_division_code = ANY(:codes)
+          AND release_year = 2025 AND employment IS NOT NULL
+        ORDER BY anzsic_division_code, employment DESC
+    """), {"codes": sector_codes})
+    rows = r.fetchall()
+    if not rows:
+        return None
+
+    by_div: dict[str, list[tuple[str, int]]] = {}
+    div_totals: dict[str, int] = {}
+    for row in rows:
+        div_code = row[0]
+        emp = row[2] or 0
+        by_div.setdefault(div_code, []).append((row[1], emp))
+        div_totals[div_code] = div_totals.get(div_code, 0) + emp
+
+    result: dict[str, list[SubdivisionEntry]] = {}
+    for div_code, entries in by_div.items():
+        total = div_totals.get(div_code, 0)
+        result[div_code] = [
+            SubdivisionEntry(
+                subdivision_name=name,
+                employment=emp,
+                share_pct=round(emp / total * 100, 1) if total > 0 else 0,
+            )
+            for name, emp in entries[:5]
+        ]
+    return result
+
+
 # -- Endpoints --
 
 
@@ -289,11 +335,9 @@ async def classify_company(
     if cached_row:
         codes = cached_row[0] or []
         names = cached_row[1] or []
-        profile = (
-            await _load_workforce_profile(db, codes)
-            if region == "AU" and codes
-            else None
-        )
+        is_au = region == "AU" and bool(codes)
+        profile = await _load_workforce_profile(db, codes) if is_au else None
+        subs = await _load_matched_subdivisions(db, codes) if is_au else None
         return ClassifyResponse(
             company_name=req.name,
             sectors=[SectorSuggestion(code=c, name=n, confidence=cached_row[2])
@@ -302,6 +346,7 @@ async def classify_company(
             source="cached",
             region=region,
             workforce_profile=profile,
+            matched_subdivisions=subs,
         )
 
     # LLM classification -- uses Haiku for speed and cost efficiency
@@ -387,11 +432,9 @@ async def classify_company(
     })
     await db.commit()
 
-    profile = (
-        await _load_workforce_profile(db, sector_codes)
-        if region == "AU"
-        else None
-    )
+    is_au = region == "AU"
+    profile = await _load_workforce_profile(db, sector_codes) if is_au else None
+    subs = await _load_matched_subdivisions(db, sector_codes) if is_au else None
     return ClassifyResponse(
         company_name=req.name,
         sectors=valid_suggestions,
@@ -399,4 +442,5 @@ async def classify_company(
         source="llm",
         region=region,
         workforce_profile=profile,
+        matched_subdivisions=subs,
     )

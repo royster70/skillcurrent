@@ -30,6 +30,14 @@ class OccupationMixEntry(BaseModel):
     share_pct: float  # 0-100, rounded to 1dp
 
 
+class SubdivisionEntry(BaseModel):
+    """One ANZSIC subdivision within a division — from JSA Industry Data Table 3."""
+
+    subdivision_name: str
+    employment: int | None = None
+    share_pct: float  # 0-100, rounded to 1dp
+
+
 class SectorOccupationMix(BaseModel):
     """Census 2021 occupation mix for an AU sector (ANZSIC division)."""
 
@@ -61,6 +69,8 @@ class SectorSummary(BaseModel):
     workers_e2: int = 0
     # Census occupation mix (AU only, None for US)
     occupation_mix: list[OccupationMixEntry] | None = None
+    # ANZSIC subdivisions (AU only, None for US)
+    subdivisions: list[SubdivisionEntry] | None = None
 
 
 class SectorsResponse(BaseModel):
