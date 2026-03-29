@@ -358,7 +358,7 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
                         AI
                       </span>
                     )}
-                    {r.single_sector_asx && (
+                    {region === "AU" && r.single_sector_asx && (
                       <span
                         style={{
                           fontSize: 9,
@@ -503,8 +503,8 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
                   </span>
                 ))}
               </div>
-              {/* Subdivision breadcrumbs — L2 detail under each sector */}
-              {classifyResult.matched_subdivisions && (
+              {/* Subdivision breadcrumbs — L2 detail under each sector (AU only) */}
+              {region === "AU" && classifyResult.matched_subdivisions && (
                 <div style={{ marginTop: 8, display: "flex", flexDirection: "column", gap: 4 }}>
                   {classifyResult.codes.map((code) => {
                     const subs = classifyResult.matched_subdivisions?.[code];
@@ -532,8 +532,8 @@ export function CompanyLookup({ region, onSectorsSelected }: Props) {
                 </div>
               )}
 
-              {/* Workforce profile cards */}
-              {classifyResult.workforce_profile && (
+              {/* Workforce profile cards (AU Census data only) */}
+              {region === "AU" && classifyResult.workforce_profile && (
                 <div style={{ marginTop: 10 }}>
                   <div style={{ fontSize: 11, color: "#6D28D9", marginBottom: 6, fontWeight: 500, fontFamily: "Inter, system-ui, sans-serif" }}>
                     Workforce Composition (Census 2021)
