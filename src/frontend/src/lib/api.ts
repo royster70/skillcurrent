@@ -307,6 +307,20 @@ export interface CompositeOccupation {
   drift_classification: string | null;
 }
 
+export interface SubdivisionOccupationRow {
+  anzsco_major_group: number;
+  major_group_name: string;
+  employed_count: number;
+  share_pct: number;
+}
+
+export interface SubdivisionOccupationProfile {
+  indp_name: string;
+  anzsic_division_code: string;
+  total_employed: number;
+  occupations: SubdivisionOccupationRow[];
+}
+
 export interface CompositeSectorResponse {
   codes: string[];
   sector_names: string[];
@@ -321,6 +335,7 @@ export interface CompositeSectorResponse {
   workers_e2: number;
   occupation_mix: OccupationMixEntry[] | null;
   subdivisions: Record<string, SubdivisionEntry[]> | null;
+  subdivision_occupation_mix: SubdivisionOccupationProfile[] | null;
   occupations: CompositeOccupation[];
 }
 

@@ -10,7 +10,12 @@ from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.api.v1.schemas import OccupationMixEntry, SubdivisionEntry
+from app.api.v1.schemas import (
+    OccupationMixEntry,
+    SubdivisionEntry,
+    SubdivisionOccupationProfile,
+    SubdivisionOccupationRow,
+)
 from app.db.session import get_db
 
 router = APIRouter(prefix="/sectors", tags=["sectors"])
@@ -80,6 +85,65 @@ async def _load_au_subdivisions(
     return result
 
 
+async def _load_subdivision_occupation_mix(
+    db: AsyncSession, code_list: list[str],
+) -> list[SubdivisionOccupationProfile] | None:
+    """Load per-subdivision occupation breakdowns from Census 2021 cross-tab.
+
+    Returns occupation profiles for each ANZSIC subdivision within the
+    selected divisions — e.g., within Electricity (D), shows that
+    Electricity Supply is 35% Technicians while Gas Supply is 40%
+    Machinery Operators.
+    """
+    r = await db.execute(text("""
+        SELECT indp_name, anzsic_division_code,
+               anzsco_major_group, anzsco_major_group_name,
+               employed_count
+        FROM abs_census_subdivision_occ
+        WHERE anzsic_division_code = ANY(:codes)
+          AND census_year = 2021
+        ORDER BY anzsic_division_code, indp_name,
+                 employed_count DESC
+    """), {"codes": code_list})
+    rows = r.fetchall()
+    if not rows:
+        return None
+
+    # Group by subdivision (indp_name)
+    from collections import defaultdict
+
+    grouped: dict[str, list[tuple]] = defaultdict(list)
+    div_map: dict[str, str] = {}
+    for indp_name, div_code, mg, mg_name, count in rows:
+        grouped[indp_name].append((mg, mg_name, count))
+        div_map[indp_name] = div_code
+
+    profiles: list[SubdivisionOccupationProfile] = []
+    for indp_name, occ_rows in grouped.items():
+        total = sum(c for _, _, c in occ_rows)
+        if total == 0:
+            continue
+        occupations = [
+            SubdivisionOccupationRow(
+                anzsco_major_group=mg,
+                major_group_name=mg_name,
+                employed_count=count,
+                share_pct=round(count / total * 100, 1),
+            )
+            for mg, mg_name, count in occ_rows
+        ]
+        profiles.append(SubdivisionOccupationProfile(
+            indp_name=indp_name,
+            anzsic_division_code=div_map[indp_name],
+            total_employed=total,
+            occupations=occupations,
+        ))
+
+    # Sort by total employed descending for most impactful subdivisions first
+    profiles.sort(key=lambda p: p.total_employed, reverse=True)
+    return profiles if profiles else None
+
+
 class CompositeOccupation(BaseModel):
     onet_soc: str
     occupation_title: str
@@ -107,6 +171,7 @@ class CompositeSectorResponse(BaseModel):
     workers_e2: int = 0
     occupation_mix: list[OccupationMixEntry] | None = None
     subdivisions: dict[str, list[SubdivisionEntry]] | None = None
+    subdivision_occupation_mix: list[SubdivisionOccupationProfile] | None = None
     occupations: list[CompositeOccupation]
 
 
@@ -118,7 +183,9 @@ async def composite_sector_analysis(
         examples=["62,54,51"],
     ),
     region: str = Query("US", pattern="^(US|AU|us|au)$", description="US (NAICS) or AU (ANZSIC)"),
-    company: str | None = Query(None, description="Company name for context (passed from company lookup)"),
+    company: str | None = Query(
+        None, description="Company name for context"
+    ),
     db: AsyncSession = Depends(get_db),
 ) -> CompositeSectorResponse:
     """Blend multiple sectors into a composite impact profile.
@@ -250,6 +317,11 @@ async def composite_sector_analysis(
     subdivisions = (
         await _load_au_subdivisions(db, code_list) if region == "AU" else None
     )
+    subdivision_occupation_mix = (
+        await _load_subdivision_occupation_mix(db, code_list)
+        if region == "AU"
+        else None
+    )
 
     return CompositeSectorResponse(
         codes=code_list,
@@ -271,5 +343,6 @@ async def composite_sector_analysis(
         workers_e2=workers_e2,
         occupation_mix=occupation_mix,
         subdivisions=subdivisions,
+        subdivision_occupation_mix=subdivision_occupation_mix,
         occupations=occupations,
     )

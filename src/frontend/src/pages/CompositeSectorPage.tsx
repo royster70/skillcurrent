@@ -11,7 +11,12 @@
 import { useMemo, useState } from "react";
 import { useSearchParams, useNavigate } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
-import { api, type CompositeSectorResponse, type SubdivisionEntry } from "../lib/api";
+import {
+  api,
+  type CompositeSectorResponse,
+  type SubdivisionEntry,
+  type SubdivisionOccupationProfile,
+} from "../lib/api";
 import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
@@ -196,6 +201,14 @@ function CompositeContent({
         <CompositeSubdivisions
           subdivisions={data.subdivisions}
           sectorNames={Object.fromEntries(data.codes.map((c, i) => [c, data.sector_names[i]]))}
+        />
+      )}
+
+      {region === "AU" && data.subdivision_occupation_mix && (
+        <SubdivisionOccupationPanel
+          profiles={data.subdivision_occupation_mix}
+          sectorNames={Object.fromEntries(data.codes.map((c, i) => [c, data.sector_names[i]]))}
+          companyName={data.company_name}
         />
       )}
 
@@ -473,6 +486,172 @@ function CompositeSubdivisions({
           </div>
         );
       })}
+    </div>
+  );
+}
+
+// ── Subdivision Occupation Profiles ──
+
+const ANZSCO_COLORS: Record<number, string> = {
+  1: "#6366F1", // Managers — indigo
+  2: "#2563EB", // Professionals — blue
+  3: "#0891B2", // Technicians — cyan
+  4: "#059669", // Community & Personal — emerald
+  5: "#CA8A04", // Clerical — yellow
+  6: "#EA580C", // Sales — orange
+  7: "#7C3AED", // Machinery Operators — violet
+  8: "#DC2626", // Labourers — red
+};
+
+function SubdivisionOccupationPanel({
+  profiles,
+  sectorNames,
+  companyName,
+}: {
+  profiles: SubdivisionOccupationProfile[];
+  sectorNames: Record<string, string>;
+  companyName: string | null;
+}) {
+  const [expandedDivs, setExpandedDivs] = useState<Set<string>>(new Set());
+
+  // Group profiles by division
+  const byDivision = useMemo(() => {
+    const map: Record<string, SubdivisionOccupationProfile[]> = {};
+    for (const p of profiles) {
+      if (!map[p.anzsic_division_code]) map[p.anzsic_division_code] = [];
+      map[p.anzsic_division_code].push(p);
+    }
+    return map;
+  }, [profiles]);
+
+  const divCodes = Object.keys(byDivision).sort();
+
+  return (
+    <div style={{
+      background: "#fff", borderRadius: 12, border: "1.5px solid #E0E7FF",
+      overflow: "hidden",
+    }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "center",
+        padding: "14px 20px", borderBottom: "1px solid #E0E7FF",
+      }}>
+        <div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: "#312E81" }}>
+            Subdivision Occupation Profiles
+          </div>
+          <div style={{ fontSize: 12, color: "#6366F1", marginTop: 2 }}>
+            How occupations differ across ANZSIC subdivisions — ABS Census 2021
+            {companyName && ` · ${companyName}`}
+          </div>
+        </div>
+        <button
+          onClick={() => {
+            if (expandedDivs.size === divCodes.length) {
+              setExpandedDivs(new Set());
+            } else {
+              setExpandedDivs(new Set(divCodes));
+            }
+          }}
+          style={{
+            background: "none", border: "1px solid #C7D2FE", borderRadius: 6,
+            padding: "4px 10px", fontSize: 11, cursor: "pointer",
+            color: "#4F46E5", fontWeight: 500,
+          }}
+        >
+          {expandedDivs.size === divCodes.length ? "Collapse all" : "Expand all"}
+        </button>
+      </div>
+
+      {divCodes.map((divCode) => {
+        const divProfiles = byDivision[divCode];
+        const isOpen = expandedDivs.has(divCode);
+        const divTotal = divProfiles.reduce((s, p) => s + p.total_employed, 0);
+
+        return (
+          <div key={divCode} style={{ borderTop: "1px solid #EEF2FF" }}>
+            <button
+              onClick={() => {
+                const next = new Set(expandedDivs);
+                if (next.has(divCode)) next.delete(divCode); else next.add(divCode);
+                setExpandedDivs(next);
+              }}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, width: "100%",
+                padding: "10px 20px", background: "none", border: "none",
+                cursor: "pointer", textAlign: "left",
+              }}
+            >
+              <svg width={12} height={12} viewBox="0 0 24 24" fill="none"
+                stroke="#6366F1" strokeWidth={2.5} strokeLinecap="round"
+                style={{ transform: isOpen ? "rotate(90deg)" : "none", transition: "transform 0.15s" }}>
+                <polyline points="9 18 15 12 9 6" />
+              </svg>
+              <span style={{ fontWeight: 600, fontSize: 13, color: "#312E81" }}>
+                {divCode}
+              </span>
+              <span style={{ fontSize: 13, color: "#4B5563" }}>
+                {sectorNames[divCode] || divCode}
+              </span>
+              <span style={{ fontSize: 11, color: "#9CA3AF", marginLeft: "auto" }}>
+                {divProfiles.length} subdivisions · {fmtEmp(divTotal)} workers
+              </span>
+            </button>
+            {isOpen && (
+              <div style={{ padding: "0 20px 16px 40px", display: "flex", flexDirection: "column", gap: 12 }}>
+                {divProfiles.map((profile) => (
+                  <SubdivisionOccRow key={profile.indp_name} profile={profile} />
+                ))}
+              </div>
+            )}
+          </div>
+        );
+      })}
+    </div>
+  );
+}
+
+function SubdivisionOccRow({ profile }: { profile: SubdivisionOccupationProfile }) {
+  const maxCount = Math.max(...profile.occupations.map((o) => o.employed_count));
+
+  return (
+    <div style={{
+      background: "#FAFAFE", borderRadius: 8, padding: "10px 14px",
+      border: "1px solid #E0E7FF",
+    }}>
+      <div style={{
+        display: "flex", justifyContent: "space-between", alignItems: "baseline",
+        marginBottom: 8,
+      }}>
+        <span style={{ fontSize: 13, fontWeight: 600, color: "#1E1B4B" }}>
+          {profile.indp_name}
+        </span>
+        <span style={{ fontSize: 11, color: "#6B7280" }}>
+          {fmtEmp(profile.total_employed)} employed
+        </span>
+      </div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+        {profile.occupations.slice(0, 6).map((occ) => (
+          <div key={occ.anzsco_major_group} style={{
+            display: "flex", alignItems: "center", gap: 8, height: 18,
+          }}>
+            <span style={{
+              fontSize: 10, color: "#6B7280", width: 140, flexShrink: 0,
+              overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
+            }}>
+              {occ.major_group_name}
+            </span>
+            <div style={{
+              height: 8, borderRadius: 4, flexShrink: 0,
+              background: ANZSCO_COLORS[occ.anzsco_major_group] || "#94A3B8",
+              width: `${Math.max(4, (occ.employed_count / maxCount) * 120)}px`,
+              transition: "width 0.2s",
+            }} />
+            <span style={{ fontSize: 10, color: "#9CA3AF", whiteSpace: "nowrap" }}>
+              {occ.share_pct}%
+            </span>
+          </div>
+        ))}
+      </div>
     </div>
   );
 }

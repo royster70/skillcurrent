@@ -38,6 +38,24 @@ class SubdivisionEntry(BaseModel):
     share_pct: float  # 0-100, rounded to 1dp
 
 
+class SubdivisionOccupationRow(BaseModel):
+    """One ANZSCO major group count within an ANZSIC subdivision — from Census 2021."""
+
+    anzsco_major_group: int
+    major_group_name: str
+    employed_count: int
+    share_pct: float  # 0-100, share within this subdivision
+
+
+class SubdivisionOccupationProfile(BaseModel):
+    """Occupation breakdown for a single ANZSIC subdivision — Census 2021 cross-tab."""
+
+    indp_name: str  # Census subdivision label (e.g. "Electricity Supply")
+    anzsic_division_code: str
+    total_employed: int
+    occupations: list[SubdivisionOccupationRow]
+
+
 class SectorOccupationMix(BaseModel):
     """Census 2021 occupation mix for an AU sector (ANZSIC division)."""
 
