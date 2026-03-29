@@ -64,6 +64,7 @@ Tier 1 (parallel track — no blockers):
   [x] FR-8.7 GDPval benchmark ingested (220 tasks, 44 occupations, 10,453 rubric items); gdpval_evaluations table ready for model-era scores; GDPval API live (GET /gdpval/summary, GET /gdpval/occupations/{soc_code}); GDPval badges on occupation detail header and sector role rows; GDPval filter toggle on Occupations and Sector Detail pages (filters to 44 benchmark occupations); AEI Task Intelligence panel (4 SVG visualisations); GDPval Benchmark panel (3 visualisations); task matrix API enriched with automation_pct, augmentation_pct, gdpval_benchmark_count
   [x] FR-8.9 Industry Crosswalk (21 NAICS↔ANZSIC mappings via ISIC Rev.4 bridge; ABS employment loaded 2,743 rows; 491 ANZSCO→SOC concordance rows via semantic matching; industry_occupation_profiles extended with region column; AU profiles computed 1,084 rows; all 4 sector endpoints accept ?region=US|AU; RegionSelector.tsx component; 13 new AU tests)
       Census WPP: abs_census_wpp (W12A, 180 rows — ANZSIC div × ANZSCO major group); abs_census_w13 (W13, 159 rows — ANZSCO sub-major × Sex); occupation mix endpoint GET /sectors/{code}/occupation-mix; occupation_mix array on list_sectors (AU) and composite sector (AU)
+      Census Subdivision×Occ: abs_census_subdivision_occ (838 rows — ANZSIC 2-digit subdivision × ANZSCO 1-digit major group × employed count); enables subdivision-weighted occupation profiles for AU composite companies
       ANZSIC Subdivisions: 214 rows from JSA Industry Data Table 3 (migration 020); enriches AU classify prompt with sub-sector context (e.g., Division D → Electricity Generation, Distribution, Gas Supply); classify upgraded to Haiku 4.5; workforce_profile on ClassifyResponse; single_sector_asx flag on search results; 19 new classification eval tests (10 company parametrized LLM eval — 10/10 primary sector, 91% multi-sector detection; see ADR-008 + ADR-009)
       Frontend: GET /sectors/{code}/subdivisions endpoint; matched_subdivisions on classify response; SubdivisionBarPanel (lazy collapsible, indigo), OccupationMixPanel (8-colour ANZSCO dots), WorkforceProfileCards (top-4 cards), InsightCallout (educational callout); SectorDetailPage AU section; CompanyLookup subdivision breadcrumbs + workforce profile
   [x] FR-8.8 Data Refresh Pipeline: scripts/run_pipeline.py (16-stage DAG, --dry-run/--stages/--from-stage); GET /admin/pipeline/status + /admin/pipeline/dag; APScheduler AsyncIOScheduler (pipeline_auto_run=False, cron="0 2 * * 0"); 7 tests
@@ -96,7 +97,7 @@ Tier 2 (sequential — each stage blocks the next):
 - **AEI**: HuggingFace CC-BY — labor market (756 jobs, 17,998 tasks) + temporal (16,976 snapshots across 4 model eras). LOADED.
 - **BLS OEWS**: US headcount weighting by occupation × industry (NAICS). 8,573 rows. LOADED.
 - **ABS/JSA**: JSA Occupation Profiles Nov 2025 (Revised). ANZSCO × ANZSIC employment by occupation. 2,743 rows across 19 ANZSIC divisions. LOADED. Industry Data Table 3: 214 ANZSIC subdivisions with employment counts. LOADED.
-- **ABS Census 2021**: Working Population Profiles (WPP), CC-BY 4.0. W12A: ANZSIC division × ANZSCO major group (180 rows). W13: ANZSCO sub-major group × Sex (159 rows). National level (AUS). LOADED.
+- **ABS Census 2021**: Working Population Profiles (WPP), CC-BY 4.0. W12A: ANZSIC division × ANZSCO major group (180 rows). W13: ANZSCO sub-major group × Sex (159 rows). National level (AUS). LOADED. Census TableBuilder: INDP 2-digit × OCCP 1-digit cross-tab (838 rows — subdivision-level occupation mix). LOADED.
 - **Epoch AI ECI (GPTVal P0a)**: CC-BY, runtime download from epoch.ai. 408 rows loaded — 39 benchmarks × 32 model eras, covering Claude 2 through Claude 4.6 + GPT/Gemini/Llama families. Enables `GET /gdpval/waterline` velocity endpoint. LOADED.
 - **OpenAI GDPval**: MIT license — 220 real-world knowledge tasks across 44 occupations and 9 NAICS sectors. Tasks mapped to O*NET SOC codes (43 exact + 1 contextual match). Rubric-graded evaluations (10,453 items). gdpval_evaluations table ready for model-era scores to enable FR-8.7 waterline velocity. LOADED.
 
@@ -138,11 +139,12 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | gptval_benchmarks | 408 | Epoch AI ECI (FR-8.7 P0a — 39 benchmarks × 32 model eras) |
 | abs_census_wpp | 180 | ABS Census 2021 W12A (ANZSIC div × ANZSCO major group) |
 | abs_census_w13 | 159 | ABS Census 2021 W13 (ANZSCO sub-major × Sex) |
+| abs_census_subdivision_occ | 838 | ABS Census 2021 TableBuilder (ANZSIC subdivision × ANZSCO major group) |
 | anzsic_subdivisions | 214 | JSA Industry Data Table 3 (214 ANZSIC subdivisions, FR-8.9) |
 | asx_company_sectors | 1,978 | ASX listed companies (GICS→ANZSIC→NAICS, FR-8.5 company lookup) |
 | company_classifications | 10 | LLM classification cache (Claude Haiku 4.5, FR-8.5 company lookup) |
 | api_request_log | 0 | Live request telemetry (ADR-007, 30-day retention) |
-| **TOTAL** | **~538,819** | |
+| **TOTAL** | **~539,657** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
