@@ -193,6 +193,93 @@ Explicitly deferred:
 - Performance dashboard page in frontend
 - Regression detection alerts
 
+### Phase 3 — Correlation propagation rules (MUST follow when extending observability)
+
+Phase 2 wired in `request_id` via `contextvars.ContextVar`, but a `ContextVar`
+only survives within a single asyncio task on a single process. The moment
+work crosses an async boundary, a process boundary, or a tier boundary, the
+correlation key is silently lost — and a "no DB activity for slow request"
+investigation becomes guesswork. These four rules close the gaps **before**
+new code reintroduces them.
+
+**Status:** rules are normative now. Implementation helpers land incrementally
+as the relevant code paths are touched (no big-bang refactor).
+
+#### Rule 1 — Async boundary propagation
+
+Any code that spawns work via `asyncio.create_task`, `loop.run_in_executor`,
+`anyio.to_thread.run_sync`, or schedules an APScheduler job **MUST** capture
+`request_id` from `contextvars` at the call site and re-bind it inside the
+spawned coroutine/callable. `ContextVar` is preserved across `await` in the
+same task; it is **not** automatically copied into spawned tasks.
+
+- Helper to add: `app/utils/context.py::run_with_context(coro_or_fn, *, request_id=None)`
+  — copies the current context (or an explicit override) into the new task.
+- Audit target on first pass: `app/services/pipeline_scheduler.py` (APScheduler
+  jobs run with no inbound request, so they need a synthetic `pipeline_run_id`
+  per Rule 2 instead).
+- Test: a unit test that spawns a task from a request handler and asserts the
+  child sees the same `request_id` via the contextvar.
+
+#### Rule 2 — Batch correlation key (`pipeline_run_id`)
+
+Pipeline runs and ingest jobs are not requests; `request_id` does not apply.
+The Tier 1 analogue is `pipeline_run_id` (UUID4, generated at the top of
+`scripts/run_pipeline.py` and propagated to every stage).
+
+- Every `transformation_log` row produced by a pipeline run **MUST** carry the
+  `pipeline_run_id` of the run that produced it. Migration: add a
+  `pipeline_run_id UUID NULL` column with an index; backfill is not required
+  (NULL = pre-Phase-3 row).
+- Every stage in `run_pipeline.py` receives `pipeline_run_id` via context and
+  passes it down to ingestors.
+- A `request_id` and a `pipeline_run_id` **never appear on the same row**.
+  Rows are tagged with exactly one — whichever scope they were produced in.
+
+#### Rule 3 — Cross-tier correlation
+
+When a Tier 2 endpoint triggers Tier 1 recomputation (a future scenario, but
+FR-6 will hit it first), **both** keys flow through the call chain:
+
+- The originating `request_id` is preserved in `api_request_log` (unchanged).
+- The recompute call generates a fresh `pipeline_run_id` and writes it to
+  `transformation_log`.
+- A linkage table — `tier_recompute_link (request_id UUID, pipeline_run_id
+  UUID, triggered_at TIMESTAMPTZ)` — records that the two scopes are related.
+  Joins for incident investigation traverse this table; neither HTTP nor batch
+  rows are polluted with the other tier's key.
+- Architectural rule from CLAUDE.md still holds: Tier 1 and Tier 2 pipelines
+  remain separate. The link table records causation, not data flow.
+
+#### Rule 4 — Time window alignment
+
+Any dashboard or admin endpoint that compares **two** telemetry sources
+**MUST** normalise to a single window before correlating:
+
+- Default window: trailing 1 hour. Maximum: 24 hours. Beyond 24h, fall back to
+  exported snapshots, not live tables.
+- `pg_stat_statements` accumulates since last reset. Rule: snapshot and reset
+  it on `pipeline_run_id` boundaries (`pg_stat_statements_reset()` called at
+  the end of each pipeline run, with the prior snapshot persisted to a
+  `pg_stat_snapshots` table keyed by `pipeline_run_id`). This prevents
+  since-reset drift from contaminating per-run analysis.
+- GPTVal benchmark comparisons (`/api/v1/gdpval/waterline`) **MUST** align
+  model-era timestamps to the same calendar window before computing velocity;
+  raw release-date drift is a known confounder for `linregress` slopes
+  (cross-reference: FR-8.7 P0a notes).
+- General rule: if two charts on the same page draw from different windows,
+  the page is lying. Document the window in the response payload, not just the
+  UI.
+
+#### Why these are rules, not features
+
+Each rule prevents a specific class of "wrong instrumentation" bug — the most
+expensive class, because it makes you doubt the system when the bug is in the
+measurement. ADR-007 already commits to "measure, don't guess"; these rules
+say *and make sure the measurement is actually measuring what you think it
+is*. They are constraints on how observability is implemented, not new
+features, which is why they live in this ADR rather than as an FR.
+
 ### Addendum — Rob Pike alignment
 
 These Phase 2 additions directly implement Pike's Rule 1/2 ("Measure. Don't guess"):

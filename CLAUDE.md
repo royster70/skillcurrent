@@ -178,6 +178,18 @@ These are structural constraints, not style preferences. They are enforced by to
 - `tests/test_performance.py` includes P95 threshold assertions (`pytest -m slow`) — perf regressions are caught, not discovered by users
 - Correlation: `X-Request-ID` links HTTP latency rows to SQL cost rows — slow endpoints can be traced to slow queries
 - **Do not add a performance optimisation without first running `pytest -m slow` and querying `/admin/slow-queries`**
+- **Trust reality over the dashboard**: when a measurement disagrees with observed behaviour (port listener, direct query, user report), audit the measurement *first*. Wrong instrumentation makes you "fix" things that aren't broken — the most expensive class of bug.
+
+#### Correlation propagation rules (ADR-007 Phase 3 — normative)
+
+These four rules close the gaps where `request_id` silently drops out. They are enforced on touch — apply them the first time you modify code in scope, do not refactor pre-emptively.
+
+1. **Async boundaries**: any `asyncio.create_task` / `loop.run_in_executor` / `anyio.to_thread.run_sync` / APScheduler job MUST capture `request_id` from `contextvars` at the call site and re-bind it inside the spawned work. `ContextVar` survives `await`, not task spawns.
+2. **Batch correlation key**: pipeline runs and ingest jobs use `pipeline_run_id` (UUID4 generated in `scripts/run_pipeline.py`), tagged on every `transformation_log` row. `request_id` and `pipeline_run_id` never appear on the same row.
+3. **Cross-tier correlation**: when a Tier 2 endpoint triggers a Tier 1 recompute, both keys flow through the call chain via the `tier_recompute_link` table — neither tier's rows are polluted with the other's key. Tier separation from CLAUDE.md still holds.
+4. **Time window alignment**: any dashboard comparing two telemetry sources MUST normalise to a single window (default 1h, max 24h). `pg_stat_statements` is reset on `pipeline_run_id` boundaries to prevent since-reset drift. GPTVal velocity (`/gdpval/waterline`) MUST align model-era timestamps before computing slopes — release-date drift is a known `linregress` confounder.
+
+Full rationale and implementation notes: `ai_working/decisions/ADR-007-performance-instrumentation.md` (Phase 3 section).
 
 ### Rule 3 & 4 — Simple algorithms, simple data structures.
 - `ruff` C90 rule enforced: `max-complexity = 10`. Functions exceeding cyclomatic complexity 10 are a lint error.
