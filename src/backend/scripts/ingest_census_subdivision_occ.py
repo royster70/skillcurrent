@@ -1,13 +1,16 @@
-"""Ingest ABS Census 2021 TableBuilder: ANZSIC Subdivision × ANZSCO Major Group.
+"""Ingest ABS Census 2021 TableBuilder: ANZSIC × ANZSCO cross-tab.
 
-Parses the "Total" wafer from a Census TableBuilder export of:
-  INDP 2-digit × OCCP 1-digit × LFSP (Employed)
+Supports two Census TableBuilder export formats:
+  1. Pivot format (2-digit INDP): wafer-based, columns are ANZSCO groups
+  2. Long format (3-digit INDP): one row per LFSP × INDP × OCCP combo
 
-This fills the critical data gap: which occupations dominate each ANZSIC
-subdivision. Enables subdivision-weighted occupation profiles for AU companies.
+Both fill the critical data gap: which occupations dominate each ANZSIC
+subdivision/group. Enables subdivision-weighted occupation profiles.
 
 Source: ABS Census 2021, TableBuilder, CC-BY 4.0
-Usage: python -m scripts.ingest_census_subdivision_occ <path-to-csv>
+Usage:
+  python -m scripts.ingest_census_subdivision_occ <path-to-csv>
+  python -m scripts.ingest_census_subdivision_occ <path> --level 3
 """
 
 import asyncio
@@ -156,6 +159,143 @@ ANZSCO_NAMES = [
 # Skip rows
 SKIP_NAMES = {"Inadequately described", "Not stated", "Not applicable", "Total"}
 
+# ANZSCO name → major group number mapping (for long-format CSV)
+ANZSCO_NAME_TO_MG: dict[str, int] = {
+    "Managers": 1,
+    "Professionals": 2,
+    "Technicians and Trades Workers": 3,
+    "Community and Personal Service Workers": 4,
+    "Clerical and Administrative Workers": 5,
+    "Sales Workers": 6,
+    "Machinery Operators and Drivers": 7,
+    "Labourers": 8,
+}
+
+# Division-level anchor names (for 3-digit long-format CSV).
+# When we encounter these nfd rows, we know which division follows.
+DIVISION_ANCHORS: dict[str, str] = {
+    "Electricity, Gas, Water and Waste Services": "D",
+    "Manufacturing": "C",
+    "Retail Trade": "G",
+    "Financial and Insurance Services": "K",
+}
+
+
+def parse_long_format_csv(path: Path) -> list[dict]:
+    """Parse long-format Census CSV: one row per LFSP × INDP × OCCP.
+
+    Filters to LFSP='Total' rows, valid ANZSCO major groups (1-8).
+    Uses anchor detection for division codes: division-level nfd rows
+    mark division boundaries, subsequent 3-digit group rows inherit
+    that division code.
+
+    Skips all nfd rows (division + subdivision residuals) — only keeps
+    genuine 3-digit ANZSIC group rows.
+    """
+    raw = path.read_text(encoding="utf-8-sig")
+    reader = csv.reader(io.StringIO(raw))
+
+    current_division: str | None = None
+    rows: list[dict] = []
+    # Track rows dropped because no division anchor was in scope.
+    # Silent drops here are exactly the "measurement is lying" failure mode
+    # ADR-007 Phase 3 Rule 4 exists to prevent — count them and fail loud.
+    orphaned: list[str] = []
+    seen_anchors: set[str] = set()
+
+    for parts in reader:
+        # Skip header/metadata rows (fewer than 5 columns)
+        if len(parts) < 5:
+            continue
+
+        # Column layout: Counting, LFSP, INDP, OCCP, Count
+        counting = parts[0].strip()
+        lfsp = parts[1].strip()
+        indp_name = parts[2].strip()
+        occp_name = parts[3].strip()
+        count_str = parts[4].strip() if len(parts) > 4 else "0"
+
+        # Only process "Person Records" data rows
+        if counting != "Person Records":
+            continue
+
+        # Only use LFSP = "Total" (combines full-time + part-time + away)
+        if lfsp != "Total":
+            continue
+
+        # Skip non-occupation rows
+        if occp_name in SKIP_NAMES:
+            continue
+
+        # Map ANZSCO name → major group number
+        mg = ANZSCO_NAME_TO_MG.get(occp_name)
+        if mg is None:
+            continue
+
+        # Parse count
+        try:
+            count = int(count_str)
+        except ValueError:
+            count = 0
+
+        if count <= 0:
+            continue
+
+        # Check if this is an nfd row (division or subdivision anchor)
+        is_nfd = indp_name.endswith(", nfd")
+        if is_nfd:
+            base_name = indp_name[:-5]  # Strip ", nfd"
+            # Check if this is a division-level anchor
+            if base_name in DIVISION_ANCHORS:
+                current_division = DIVISION_ANCHORS[base_name]
+                seen_anchors.add(base_name)
+                log.info(
+                    f"Division anchor: '{base_name}' → {current_division}"
+                )
+            # Skip all nfd rows (division + subdivision residuals)
+            continue
+
+        # This is a genuine 3-digit ANZSIC group row
+        if current_division is None:
+            orphaned.append(indp_name)
+            continue
+
+        rows.append({
+            "indp_name": indp_name,
+            "anzsic_division_code": current_division,
+            "anzsco_major_group": mg,
+            "anzsco_major_group_name": occp_name,
+            "employed_count": count,
+            "is_nfd": False,
+        })
+
+    # Fail loud on silent data loss.
+    # If any group row was dropped because no division anchor preceded it,
+    # the CSV is either malformed or DIVISION_ANCHORS is missing entries.
+    # Either way, the resulting dataset would be incomplete in a way that
+    # the row count alone cannot detect — refuse to proceed.
+    if orphaned:
+        unique_orphans = sorted(set(orphaned))
+        log.error(
+            f"Dropped {len(orphaned)} rows ({len(unique_orphans)} unique INDPs) "
+            f"with no division anchor in scope. "
+            f"DIVISION_ANCHORS may need new entries, or the CSV row order "
+            f"differs from expected (anchor-then-children)."
+        )
+        log.error(f"First 10 orphaned INDPs: {unique_orphans[:10]}")
+        log.error(f"Anchors seen during parse: {sorted(seen_anchors)}")
+        raise RuntimeError(
+            f"parse_long_format_csv: {len(orphaned)} rows dropped without "
+            f"a division anchor — refusing to load partial data. "
+            f"See ADR-007 Phase 3 Rule 4 (no silent measurement gaps)."
+        )
+
+    log.info(
+        f"parse_long_format_csv: {len(rows)} rows kept, "
+        f"{len(seen_anchors)} division anchors matched: {sorted(seen_anchors)}"
+    )
+    return rows
+
 
 def parse_tablebuilder_csv(path: Path) -> list[dict]:
     """Parse the 'Total' wafer from a TableBuilder INDP×OCCP export."""
@@ -241,13 +381,23 @@ def parse_tablebuilder_csv(path: Path) -> list[dict]:
     return rows
 
 
-async def ingest(path: Path) -> None:
-    """Parse CSV and insert into abs_census_subdivision_occ."""
+async def ingest(path: Path, level: int = 2) -> None:
+    """Parse CSV and insert into abs_census_subdivision_occ.
+
+    Args:
+        path: Path to the Census TableBuilder CSV export.
+        level: INDP granularity level.
+            2 = ANZSIC Subdivision (pivot format, all 19 divisions)
+            3 = ANZSIC Group (long format, C/D/G/K divisions)
+    """
     from app.utils.hashing import compute_file_hash
     from app.core.config import settings
 
-    rows = parse_tablebuilder_csv(path)
-    log.info(f"Parsed {len(rows)} subdivision × occupation cells")
+    if level == 3:
+        rows = parse_long_format_csv(path)
+    else:
+        rows = parse_tablebuilder_csv(path)
+    log.info(f"Parsed {len(rows)} level-{level} cells")
 
     file_hash = compute_file_hash(path)
 
@@ -255,17 +405,28 @@ async def ingest(path: Path) -> None:
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async with async_session() as session:
-        # Check if already loaded with same hash
+        # Check if already loaded with same hash at this level
         existing = await session.execute(
-            text("SELECT integrity_hash FROM abs_census_subdivision_occ LIMIT 1")
+            text(
+                "SELECT integrity_hash "
+                "FROM abs_census_subdivision_occ "
+                "WHERE indp_level = :lvl LIMIT 1"
+            ),
+            {"lvl": level},
         )
         row = existing.fetchone()
         if row and row[0] == file_hash:
-            log.info("Data already loaded with same hash — skipping")
+            log.info(f"Level-{level} data already loaded — skipping")
             return
 
-        # Clear and reload
-        await session.execute(text("DELETE FROM abs_census_subdivision_occ"))
+        # Clear only rows at this level (preserve other levels)
+        await session.execute(
+            text(
+                "DELETE FROM abs_census_subdivision_occ "
+                "WHERE indp_level = :lvl"
+            ),
+            {"lvl": level},
+        )
 
         # Batch insert
         for r in rows:
@@ -274,8 +435,11 @@ async def ingest(path: Path) -> None:
                     INSERT INTO abs_census_subdivision_occ
                         (indp_name, anzsic_division_code, anzsco_major_group,
                          anzsco_major_group_name, employed_count, census_year,
-                         integrity_hash)
-                    VALUES (:indp_name, :div, :mg, :mg_name, :count, 2021, :hash)
+                         integrity_hash, indp_level)
+                    VALUES (
+                        :indp_name, :div, :mg, :mg_name,
+                        :count, 2021, :hash, :lvl
+                    )
                 """),
                 {
                     "indp_name": r["indp_name"],
@@ -284,27 +448,52 @@ async def ingest(path: Path) -> None:
                     "mg_name": r["anzsco_major_group_name"],
                     "count": r["employed_count"],
                     "hash": file_hash,
+                    "lvl": level,
                 },
             )
 
         await session.commit()
-        log.info(f"Inserted {len(rows)} rows into abs_census_subdivision_occ")
+        log.info(
+            f"Inserted {len(rows)} level-{level} rows "
+            "into abs_census_subdivision_occ"
+        )
 
-        # Summary by division
-        summary = await session.execute(text("""
-            SELECT anzsic_division_code, count(*), sum(employed_count)
-            FROM abs_census_subdivision_occ
-            GROUP BY anzsic_division_code
-            ORDER BY anzsic_division_code
-        """))
+        # Summary by division for this level
+        summary = await session.execute(
+            text("""
+                SELECT anzsic_division_code, count(*),
+                       sum(employed_count)
+                FROM abs_census_subdivision_occ
+                WHERE indp_level = :lvl
+                GROUP BY anzsic_division_code
+                ORDER BY anzsic_division_code
+            """),
+            {"lvl": level},
+        )
         for div, cnt, emp in summary.fetchall():
             log.info(f"  {div}: {cnt} cells, {emp:,} employed")
+
+        # Grand total across all levels
+        total = await session.execute(
+            text("SELECT count(*) FROM abs_census_subdivision_occ")
+        )
+        log.info(f"Total rows (all levels): {total.scalar()}")
 
     await engine.dispose()
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
-        print("Usage: python -m scripts.ingest_census_subdivision_occ <path-to-csv>")
+        print(
+            "Usage: python -m scripts.ingest_census_subdivision_occ "
+            "<path-to-csv> [--level 2|3]"
+        )
         sys.exit(1)
-    asyncio.run(ingest(Path(sys.argv[1])))
+
+    level = 2
+    if "--level" in sys.argv:
+        idx = sys.argv.index("--level")
+        if idx + 1 < len(sys.argv):
+            level = int(sys.argv[idx + 1])
+
+    asyncio.run(ingest(Path(sys.argv[1]), level=level))
