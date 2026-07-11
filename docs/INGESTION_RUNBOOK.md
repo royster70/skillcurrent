@@ -7,10 +7,11 @@ How to rebuild the Workforce AI Platform database from scratch. This covers envi
 ## Prerequisites
 
 - **Docker**: For running PostgreSQL with pgvector
-- **Python 3.12**: With pip/uv for dependency management
-- **Python packages**: Install from `src/backend/requirements.txt` (or equivalent)
-  - Key dependencies: `asyncpg`, `sqlalchemy`, `alembic`, `pandas`, `openpyxl`, `pydantic-settings`
-- **Data files**: Downloaded to local directories (see per-dataset sections below)
+- **Python 3.12**: With pip for dependency management
+- **Python packages**: `cd src/backend && pip install -e ".[dev]"` (declared in `pyproject.toml` — there is no `requirements.txt`).
+  - This pulls the **heavy processing deps** required for ingestion: `sentence-transformers` (→ PyTorch, hundreds of MB; needed by `embed_titles` and `build_anzsco_concordance`), `pyarrow` (parquet, needed by `ingest_gdpval`), plus `pandas`, `scipy`, `openpyxl`, `asyncpg`, `sqlalchemy`, `alembic`, `pgvector`, `pydantic-settings`. If any are missing after install, re-run the command.
+- **Network access at ingest time**: `embed_titles` / `build_anzsco_concordance` download the `all-MiniLM-L6-v2` model from HuggingFace on first run (cached to `~/.cache/huggingface`); `ingest_epoch_eci` downloads a CSV from epoch.ai (schema may drift — the loader guards optional columns).
+- **Data files**: Downloaded to local directories (see per-dataset sections below).
 
 ---
 

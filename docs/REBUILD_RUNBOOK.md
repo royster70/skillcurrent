@@ -145,6 +145,16 @@ python -m alembic upgrade head
 
 **Note:** If using miniconda instead of venv, update `.claude/launch.json` to point to the correct Python path (currently `C:\Users\royst\miniconda3\python.exe`).
 
+### Data-processing prerequisites (beyond `pip install`)
+
+`pip install -e ".[dev]"` installs everything declared, but data processing has conditions pip can't satisfy:
+
+- **Heavy ML dependencies are pulled** — `sentence-transformers` (→ PyTorch, several hundred MB) and `pyarrow` are core deps required by `embed_titles` / `build_anzsco_concordance` (embeddings) and `ingest_gdpval` (parquet). Allow time and disk on first install. If either is missing after install, re-run `pip install -e ".[dev]"`.
+- **Network access is required at ingest time** — some stages download at runtime:
+  - `embed_titles` / `build_anzsco_concordance` download the `all-MiniLM-L6-v2` model from HuggingFace on first run (cached to `~/.cache/huggingface`).
+  - `ingest_epoch_eci` downloads the ECI benchmark CSV from epoch.ai. **The upstream schema can drift** (Epoch has dropped columns before) — the loader tolerates missing optional columns; row counts may differ from this doc.
+- **`pre-commit install` (Phase 8) is not restored by `git clone`** — run it before committing or commits silently bypass black/ruff/mypy.
+
 ---
 
 ## Phase 6 — Data Ingestion
@@ -405,4 +415,9 @@ docker start workforce-pg
 | Port 5432 in use | `Get-NetTCPConnection -LocalPort 5432` to find process, or change port |
 | Port 8000 in use (WinError 10013) | `Get-NetTCPConnection -LocalPort 8000 \| Select OwningProcess` then `Stop-Process -Id <PID> -Force` |
 | `ModuleNotFoundError` | Run `pip install -e ".[dev]"` from `src/backend/` |
+| `No module named 'sentence_transformers'` at `embed_titles` | Declared core dep; ensure `pip install -e ".[dev]"` completed |
+| `Unable to find a usable engine` / parquet read fails (`ingest_gdpval`) | `pyarrow` missing — re-run `pip install -e ".[dev]"` |
+| `ingest_epoch_eci` `KeyError` on a CSV column | Upstream Epoch schema drift; the loader guards optional columns — patch if a *required* column changes |
+| `ingest_oews` FK violation (`onet_soc` not in `onet_occupations`) | Known: O*NET 8-digit vs OEWS 6-digit SOC mismatch — see the OEWS ingest fix |
+| Commit bypasses black/ruff/mypy | `pre-commit install` not run (Phase 8) |
 | pre-commit hooks not running | Run `pre-commit install` from project root |
