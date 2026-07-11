@@ -274,6 +274,128 @@ async def test_au_profiles_have_exposure_scores(session: AsyncSession):
         )
 
 
+# ── OSCA Data Invariants (FR-9.1, ADR-010) ──
+
+
+async def _osca_loaded(session: AsyncSession) -> bool:
+    n = (await session.execute(text("SELECT COUNT(*) FROM osca_occupations"))).scalar_one()
+    return bool(n)
+
+
+async def test_osca_main_tasks_descriptor_only(session: AsyncSession):
+    """OSCA main tasks are descriptors and MUST NOT carry task-level exposure.
+
+    Hard invariant (docs/domain-model.md, DWA-pivot ADR): OSCA tasks are
+    GenAI-generated with no DWA linkage; the exposure carrier is the ASC
+    specialist task, never OSCA.
+    """
+    if not await _osca_loaded(session):
+        pytest.skip("OSCA not loaded")
+    bad = (
+        await session.execute(
+            text("SELECT COUNT(*) FROM osca_main_tasks WHERE descriptor_only IS NOT TRUE")
+        )
+    ).scalar_one()
+    assert bad == 0, f"{bad} osca_main_tasks are not descriptor_only"
+
+
+async def test_osca_main_tasks_no_orphans(session: AsyncSession):
+    """Every osca_main_tasks row references a known OSCA occupation."""
+    if not await _osca_loaded(session):
+        pytest.skip("OSCA not loaded")
+    orphans = (
+        await session.execute(
+            text(
+                """
+                SELECT COUNT(*) FROM osca_main_tasks t
+                LEFT JOIN osca_occupations o ON t.osca_code = o.osca_code
+                WHERE o.osca_code IS NULL
+                """
+            )
+        )
+    ).scalar_one()
+    assert orphans == 0, f"{orphans} osca_main_tasks reference unknown occupations"
+
+
+async def test_osca_apportionment_reconciles(session: AsyncSession):
+    """ADR-010: apportioned employment equals the de-duplicated ANZSCO base.
+
+    Apportionment redistributes employment, never creates or destroys it.
+    """
+    n = (
+        await session.execute(text("SELECT COUNT(*) FROM abs_employment_osca"))
+    ).scalar_one()
+    if n == 0:
+        pytest.skip("OSCA apportionment not computed")
+    apportioned = float(
+        (
+            await session.execute(
+                text("SELECT COALESCE(SUM(apportioned_employment), 0) FROM abs_employment_osca")
+            )
+        ).scalar_one()
+    )
+    base = float(
+        (
+            await session.execute(
+                text(
+                    """
+                    SELECT COALESCE(SUM(employment), 0) FROM abs_employment ae
+                    WHERE length(anzsco_code) = 6
+                       OR (length(anzsco_code) = 4 AND NOT EXISTS (
+                             SELECT 1 FROM abs_employment c
+                             WHERE length(c.anzsco_code) = 6
+                               AND c.anzsco_code LIKE ae.anzsco_code || '%'))
+                    """
+                )
+            )
+        ).scalar_one()
+    )
+    assert abs(apportioned - base) < 1.0, (
+        f"apportioned {apportioned} != de-dup base {base} (ADR-010 reconciliation)"
+    )
+
+
+async def test_osca_apportionment_no_double_count(session: AsyncSession):
+    """ADR-010 A0: 4-digit ANZSCO codes with 6-digit detail are not counted."""
+    n = (
+        await session.execute(text("SELECT COUNT(*) FROM abs_employment_osca"))
+    ).scalar_one()
+    if n == 0:
+        pytest.skip("OSCA apportionment not computed")
+    leaked = (
+        await session.execute(
+            text(
+                """
+                SELECT COUNT(DISTINCT o.anzsco_code) FROM abs_employment_osca o
+                WHERE length(o.anzsco_code) = 4
+                  AND EXISTS (
+                    SELECT 1 FROM abs_employment c
+                    WHERE length(c.anzsco_code) = 6 AND c.anzsco_code LIKE o.anzsco_code || '%')
+                """
+            )
+        )
+    ).scalar_one()
+    assert leaked == 0, f"{leaked} aggregated 4-digit codes double-count with 6-digit detail"
+
+
+async def test_osca_apportionment_method_tagged(session: AsyncSession):
+    """Every apportioned row carries a known link_method (no silent blending)."""
+    n = (
+        await session.execute(text("SELECT COUNT(*) FROM abs_employment_osca"))
+    ).scalar_one()
+    if n == 0:
+        pytest.skip("OSCA apportionment not computed")
+    bad = (
+        await session.execute(
+            text(
+                "SELECT COUNT(*) FROM abs_employment_osca "
+                "WHERE link_method NOT IN ('full', 'apportioned_equal', 'apportioned_employment')"
+            )
+        )
+    ).scalar_one()
+    assert bad == 0, f"{bad} apportionment rows have an unknown link_method"
+
+
 # ── Integrity Hash Tests (ADR-002) ──
 
 

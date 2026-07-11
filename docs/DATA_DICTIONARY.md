@@ -530,14 +530,40 @@ Pre-computed industry profiles. 7,935 profiles across 20 NAICS sectors (FR-8.4).
 | drift_classification | TEXT | YES | Drift classification (departing/enduring/emerging/below_threshold) |
 | profile_date | DATE | NO | Profile computation date |
 | release_year | INTEGER | NO | Source data year |
+| osca_code | TEXT | YES | OSCA 6-digit occupation code (FR-9.1, migration 023). Nullable — added additively, **not yet populated**; requires the onet_soc→anzsco→osca chain with employment apportionment (future step) |
 | created_at | TIMESTAMP | NO | Server default NOW() |
 | updated_at | TIMESTAMP | NO | Server default NOW(), auto-update |
 
 - **Primary key**: `id`
 - **Unique constraint**: (`naics_code`, `onet_soc`, `release_year`)
-- **Indexes**: `ix_industry_occupation_profiles_naics_code`, `ix_industry_occupation_profiles_onet_soc`, `ix_industry_occupation_profiles_dominant_zone`
-- **Migration**: 002, columns `eloundou_beta`, `ms_ai_applicability`, `aei_exposure`, `drift_velocity`, `drift_classification` added in 010
+- **Indexes**: `ix_industry_occupation_profiles_naics_code`, `ix_industry_occupation_profiles_onet_soc`, `ix_industry_occupation_profiles_dominant_zone`, `ix_industry_occupation_profiles_osca` (migration 023)
+- **Migration**: 002, columns `eloundou_beta`, `ms_ai_applicability`, `aei_exposure`, `drift_velocity`, `drift_classification` added in 010, `region` added in 014, `osca_code` added in 023 (nullable, unpopulated)
 - **Populated by**: `compute_industry_profiles` script (FR-8.4)
+
+### abs_employment
+
+Australian Bureau of Statistics / JSA employment data by ANZSCO × ANZSIC. 2,743 rows across 19 ANZSIC divisions (FR-8.9).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsco_code | TEXT | NO | ANZSCO occupation code (4-digit unit group or 6-digit occupation; both granularities present) |
+| anzsco_title | TEXT | YES | ANZSCO occupation title |
+| anzsic_code | TEXT | NO | ANZSIC industry code |
+| anzsic_title | TEXT | YES | ANZSIC industry title |
+| area_code | TEXT | NO | Default "AU0000" |
+| employment | INTEGER | YES | Employment count |
+| employment_per_1000 | FLOAT | YES | Employment per 1,000 jobs |
+| median_annual_wage | INTEGER | YES | Median annual wage |
+| release_year | INTEGER | NO | JSA release year (2025) |
+| osca_code | TEXT | YES | OSCA 6-digit occupation code (FR-9.1, migration 023). Linked for 1,501 of 2,743 rows — only 6-digit `anzsco_code` rows with a single unambiguous `osca_anzsco_map` match are linked; 4-digit unit-group rows and ambiguous (n:m) mappings are left NULL (see `abs_employment_osca` for the fully apportioned view) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`anzsco_code`, `anzsic_code`, `area_code`, `release_year`)
+- **Indexes**: `ix_abs_employment_anzsco`, `ix_abs_employment_anzsic`, `ix_abs_employment_release_year`, `ix_abs_employment_osca` (migration 023)
+- **Migration**: 014, column `osca_code` added in 023
+- **Populated by**: `python -m scripts.ingest_abs`; `osca_code` populated by `python -m scripts.ingest_osca` (unique-match backfill, `_link_abs_employment`)
 
 ### industry_crosswalk
 
@@ -733,6 +759,119 @@ Source: JSA `industry_data_-_november_2025_revised.xlsx` Table 3 (same file as a
 
 ---
 
+## OSCA Backbone (FR-9.1)
+
+The Australian Occupation Standard Classification (OSCA 2024 v1.0, ABS) is the canonical AU occupation entity, superseding the retired ANZSCO. ANZSCO is retained as a legacy key during the dual-key transition via `osca_anzsco_map`. See ADR-010 (`ai_working/decisions/ADR-010-anzsco-osca-employment-apportionment.md`) for the employment apportionment design and `app/services/osca_ingestion.py` / `app/services/osca_apportionment.py` for the implementation.
+
+### osca_occupations
+
+OSCA occupation backbone. 1,156 occupations (6-digit canonical AU key).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | 6-digit OSCA occupation code |
+| title | TEXT | NO | Occupation title |
+| description | TEXT | YES | Lead Statement (from OSCA Category Descriptions Table 1) |
+| isco08_code | TEXT | YES | Associated ISCO-08 code |
+| unit_group | TEXT | YES | OSCA hierarchy parent (4-digit unit group) |
+| osca_version | TEXT | NO | Default "2024.1.0" |
+| integrity_hash | TEXT | YES | SHA-256 of source workbook bytes (ADR-002) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`osca_code`, `osca_version`)
+- **Indexes**: `ix_osca_occupations_code`, `ix_osca_occupations_isco`
+- **Migration**: 023
+- **Populated by**: `python -m scripts.ingest_osca` (parses "OSCA structure.xlsx" Table 5 + "OSCA Category Descriptions.xlsx" Table 1)
+
+### osca_main_tasks
+
+OSCA main tasks — GenAI-generated by ABS, few and broad. 6,887 rows. **Descriptor-only; never an exposure carrier** — no O*NET/DWA linkage.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | OSCA occupation code |
+| task_id | TEXT | YES | Source task id if present |
+| task_text | TEXT | NO | Task description text |
+| descriptor_only | BOOLEAN | NO | Default `true` — always true; task-level exposure is carried elsewhere, not by this table |
+| osca_version | TEXT | NO | Default "2024.1.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_osca_main_tasks_code`
+- **Migration**: 023
+- **Populated by**: `python -m scripts.ingest_osca` (parses "OSCA Category Descriptions.xlsx" Table 1, Main Tasks column, semicolon-split)
+
+### osca_anzsco_map
+
+Official ABS OSCA↔ANZSCO v1.3 correspondence (dual-key bridge). 1,383 rows. `correspondence_type`/`relation_type`/`weight` preserve many-to-many splits explicitly so employment apportionment never collapses them silently.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | OSCA occupation code |
+| anzsco_code | TEXT | NO | ANZSCO occupation code |
+| correspondence_type | TEXT | YES | `full` (exact) or `partial` (ABS 'p' flag) |
+| relation_type | TEXT | YES | 1:1 \| 1:n \| n:1 \| n:m (not populated by current ingest — reserved) |
+| weight | FLOAT | YES | Apportionment weight (not populated by current ingest — reserved; see `abs_employment_osca` for the actual apportionment) |
+| osca_version | TEXT | NO | Default "2024.1.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`osca_code`, `anzsco_code`, `osca_version`)
+- **Indexes**: `ix_osca_anzsco_osca`, `ix_osca_anzsco_anzsco`
+- **Migration**: 023
+- **Populated by**: `python -m scripts.ingest_osca` (parses "OSCA correspondence tables v2.xlsx" Table 2, forward-filled OSCA code)
+
+### osca_isco_map
+
+Official ABS OSCA↔ISCO-08 correspondence (occupation-level pivot for gap-fill). 1,448 rows.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | OSCA occupation code |
+| isco08_code | TEXT | NO | ISCO-08 code |
+| correspondence_type | TEXT | YES | `full` or `partial` |
+| relation_type | TEXT | YES | Reserved (not populated by current ingest) |
+| weight | FLOAT | YES | Reserved (not populated by current ingest) |
+| osca_version | TEXT | NO | Default "2024.1.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: (`osca_code`, `isco08_code`, `osca_version`)
+- **Indexes**: `ix_osca_isco_osca`, `ix_osca_isco_isco`
+- **Migration**: 023
+- **Populated by**: `python -m scripts.ingest_osca` (parses "OSCA correspondence tables v2.xlsx" Table 8)
+
+### abs_employment_osca
+
+AU employment apportioned ANZSCO → OSCA per the ADR-010 ladder. 2,997 rows — one row per (osca_code × anzsic × area × source anzsco_code × year); downstream consumers sum by `osca_code` to get OSCA-keyed employment weights.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | Target OSCA occupation code |
+| anzsco_code | TEXT | NO | Source ANZSCO code (from `abs_employment`) |
+| anzsic_code | TEXT | NO | ANZSIC industry code |
+| area_code | TEXT | NO | Default "AU0000" |
+| apportioned_employment | FLOAT | YES | Employment attributed to this OSCA occupation |
+| link_method | TEXT | NO | `full` (1,702 rows, confidence 1.0, ~61% of total employment — exact 6-digit ANZSCO with a single OSCA target) or `apportioned_equal` (1,295 rows, avg confidence 0.485, ~39% — equal split across N OSCA targets, no finer employment data to weight by). Note: ADR-010 also documents an `apportioned_employment` (A2, employment-weighted) method — **not yet implemented**; only `full` (A1) and `apportioned_equal` (A3) are live |
+| confidence | FLOAT | YES | 1.0 for `full`; 0.5 (6-digit source) or 0.4 (4-digit source) for `apportioned_equal` |
+| release_year | INTEGER | NO | Source `abs_employment.release_year` |
+| osca_version | TEXT | NO | Default "2024.1.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_abs_emp_osca_osca`, `ix_abs_emp_osca_anzsco`, `ix_abs_emp_osca_method`
+- **Migration**: 024
+- **Populated by**: `python -m scripts.compute_osca_employment` (requires `python -m scripts.ingest_osca` to have run first)
+- **Reconciliation invariant**: `SUM(apportioned_employment)` over all OSCA targets of a source row equals the source row's `abs_employment.employment`, after the A0 double-count guard (prefer 6-digit ANZSCO detail over 4-digit unit-group aggregates so employment is never counted twice). Verified: total apportioned employment 9,612,166 = de-duplicated ANZSCO base 9,612,166.
+
+---
+
 ## Join Paths
 
 O*NET 8-digit SOC codes are the anchor for the entire data model. Different datasets use different SOC granularities and join strategies.
@@ -848,6 +987,25 @@ The `GET /sectors/{code}/occupation-mix` endpoint queries `abs_census_wpp` direc
 
 `anzsic_subdivisions` does not participate in any join at query time. It is loaded once into memory by `_build_au_sector_list_with_subs()` and formatted into the Claude Haiku 4.5 classify prompt as inline text. No FK relationship to any other table.
 
+### ANZSCO ↔ OSCA employment apportionment (FR-9.1, ADR-010)
+
+`abs_employment` is ANZSCO-keyed at mixed granularity (4-digit unit group and 6-digit occupation). `osca_anzsco_map` provides the official ABS correspondence; `abs_employment_osca` is the derived, fully apportioned OSCA-keyed employment table (soft references, no FK constraints — same pattern as `gdpval_tasks.onet_soc`):
+
+```sql
+-- Direct link (unique 6-digit matches only, 1,501 of 2,743 abs_employment rows):
+abs_employment.osca_code = osca_occupations.osca_code
+
+-- Full apportionment (all 2,743 rows, both granularities, ADR-010 A0/A1/A3 ladder):
+abs_employment_osca.osca_code = osca_occupations.osca_code
+abs_employment_osca.anzsco_code = abs_employment.anzsco_code  -- soft reference
+
+-- OSCA to ANZSCO/ISCO correspondence (many-to-many; use for lookups, not employment weighting):
+osca_anzsco_map.osca_code = osca_occupations.osca_code
+osca_isco_map.osca_code = osca_occupations.osca_code
+```
+
+`industry_occupation_profiles.osca_code` was added in migration 023 but is **not yet populated** — it requires the `onet_soc → anzsco → osca` chain with employment apportionment for many-to-many correspondences, which is a future computation step (not a schema migration), so split correspondences apportion correctly rather than double-count.
+
 ---
 
 ## Migration History
@@ -874,3 +1032,7 @@ The `GET /sectors/{code}/occupation-mix` endpoint queries `abs_census_wpp` direc
 | 018 | abs_census_wpp — ABS 2021 Census W12A (ANZSIC division × ANZSCO major group, 180 rows) |
 | 019 | abs_census_w13 — ABS 2021 Census W13 (ANZSCO sub-major group × Sex, 159 rows) |
 | 020 | anzsic_subdivisions — JSA Industry Data Table 3 sub-sector employment (214 rows) |
+| 021 | abs_census_subdivision_occ — ABS Census 2021 TableBuilder INDP × OCCP cross-tab (838 rows) |
+| 022 | Add INDP granularity level column to abs_census_subdivision_occ |
+| 023 | osca_occupations, osca_main_tasks, osca_anzsco_map, osca_isco_map — OSCA 2024 v1.0 backbone (FR-9.1); nullable osca_code added to abs_employment and industry_occupation_profiles |
+| 024 | abs_employment_osca — ANZSCO→OSCA employment apportionment (FR-9.1, ADR-010) |

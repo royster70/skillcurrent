@@ -40,17 +40,20 @@ claude --version
 ### Critical files to save (NOT in the git repo)
 
 ```
-C:\Users\royst\Projects\Data\           # All source data (10 directories)
+C:\Users\royst\Projects\Data\           # All source data (13 directories)
   ABS\
   ABS-2021-Census\
-  AEI\
+  AEI\                                  # includes AEI\geographic\ (acquired, not yet ingested)
+  AIOE\                                  # acquired, not yet ingested — citation-only licence, NOT CC-BY
   ANZSCO\
   ASX\
   BLS\
   GDPval\
+  JSA-GenAI\                            # acquired, not yet ingested
   microsoft-working-with-ai\
   ONet\
   OpenAI-Exposure-Score\
+  OSCA\                                  # OSCA 2024 v1.0 (ABS) — FR-9.1 backbone, LOADED
 
 C:\Users\royst\.claude\                 # Global Claude Code config
   settings.json                         # Plugins, global permissions
@@ -192,6 +195,8 @@ python -m scripts.compute_industry_profiles --region AU --year 2025
 python -m scripts.ingest_abs_census_wpp
 python -m scripts.ingest_abs_census_w13
 python -m scripts.ingest_anzsic_subdivisions
+python -m scripts.ingest_osca                # FR-9.1 OSCA backbone (ADR-010) — requires ingest_abs to have run first
+python -m scripts.compute_osca_employment     # ANZSCO->OSCA employment apportionment — requires ingest_osca
 python -m scripts.ingest_asx_companies
 ```
 
@@ -204,7 +209,7 @@ python -m scripts.compute_gdpval_waterline --estimate
 ```powershell
 python -m pytest tests/test_data_invariants.py -v
 ```
-Expected: ~539,000 total rows across 33 tables. All invariant tests pass.
+Expected: ~553,500 total rows across 42 data tables (see `CLAUDE.md` Data Load Status for the authoritative per-table breakdown, including the FR-9.1 OSCA tables: `osca_occupations`, `osca_main_tasks`, `osca_anzsco_map`, `osca_isco_map`, `abs_employment_osca`). All invariant tests pass.
 
 ---
 

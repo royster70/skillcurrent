@@ -23,6 +23,13 @@ from app.models.microsoft_ai import (
     MsAiSocMetric,
     MsAiSocToIwa,
 )
+from app.models.osca import (
+    AbsEmploymentOsca,
+    OscaAnzscoMap,
+    OscaIscoMap,
+    OscaMainTask,
+    OscaOccupation,
+)
 from app.models.onet import (
     OnetAlternateTitle,
     OnetDwaReference,
@@ -66,6 +73,11 @@ __all__ = [
     "OnetTaskStatement",
     "OnetTaskToDwa",
     "OnetWorkActivity",
+    "AbsEmploymentOsca",
+    "OscaAnzscoMap",
+    "OscaIscoMap",
+    "OscaMainTask",
+    "OscaOccupation",
     "TaskDriftMetric",
     "TransformationLog",
 ]
