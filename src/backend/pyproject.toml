@@ -56,6 +56,19 @@ max-complexity = 10
 strict = true
 python_version = "3.12"
 
+# Third-party libraries without type stubs. Declared here so both the local
+# venv (where they are installed but untyped) and the pre-commit mypy hook
+# (isolated env, where they are absent) agree — avoids env-divergent per-line
+# ignores. sentence-transformers, pyreadr, pyarrow, openpyxl ship no py.typed.
+[[tool.mypy.overrides]]
+module = [
+    "sentence_transformers.*",
+    "pyreadr.*",
+    "pyarrow.*",
+    "openpyxl.*",
+]
+ignore_missing_imports = true
+
 [tool.pytest.ini_options]
 asyncio_mode = "auto"
 testpaths = ["tests"]

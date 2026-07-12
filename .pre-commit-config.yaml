@@ -17,7 +17,7 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        args: ["--strict", "--python-version=3.12"]
+        args: ["--strict", "--python-version=3.12", "--config-file=src/backend/pyproject.toml"]
         additional_dependencies:
           - "sqlalchemy[mypy]"
           - "pydantic"
