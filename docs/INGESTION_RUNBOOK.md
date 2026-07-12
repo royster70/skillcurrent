@@ -51,7 +51,16 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all migrations in order (currently 028), creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all migrations in order (currently 030), creating all tables documented in `docs/DATA_DICTIONARY.md`.
+
+> **Note (migrations 029/030):** `oews_employment.onet_soc` and
+> `industry_occupation_profiles.onet_soc` hold a **6-digit BLS SOC** (e.g.
+> `11-1011`), not the 8-digit O*NET-SOC (`11-1011.00`). Their original foreign
+> keys to `onet_occupations` were dropped (migrations 029/030) because they can
+> never match; the US profile compute prefix-joins O*NET (`onet_soc LIKE
+> ow.onet_soc || '%'`), and Microsoft/AEI join at 6-digit exact. If a clean
+> rebuild ever fails at `ingest_oews` with a FK violation, confirm migrations
+> 029/030 are applied.
 
 ---
 

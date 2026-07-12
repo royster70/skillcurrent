@@ -1238,3 +1238,6 @@ US-imported (`au_task.us_imported_beta`) and AU-native (`au_task.au_native_beta`
 | 025 | asc_specialist_task, asc_core_competency, asc_technology_tool — ASC v3.0 ingest (FR-9.2, ADR-011 B0/B1) |
 | 026 | dwa_embeddings, asc_task_embeddings, dwa_asc_bridge — semantic DWA↔ASC bridge infrastructure (FR-9.2, ADR-011 L2) |
 | 027 | au_task, au_occupation_exposure — unified AU task layer + AU-native exposure rollup (FR-9.2, ADR-011) |
+| 028 | au_occupation_exposure.us_task_beta + divergence — US-vs-AU occupation exposure divergence (FR-9.2) |
+| 029 | drop oews_employment→onet_occupations FK — `oews_employment.onet_soc` is a 6-digit BLS SOC, joined to O*NET by prefix (not the 8-digit O*NET-SOC) |
+| 030 | drop industry_occupation_profiles→onet_occupations FK — US rows key by 6-digit SOC (same convention as 029) |

@@ -218,12 +218,16 @@ python -m scripts.build_anzsco_concordance
 python -m scripts.compute_industry_profiles --region AU --year 2025
 python -m scripts.ingest_abs_census_wpp
 python -m scripts.ingest_abs_census_w13
+# Census subdivision x occupation (INDP x OCCP) — needs explicit CSV path + level
+python -m scripts.ingest_census_subdivision_occ "C:\Users\royst\Projects\Data\ABS-2021-Census\IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv" --level 2
+python -m scripts.ingest_census_subdivision_occ "C:\Users\royst\Projects\Data\ABS-2021-Census\L3_CDGK_Industry_cat.csv" --level 3
 python -m scripts.ingest_anzsic_subdivisions
 python -m scripts.ingest_osca                # FR-9.1 OSCA backbone (ADR-010) — requires ingest_abs to have run first
 python -m scripts.compute_osca_employment     # ANZSCO->OSCA employment apportionment — requires ingest_osca
 python -m scripts.ingest_asc                  # FR-9.2 ASC v3.0 ingest (ADR-011) — requires the .rda files acquired via strayr, in Data\ASC\
 python -m scripts.build_dwa_asc_bridge        # semantic DWA<->ASC bridge (ADR-011 L2) — requires ingest_asc; needs the all-MiniLM-L6-v2 model (network on first run)
 python -m scripts.compute_au_task_layer       # AU task layer + occupation exposure rollup — requires build_dwa_asc_bridge + ingest_osca's osca_anzsco_map
+python -m scripts.compute_us_au_divergence    # US-vs-AU occupation exposure divergence — requires compute_au_task_layer + O*NET tasks + anzsco_soc_concordance
 python -m scripts.ingest_asx_companies
 ```
 
@@ -435,6 +439,6 @@ docker start workforce-pg
 | `No module named 'sentence_transformers'` at `embed_titles` | Declared core dep; ensure `pip install -e ".[dev]"` completed |
 | `Unable to find a usable engine` / parquet read fails (`ingest_gdpval`) | `pyarrow` missing — re-run `pip install -e ".[dev]"` |
 | `ingest_epoch_eci` `KeyError` on a CSV column | Upstream Epoch schema drift; the loader guards optional columns — patch if a *required* column changes |
-| `ingest_oews` FK violation (`onet_soc` not in `onet_occupations`) | Known: O*NET 8-digit vs OEWS 6-digit SOC mismatch — see the OEWS ingest fix |
+| `ingest_oews` FK violation (`onet_soc` not in `onet_occupations`) | FIXED in migrations 029/030 (drop the wrong 6-vs-8-digit FKs on `oews_employment` + `industry_occupation_profiles`). If it recurs, run `alembic upgrade head` to apply them. `onet_soc` there is a 6-digit BLS SOC, joined to O*NET by prefix. |
 | Commit bypasses black/ruff/mypy | `pre-commit install` not run (Phase 8) |
 | pre-commit hooks not running | Run `pre-commit install` from project root |
