@@ -54,6 +54,7 @@ C:\Users\royst\Projects\Data\           # All source data (13 directories)
   ONet\
   OpenAI-Exposure-Score\
   OSCA\                                  # OSCA 2024 v1.0 (ABS) — FR-9.1 backbone, LOADED
+  ASC\                                    # Australian Skills Classification v3.0 (JSA), strayr .rda files — FR-9.2 task layer, LOADED
 
 C:\Users\royst\.claude\                 # Global Claude Code config
   settings.json                         # Plugins, global permissions
@@ -220,6 +221,9 @@ python -m scripts.ingest_abs_census_w13
 python -m scripts.ingest_anzsic_subdivisions
 python -m scripts.ingest_osca                # FR-9.1 OSCA backbone (ADR-010) — requires ingest_abs to have run first
 python -m scripts.compute_osca_employment     # ANZSCO->OSCA employment apportionment — requires ingest_osca
+python -m scripts.ingest_asc                  # FR-9.2 ASC v3.0 ingest (ADR-011) — requires the .rda files acquired via strayr, in Data\ASC\
+python -m scripts.build_dwa_asc_bridge        # semantic DWA<->ASC bridge (ADR-011 L2) — requires ingest_asc; needs the all-MiniLM-L6-v2 model (network on first run)
+python -m scripts.compute_au_task_layer       # AU task layer + occupation exposure rollup — requires build_dwa_asc_bridge + ingest_osca's osca_anzsco_map
 python -m scripts.ingest_asx_companies
 ```
 
@@ -232,7 +236,7 @@ python -m scripts.compute_gdpval_waterline --estimate
 ```powershell
 python -m pytest tests/test_data_invariants.py -v
 ```
-Expected: ~553,500 total rows across 42 data tables (see `CLAUDE.md` Data Load Status for the authoritative per-table breakdown, including the FR-9.1 OSCA tables: `osca_occupations`, `osca_main_tasks`, `osca_anzsco_map`, `osca_isco_map`, `abs_employment_osca`). All invariant tests pass.
+Expected: ~602,600 total rows across 50 data tables (see `CLAUDE.md` Data Load Status for the authoritative per-table breakdown, including the FR-9.1 OSCA tables: `osca_occupations`, `osca_main_tasks`, `osca_anzsco_map`, `osca_isco_map`, `abs_employment_osca`, and the FR-9.2 AU task layer tables: `asc_specialist_task`, `asc_core_competency`, `asc_technology_tool`, `dwa_embeddings`, `asc_task_embeddings`, `dwa_asc_bridge`, `au_task`, `au_occupation_exposure`). All invariant tests pass.
 
 ---
 

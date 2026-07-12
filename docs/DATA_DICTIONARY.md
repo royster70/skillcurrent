@@ -872,6 +872,183 @@ AU employment apportioned ANZSCO → OSCA per the ADR-010 ladder. 2,997 rows —
 
 ---
 
+## AU Task Layer (FR-9.2, ADR-011)
+
+The AU task-level plane, pivoted on the O*NET **DWA** grain. Australian Skills Classification (ASC) v3.0 specialist tasks were built from O*NET DWAs, so they are the exposure carrier; OSCA (see above) remains the occupation backbone and descriptor layer only. Full design rationale, the decision ladder (L0–L4), and the B0 gating-spike finding (ASC v3.0 exposes no source-DWA column, so the bridge must be semantic): `ai_working/decisions/ADR-011-au-task-exposure-dwa-pivot-ladder.md`.
+
+### asc_specialist_task
+
+Australian Skills Classification (ASC) v3.0 specialist tasks, ANZSCO-keyed. 10,963 rows. **The AU task-level exposure carrier** — these tasks were built from O*NET DWAs (JSA methodology 21.2/23.1), reworded and clustered for AU, but the published files carry no source-DWA identifier.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsco_code | TEXT | NO | 4-digit ANZSCO unit group code |
+| anzsco_name | TEXT | YES | ANZSCO unit group title |
+| specialist_task | TEXT | NO | Task description text |
+| percent_of_time_spent_on_task | FLOAT | YES | Source-provided importance weight, used as the DWA-beta aggregation weight |
+| specialist_cluster | TEXT | YES | Parent task cluster label |
+| percent_of_time_spent_on_cluster | FLOAT | YES | Cluster-level time share |
+| cluster_family | TEXT | YES | Parent cluster family label |
+| percent_of_time_spent_on_family | FLOAT | YES | Family-level time share |
+| source_dwa_id | TEXT | YES | Reserved for a future lineage-bearing ASC release (ADR-011 L1); always NULL for v3.0 (B0 finding) |
+| asc_version | TEXT | NO | Default "3.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_asc_specialist_task_anzsco` (anzsco_code), `ix_asc_specialist_task_dwa` (source_dwa_id)
+- **Migration**: 025
+- **Populated by**: `python -m scripts.ingest_asc` (reads `strayr` package `.rda` files via `pyreadr`)
+- **Coverage**: 600 distinct ANZSCO codes; all 600 resolve to at least one OSCA occupation via `osca_anzsco_map` (verified 600/600 = 100%, reusing the ADR-010 4-digit→OSCA expansion)
+
+### asc_core_competency
+
+ASC v3.0 core competencies, ANZSCO-keyed. 6,000 rows. 10 competencies scored 1–10 with a proficiency level and anchor description.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsco_code | TEXT | NO | 4-digit ANZSCO unit group code |
+| anzsco_name | TEXT | YES | ANZSCO unit group title |
+| core_competency | TEXT | NO | Competency name (one of 10) |
+| score | FLOAT | YES | Score 1–10 |
+| proficiency_level | TEXT | YES | Proficiency band label |
+| anchor_value | TEXT | YES | Anchor/benchmark description text |
+| asc_version | TEXT | NO | Default "3.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_asc_core_competency_anzsco` (anzsco_code)
+- **Migration**: 025
+- **Populated by**: `python -m scripts.ingest_asc`
+
+### asc_technology_tool
+
+ASC v3.0 technology tools, ANZSCO-keyed. 1,989 rows.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsco_code | TEXT | NO | 4-digit ANZSCO unit group code |
+| anzsco_name | TEXT | YES | ANZSCO unit group title |
+| technology_tool | TEXT | NO | Tool/technology name |
+| asc_version | TEXT | NO | Default "3.0" |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_asc_technology_tool_anzsco` (anzsco_code)
+- **Migration**: 025
+- **Populated by**: `python -m scripts.ingest_asc`
+
+### dwa_embeddings
+
+Sentence-transformer embeddings for O*NET DWA titles — one side of the ADR-011 L2 semantic bridge. 2,087 rows (one per `onet_dwa_references` row with a non-null title). Raw-SQL access (no ORM model), mirroring `onet_title_embeddings` (migration 012).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| dwa_id | TEXT | NO | DWA code (unique) |
+| dwa_title | TEXT | YES | DWA description text that was embedded |
+| embedding | VECTOR(384) | YES | 384-dimensional sentence-transformer embedding (all-MiniLM-L6-v2) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: `dwa_id`
+- **Indexes**: `ix_dwa_embeddings_vec` — HNSW (embedding, cosine ops)
+- **Migration**: 026
+- **Populated by**: `python -m scripts.build_dwa_asc_bridge`
+
+### asc_task_embeddings
+
+Sentence-transformer embeddings for distinct ASC specialist-task texts — the other side of the ADR-011 L2 bridge. 1,925 rows (distinct task text, not one row per `asc_specialist_task` — the same task recurs across occupations).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| specialist_task | TEXT | NO | Distinct ASC task text that was embedded (unique) |
+| embedding | VECTOR(384) | YES | 384-dimensional sentence-transformer embedding (all-MiniLM-L6-v2) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: `specialist_task`
+- **Indexes**: `ix_asc_task_embeddings_vec` — HNSW (embedding, cosine ops)
+- **Migration**: 026
+- **Populated by**: `python -m scripts.build_dwa_asc_bridge`
+
+### dwa_asc_bridge
+
+The semantic DWA↔ASC-task bridge (ADR-011 L2 — the live measured task-level rung; there is no L1 for ASC v3.0). Top-3 nearest O*NET DWA per distinct ASC task text, cosine floor 0.60. 5,033 rows.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| specialist_task | TEXT | NO | ASC task text (joins `asc_task_embeddings.specialist_task` / `asc_specialist_task.specialist_task`) |
+| dwa_id | TEXT | NO | Matched O*NET DWA code |
+| cosine_similarity | FLOAT | NO | Raw cosine similarity between task and DWA embeddings |
+| confidence | FLOAT | NO | Equal to `cosine_similarity` — confidence is never fabricated or blended |
+| method | TEXT | NO | Default "semantic" |
+| rank | INTEGER | YES | Match rank per task (1 = nearest) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_dwa_asc_bridge_task` (specialist_task), `ix_dwa_asc_bridge_dwa` (dwa_id)
+- **Migration**: 026
+- **Populated by**: `python -m scripts.build_dwa_asc_bridge` (`app/services/dwa_asc_bridge.py`, `@tracked_transformation`)
+- **Match quality (verified)**: 1,923 of 1,925 distinct ASC task texts matched (99.9%); 1,201 rank-1 matches ≥0.95 cosine similarity; 120 matches within 0.01 of the 0.60 floor
+
+### au_task
+
+The unified AU task layer — one row per (OSCA occupation × task). Attaches DWA-derived exposure to ASC specialist tasks and expands them to their OSCA occupation(s). 20,329 rows.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | OSCA occupation code |
+| anzsco_code | TEXT | YES | Source ANZSCO occupation code |
+| task_source | TEXT | NO | `ASC_specialist` \| `OSCA_main` \| `VET_uoc` |
+| task_text | TEXT | NO | Task description text |
+| percent_of_time | FLOAT | YES | ASC importance weight (`percent_of_time_spent_on_task`), used for the rollup weighting |
+| task_level_available | BOOLEAN | NO | Default `false`; `true` iff the task reached a measured rung (L1 or L2) |
+| task_level_method | TEXT | NO | Default "NA"; `T2` (semantic bridge match) for all currently-measured rows — there is no L1 for ASC v3.0 |
+| confidence | FLOAT | YES | Bridge cosine similarity (max cosine across matched DWAs for this task) |
+| matched_dwa_id | TEXT | YES | Top-matched DWA id (by cosine) |
+| us_imported_beta | FLOAT | YES | Reserved for the FR-8.9 US-imported occupation-level value; not populated by this compute step |
+| au_native_beta | FLOAT | YES | AU-native task exposure — cosine-weighted average of `AVG(dv_beta_derived)` across matched DWAs |
+| au_native_beta_soc | FLOAT | YES | Reserved for a later SOC-specific fallback-ladder refinement; not yet populated (decision: global-AVG is primary) |
+| beta_source | TEXT | YES | `global_avg` when `au_native_beta` is populated; NULL otherwise |
+| us_au_divergence | BOOLEAN | YES | Reserved flag for US vs AU exposure divergence; not yet populated |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_au_task_osca` (osca_code), `ix_au_task_source` (task_source), `ix_au_task_method` (task_level_method)
+- **Check constraint**: `ck_au_task_osca_main_no_exposure` — `task_source <> 'OSCA_main' OR au_native_beta IS NULL`; OSCA main tasks are descriptor_only and can never carry task-level exposure (consistent with `osca_main_tasks.descriptor_only`)
+- **Migration**: 027
+- **Populated by**: `python -m scripts.compute_au_task_layer` (`app/services/compute_au_task_layer.py`, `@tracked_transformation`); requires `asc_specialist_task`, `dwa_asc_bridge`, `eloundou_dwa_scores`, and `osca_anzsco_map` to be loaded first
+- **Verified results**: 20,329 rows, 20,322 measured (99.97%, all `task_level_method = 'T2'`), 960 of 1,156 OSCA occupations carry at least one measured AU-native task (the remaining 196 have zero ASC coverage — task-level `NA`, not zero exposure)
+
+### au_occupation_exposure
+
+Task-weighted AU-native exposure rollup per OSCA occupation, with an honest measured-task coverage percentage. 960 rows (one per OSCA occupation with ≥1 `ASC_specialist` task).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| osca_code | TEXT | NO | OSCA occupation code (unique) |
+| au_task_beta | FLOAT | YES | Time-weighted mean of measured (`au_native_beta IS NOT NULL`) task exposures for this occupation |
+| task_count | INTEGER | YES | Total `ASC_specialist` task rows for this occupation |
+| measured_task_count | INTEGER | YES | Count with `au_native_beta IS NOT NULL` |
+| coverage_pct | FLOAT | YES | `100 * measured_task_count / task_count`, rounded to 1 decimal |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: `osca_code`
+- **Indexes**: `ix_au_occ_exposure_osca` (osca_code)
+- **Migration**: 027
+- **Populated by**: `python -m scripts.compute_au_task_layer`
+- **Note**: This is a distinct plane from occupation-level zone Beta (`eloundou_occ_scores`/`industry_occupation_profiles`) — it is not recomputed here and remains the near-complete top-down occupation exposure signal even where AU task-level detail is unavailable (ADR-011 L0).
+
+---
+
 ## Join Paths
 
 O*NET 8-digit SOC codes are the anchor for the entire data model. Different datasets use different SOC granularities and join strategies.
@@ -1006,6 +1183,28 @@ osca_isco_map.osca_code = osca_occupations.osca_code
 
 `industry_occupation_profiles.osca_code` was added in migration 023 but is **not yet populated** — it requires the `onet_soc → anzsco → osca` chain with employment apportionment for many-to-many correspondences, which is a future computation step (not a schema migration), so split correspondences apportion correctly rather than double-count.
 
+### AU task-level exposure — the DWA pivot (FR-9.2, ADR-011)
+
+`au_task` attaches DWA-grain exposure to AU-native task structure. There is no direct O*NET-task → OSCA-task join (OSCA main tasks have no DWA linkage); the path runs through the ASC specialist-task layer and the semantic bridge instead:
+
+```sql
+-- DWA -> exposure (existing, unchanged):
+eloundou_dwa_scores.dwa_id = onet_dwa_references.dwa_id
+
+-- DWA <-> ASC task (semantic, ADR-011 L2 — soft reference, no FK; text-keyed):
+dwa_asc_bridge.dwa_id = onet_dwa_references.dwa_id
+dwa_asc_bridge.specialist_task = asc_specialist_task.specialist_task
+
+-- ASC task -> OSCA occupation (ANZSCO expansion, reuses the ADR-010 4-digit->OSCA pattern):
+asc_specialist_task.anzsco_code = osca_anzsco_map.anzsco_code  -- or a 4-digit prefix match
+osca_anzsco_map.osca_code = osca_occupations.osca_code
+
+-- Rollup:
+au_task.osca_code = au_occupation_exposure.osca_code  -- one occupation-level row per osca_code
+```
+
+US-imported (`au_task.us_imported_beta`) and AU-native (`au_task.au_native_beta`) exposure are stored in separate columns on the same row and must never be blended into a single value — a divergence between them is the publishable signal, not noise (`us_au_divergence`, reserved, not yet populated).
+
 ---
 
 ## Migration History
@@ -1036,3 +1235,6 @@ osca_isco_map.osca_code = osca_occupations.osca_code
 | 022 | Add INDP granularity level column to abs_census_subdivision_occ |
 | 023 | osca_occupations, osca_main_tasks, osca_anzsco_map, osca_isco_map — OSCA 2024 v1.0 backbone (FR-9.1); nullable osca_code added to abs_employment and industry_occupation_profiles |
 | 024 | abs_employment_osca — ANZSCO→OSCA employment apportionment (FR-9.1, ADR-010) |
+| 025 | asc_specialist_task, asc_core_competency, asc_technology_tool — ASC v3.0 ingest (FR-9.2, ADR-011 B0/B1) |
+| 026 | dwa_embeddings, asc_task_embeddings, dwa_asc_bridge — semantic DWA↔ASC bridge infrastructure (FR-9.2, ADR-011 L2) |
+| 027 | au_task, au_occupation_exposure — unified AU task layer + AU-native exposure rollup (FR-9.2, ADR-011) |

@@ -22,6 +22,22 @@ Local data directory: `C:\Users\royst\Projects\Data\` (outside the git repo, not
 | Used by | FR-9.1 — `osca_occupations`, `osca_main_tasks`, `osca_anzsco_map`, `osca_isco_map`, `abs_employment_osca` (see ADR-010) |
 | Ingestion | `python -m scripts.ingest_osca` + `python -m scripts.compute_osca_employment` |
 
+## Australian Skills Classification (ASC) v3.0 (JSA)
+
+| Field | Value |
+|-------|-------|
+| Publisher | Jobs and Skills Australia (JSA) |
+| Dataset | Australian Skills Classification (ASC) v3.0 — specialist tasks, core competencies, technology tools |
+| URL | https://www.jobsandskills.gov.au/data/australian-skills-classification |
+| Acquisition method | `runapp-aus/strayr` R package `.rda` files, read with `pyreadr` (declared dependency, `pyreadr>=0.5` in `pyproject.toml`) — not a direct CSV/Excel download |
+| Licence | CC BY 4.0 |
+| Redistribution OK | Yes (CC BY 4.0 — attribution required) |
+| Local path | `C:\Users\royst\Projects\Data\ASC\` |
+| Files | `asc_specialist_tasks.rda`, `asc_core_competencies.rda`, `asc_technology_tools.rda` (also acquired but not read by the ingest script: `asc_core_competencies_descriptions.rda`, `asc_descriptions.rda`) |
+| Status | LOADED — `asc_specialist_task` (10,963), `asc_core_competency` (6,000), `asc_technology_tool` (1,989) |
+| Used by | FR-9.2 (ADR-011) — the AU-native task-level exposure carrier; specialist tasks were built from O*NET DWAs (JSA methodology 21.2/23.1) but the published files carry no source-DWA column (`source_dwa_id` stays NULL — B0 spike finding), so exposure attaches via the semantic `dwa_asc_bridge` (migration 026) rather than a direct lookup |
+| Ingestion | `python -m scripts.ingest_asc` |
+
 ## JSA "Our Gen AI Transition" (Aug 2025)
 
 | Field | Value |
@@ -70,4 +86,4 @@ Local data directory: `C:\Users\royst\Projects\Data\` (outside the git repo, not
 
 ## Established sources (loaded, cross-reference)
 
-For O*NET, Eloundou, Microsoft "Working with AI", AEI labour market/temporal, BLS OEWS, ABS/JSA employment, ABS Census 2021, Epoch AI ECI, and OpenAI GDPval — see the "Data Sources Quick Reference" section of `CLAUDE.md`, which is kept as the single source of truth for those entries. This registry (`docs/data-sources.md`) currently documents only the FR-9.1 OSCA backbone source plus the three newly acquired-but-not-yet-ingested sources (JSA Gen AI, AEI geographic, AIOE); expand it with the established sources' URL/version/licence/redistribution_ok fields the next time this file is touched, to avoid the two documents drifting.
+For O*NET, Eloundou, Microsoft "Working with AI", AEI labour market/temporal, BLS OEWS, ABS/JSA employment, ABS Census 2021, Epoch AI ECI, and OpenAI GDPval — see the "Data Sources Quick Reference" section of `CLAUDE.md`, which is kept as the single source of truth for those entries. This registry (`docs/data-sources.md`) currently documents the FR-9.1 OSCA backbone source, the FR-9.2 ASC v3.0 source, plus the three newly acquired-but-not-yet-ingested sources (JSA Gen AI, AEI geographic, AIOE); expand it with the established sources' URL/version/licence/redistribution_ok fields the next time this file is touched, to avoid the two documents drifting.

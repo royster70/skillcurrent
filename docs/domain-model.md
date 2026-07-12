@@ -6,9 +6,9 @@ Written for AI-assisted development. Contains data source contracts, invariants,
 
 ## 1. O*NET 28.1 — File Contracts
 
-**Source**: Downloaded files from onetcenter.org/database.html — use versioned files, NOT the web API  
-**Format**: Tab-delimited .txt, UTF-8  
-**SOC code format**: `"XX-XXXX.XX"` (e.g., `"15-1252.00"`) — always with decimal, always quoted in SQL  
+**Source**: Downloaded files from onetcenter.org/database.html — use versioned files, NOT the web API
+**Format**: Tab-delimited .txt, UTF-8
+**SOC code format**: `"XX-XXXX.XX"` (e.g., `"15-1252.00"`) — always with decimal, always quoted in SQL
 **Version field**: Store `"28.1"` with every derived record; bump triggers full re-matching + re-scoring
 
 | File | Rows | Key Columns |
@@ -88,7 +88,7 @@ Written for AI-assisted development. Contains data source contracts, invariants,
 
 ## 3. Anthropic Economic Index (AEI) — Temporal Snapshots
 
-**Source**: HuggingFace dataset (CC-BY). Multiple releases; append on each new release.  
+**Source**: HuggingFace dataset (CC-BY). Multiple releases; append on each new release.
 **Content**: O*NET task statements matched to Claude conversation patterns (empirical usage data)
 
 **CRITICAL ingestion rules**:
@@ -110,8 +110,8 @@ augmentation_pct = task_iteration_pct + learning_pct + validation_pct
 
 ## 4. GPTVal — Longitudinal Capability Tracking
 
-**Purpose**: Tracks AI capability growth across model generations — the "velocity" of the rising waterline  
-**Versioning**: One record per (capability_dimension, model_era). Never update existing records.  
+**Purpose**: Tracks AI capability growth across model generations — the "velocity" of the rising waterline
+**Versioning**: One record per (capability_dimension, model_era). Never update existing records.
 **Model eras** (sequential): `sonnet-3.5` → `sonnet-3.7` → `sonnet-4` → `sonnet-4.5` → ...
 
 **What GPTVal enables**:
@@ -125,7 +125,7 @@ augmentation_pct = task_iteration_pct + learning_pct + validation_pct
 
 ## 5. Industry Classification & Crosswalk
 
-**US**: NAICS 2022 — 20 sectors, used with BLS OEWS for headcount weighting  
+**US**: NAICS 2022 — 20 sectors, used with BLS OEWS for headcount weighting
 **Australia/NZ**: ANZSIC 2006 Rev.2 — 19 divisions (A–S), used with ABS/JSA data
 **Bridge**: ISIC Rev.4 — UN standard that both NAICS and ANZSIC map to via official concordance tables
 
@@ -144,8 +144,8 @@ Last revision: 2006 (Rev.2, current). ABS consulted on ISIC Rev.5 adoption in 20
 (target_system, target_code) ← e.g. ('ANZSIC_2006', 'D261')
 ```
 
-**Match type field**: `'exact'`, `'partial'`, `'split'`, `'merge'`  
-**Weight field**: For one-to-many splits (e.g., one NAICS → two ANZSIC at 0.6/0.4 proportion)  
+**Match type field**: `'exact'`, `'partial'`, `'split'`, `'merge'`
+**Weight field**: For one-to-many splits (e.g., one NAICS → two ANZSIC at 0.6/0.4 proportion)
 **MVP scope**: Populate US side only (NAICS + OEWS). ANZSIC crosswalk populated per engagement.
 
 **CRITICAL**: The drift engine and O*NET task analysis are completely independent of which industry classification system is active. Industry crosswalk affects only: (a) which NAICS/ANZSIC label is shown in the UI, and (b) which headcount weighting source is used. The underlying SOC codes and task drift calculations never change.
@@ -175,7 +175,7 @@ Last revision: 2006 (Rev.2, current). ABS consulted on ISIC Rev.5 adoption in 20
 - `osca_isco_map` (1,448) — official OSCA↔ISCO-08 correspondence
 - `abs_employment_osca` (2,997) — AU employment apportioned ANZSCO→OSCA, method-tagged
 
-**Invariant — OSCA main tasks are never an exposure carrier**: `osca_main_tasks.descriptor_only` is always `true`. These rows are validation/descriptor text only; they must never be joined into any Eloundou/Microsoft/AEI exposure scoring path. The task-level exposure carrier for AU occupations is a future component (ASC specialist task, FR-9.2 — **not yet built**; do not reference `app/models/asc.py` as existing).
+**Invariant — OSCA main tasks are never an exposure carrier**: `osca_main_tasks.descriptor_only` is always `true`. These rows are validation/descriptor text only; they must never be joined into any Eloundou/Microsoft/AEI exposure scoring path. The task-level exposure carrier for AU occupations is the Australian Skills Classification (ASC) specialist task layer, built in FR-9.2 — see section 5b below.
 
 **Invariant — apportionment reconciliation (ADR-010)**: `abs_employment` publishes AU employment at two overlapping ANZSCO granularities (4-digit unit group and 6-digit occupation). `abs_employment_osca` applies a double-count guard (A0): 6-digit rows are always the apportionment source; a 4-digit row is used only for the portion with no 6-digit children in `abs_employment`. `SUM(abs_employment_osca.apportioned_employment)` reconciles exactly to the de-duplicated ANZSCO base — verified 9,612,166 = 9,612,166. Apportionment redistributes; it never creates or destroys employment.
 
@@ -190,6 +190,33 @@ ADR-010 documents a third rung, `apportioned_employment` (A2 — weighted by hel
 **`industry_occupation_profiles.osca_code`**: Added (migration 023), nullable, **not yet populated**. Populating it requires the `onet_soc → anzsco → osca` chain with employment apportionment for many-to-many correspondences — deliberately left to a future AU-profile compute step rather than backfilled in the schema migration, so split correspondences apportion correctly rather than double-count.
 
 **Versioning**: `osca_version` (currently `"2024.1.0"`) is stored on every OSCA-derived record, following the same rule as `onet_version` elsewhere in this document.
+
+---
+
+## 5b. AU Task-Level Exposure — the DWA Pivot (FR-9.2, ADR-011)
+
+**Problem**: the platform's AI-exposure signals (Eloundou, Microsoft) are scored at O\*NET **DWA** grain (17,537 `eloundou_dwa_scores` rows). OSCA's main tasks have no DWA linkage (5a above), so there is no direct way to give Australian occupations task-level exposure detail the way US occupations have it via `onet_tasks_to_dwas`.
+
+**Solution — pivot on the DWA, with the Australian Skills Classification (ASC) specialist task as the carrier**. Full design, the L0–L4 decision ladder, and the B0 gating-spike finding: `ai_working/decisions/ADR-011-au-task-exposure-dwa-pivot-ladder.md`.
+
+**Source**: Australian Skills Classification (ASC) v3.0 (Jobs and Skills Australia), acquired via the `runapp-aus/strayr` R package `.rda` files (read with `pyreadr`, a declared dependency). Licence CC BY 4.0. Three layers, all keyed on 4-digit ANZSCO:
+- `asc_specialist_task` (10,963) — the exposure carrier; built from O*NET DWAs per JSA methodology, but the **published files carry no source-DWA/O*NET/IWA identifier column** (confirmed by the B0 spike, 2026-07-12)
+- `asc_core_competency` (6,000) — 10 competencies × score/proficiency/anchor
+- `asc_technology_tool` (1,989)
+
+**B0 finding — why the bridge must be semantic**: because ASC v3.0 exposes no lineage column, an `L1 dwa_lookup` join is impossible. `asc_specialist_task.source_dwa_id` stays `NULL` and is reserved only in case a future ASC release publishes lineage. The live measured rung is **L2 — semantic**: O\*NET DWA titles and distinct ASC specialist-task texts are embedded with the existing `all-MiniLM-L6-v2` + pgvector stack (`dwa_embeddings`, `asc_task_embeddings`), and top-3 nearest DWA per task is recorded in `dwa_asc_bridge` at a cosine floor of 0.60. This is reliable specifically because ASC tasks are reworded DWAs, so the texts are close by construction — verified: 1,923/1,925 distinct tasks matched (99.9%), 1,201 rank-1 matches ≥0.95 cosine similarity.
+
+**Attachment**: each ASC task's exposure is the cosine-weighted average of `AVG(dv_beta_derived)` (global, per matched DWA — the same distributed-DWA scale the existing US task_matrix uses, so US and AU task exposure are directly comparable) across its matched DWA(s), weighted at the occupation level by ASC's own `percent_of_time_spent_on_task`. Tasks are expanded from their 4-digit ANZSCO code to OSCA occupation(s) by reusing the ADR-010 4-digit→OSCA expansion pattern, then rolled up to a task-weighted occupation exposure in `au_occupation_exposure`.
+
+**Tables** (migrations 025–027 — see `docs/DATA_DICTIONARY.md` for full column detail): `asc_specialist_task`, `asc_core_competency`, `asc_technology_tool`, `dwa_embeddings`, `asc_task_embeddings`, `dwa_asc_bridge`, `au_task`, `au_occupation_exposure`.
+
+**Invariant — availability vs confidence are separate fields, never conflated**: `au_task.task_level_available` (boolean) is `true` iff a task reached a *measured* rung (L1 or L2); `au_task.task_level_method` records which rung (`T2` for all currently-measured rows — there is no live L1). `au_task.confidence` is always the bridge cosine similarity, never a fabricated or blended score. Headline/publishable metrics use L1+L2 only; the derived rungs (L3a/L3b) described in ADR-011 are not yet implemented.
+
+**Invariant — OSCA main tasks reject task-level exposure**: `au_task` has a database CHECK constraint (`ck_au_task_osca_main_no_exposure`: `task_source <> 'OSCA_main' OR au_native_beta IS NULL`), enforcing the 5a rule at the schema level, not just by convention.
+
+**Invariant — US-imported and AU-native exposure never blend**: `au_task.us_imported_beta` (reserved, not yet populated) and `au_task.au_native_beta` are separate columns. A `us_au_divergence` boolean (reserved, not yet populated) is intended to flag disagreement between the two as a first-class, publishable insight — not silently averaged away.
+
+**Coverage (verified, 2026-07-12)**: 20,329 `au_task` rows, 99.97% measured (20,322/20,329, all tier T2). 960 of 1,156 OSCA occupations carry at least one measured AU-native task; the remaining 196 have no ASC coverage and are task-level `NA` — which is not the same as "no exposure": `au_occupation_exposure`/`eloundou_occ_scores` remain the near-complete occupation-level plane per ADR-011 L0, so "no task detail" never reads as "no exposure".
 
 ---
 
@@ -278,6 +305,7 @@ C-suite protection:
 | ABS Census WPP (W12A/W13) | Per Census release (~5 years) | Re-run `ingest_abs_census_wpp.py` + `ingest_abs_census_w13.py`; 2026 Census expected |
 | ANZSIC subdivisions | Per JSA Industry Data release (~annual) | Re-run `ingest_anzsic_subdivisions.py` from Table 3 of JSA Industry Data |
 | OSCA backbone + correspondences | Per ABS OSCA release (new — no precedent yet) | Re-run `ingest_osca.py`, then `compute_osca_employment.py` (depends on `ingest_osca` + latest `abs_employment`) |
+| ASC + DWA-ASC bridge + AU task layer | Per JSA ASC release (new — no precedent yet) | Re-run `ingest_asc.py`, then `build_dwa_asc_bridge.py` (re-embeds and re-matches — network required for the model on first run), then `compute_au_task_layer.py` (depends on the bridge + latest `osca_anzsco_map` + `eloundou_dwa_scores`) |
 | GPTVal | Per model release | Append new model era rows; update velocity calculations |
 | Microsoft "Working with AI" | Per paper release | Update on new dataset release; re-score occupations |
 | Eloundou scores | Static (occupation-level loaded) | DWA-level derivation is a computation step, not a new data load |
@@ -290,7 +318,7 @@ Platform must expose the current version of each dataset in: API response header
 
 ```sql
 -- Tables (snake_case, plural)
-employees, onet_matches, aei_task_snapshots, onet_occupations, 
+employees, onet_matches, aei_task_snapshots, onet_occupations,
 exposure_scores, audit_logs, industry_crosswalk, gptval_benchmarks,
 role_task_snapshots, industry_occupation_profiles
 
@@ -301,7 +329,7 @@ manager_team_view, executive_dashboard_view
 onet_soc          -- TEXT, format "XX-XXXX.XX"
 hierarchy_path    -- TEXT[], e.g. ['CEO', 'VP1', 'MGR1', 'IC1']
 is_leaf_node      -- BOOLEAN
-is_executive      -- BOOLEAN  
+is_executive      -- BOOLEAN
 exposure_e0/e1/e2 -- FLOAT, 0.0–1.0
 beta_score        -- FLOAT, computed as E1 + 0.5*E2
 automation_zone   -- TEXT, one of 'E0', 'E1', 'E2'
