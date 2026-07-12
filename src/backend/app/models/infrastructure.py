@@ -1,8 +1,9 @@
 """Infrastructure models: dataset versioning (ADR-002) and transformation lineage (ADR-001)."""
 
 from datetime import datetime
+from typing import Any
 
-from sqlalchemy import Float, Integer, Text, func
+from sqlalchemy import Integer, Text, func
 from sqlalchemy.dialects.postgresql import JSONB
 from sqlalchemy.orm import Mapped, mapped_column
 
@@ -26,11 +27,9 @@ class DatasetVersion(Base):
     row_count: Mapped[int] = mapped_column(Integer, nullable=False)
     integrity_hash: Mapped[str] = mapped_column(Text, nullable=False)
     source_url: Mapped[str | None] = mapped_column(Text)
-    metadata_: Mapped[dict | None] = mapped_column("metadata", JSONB)
+    metadata_: Mapped[dict[str, Any] | None] = mapped_column("metadata", JSONB)
 
-    __table_args__ = (
-        {"schema": None},
-    )
+    __table_args__ = ({"schema": None},)
 
     # UniqueConstraint defined in migration to keep model clean
 
@@ -52,7 +51,7 @@ class DatasetVersionDelta(Base):
     records_added: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     records_removed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
     records_changed: Mapped[int] = mapped_column(Integer, nullable=False, server_default="0")
-    delta_detail: Mapped[dict] = mapped_column(JSONB, nullable=False)
+    delta_detail: Mapped[dict[str, Any]] = mapped_column(JSONB, nullable=False)
 
 
 class TransformationLog(Base):
@@ -68,7 +67,8 @@ class TransformationLog(Base):
     name: Mapped[str] = mapped_column(Text, nullable=False)
     source_tables: Mapped[list[str]] = mapped_column(
         # stored as JSONB array since ARRAY(Text) requires PostgreSQL-specific handling
-        JSONB, nullable=False
+        JSONB,
+        nullable=False,
     )
     target_table: Mapped[str] = mapped_column(Text, nullable=False)
     started_at: Mapped[datetime] = mapped_column(server_default=func.now())
@@ -76,4 +76,4 @@ class TransformationLog(Base):
     rows_affected: Mapped[int | None] = mapped_column(Integer)
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="running")
     error_message: Mapped[str | None] = mapped_column(Text)
-    parameters: Mapped[dict | None] = mapped_column(JSONB)
+    parameters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)

@@ -67,6 +67,19 @@ C:\Users\royst\.claude\projects\        # Project-specific memory
     project_session_*.md                # Session logs (6 files)
 ```
 
+### ⚠ DB tables that CANNOT be regenerated from `Data\` — dump BEFORE rebuild
+
+Most tables re-ingest from source files, but these are **paid API output / LLM caches**
+that exist only in the database. The 2026-07 rebuild lost `gdpval_evaluations`
+(~$50 of Claude API evals) because no dump existed. Do not repeat that:
+
+```powershell
+docker exec workforce-pg pg_dump -U workforce -d workforce_ai --data-only `
+  -t gdpval_evaluations -t company_classifications > db_paid_tables_backup.sql
+# Restore after migrations on the new machine:
+#   Get-Content db_paid_tables_backup.sql | docker exec -i workforce-pg psql -U workforce -d workforce_ai
+```
+
 ### Files in the git repo (restored by clone)
 - `.claude/settings.json` — project permissions, hooks, env vars
 - `.claude/settings.local.json` — 115 granular permission rules

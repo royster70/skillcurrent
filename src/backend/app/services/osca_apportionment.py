@@ -19,18 +19,29 @@ import logging
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.services.transformations import tracked_transformation
+
 logger = logging.getLogger(__name__)
 
 # One statement expresses the whole ladder. map_dedup collapses duplicate
 # (anzsco, osca) edges; base applies A0; edges fans out to OSCA targets at the
 # right granularity; counted computes N per base row; the INSERT assigns
 # employment, method and confidence per A1/A3.
-_APPORTION_SQL = text("""
+#
+# NOTE (ADR-010): the ladder assumes no ANZSCO code has a single-target,
+# partial-only correspondence — a single-target edge is treated as A1
+# 'full'/1.0 regardless of the ABS 'p' flag. That precondition holds in the
+# current data (verified: zero such codes) and is enforced by the guard test
+# test_osca_no_single_target_partial_mappings in test_data_invariants.py.
+# If a future correspondence version violates it, decide the A1-partial
+# treatment explicitly rather than letting it be silently over-assigned.
+_APPORTION_SQL = text(
+    """
     INSERT INTO abs_employment_osca
         (osca_code, anzsco_code, anzsic_code, area_code, release_year,
          apportioned_employment, link_method, confidence, osca_version)
     WITH map_dedup AS (
-        SELECT anzsco_code, osca_code, bool_or(correspondence_type = 'full') AS is_full
+        SELECT anzsco_code, osca_code
         FROM osca_anzsco_map
         GROUP BY anzsco_code, osca_code
     ),
@@ -76,32 +87,56 @@ _APPORTION_SQL = text("""
                 ELSE 0.4 END AS confidence,
            :version AS osca_version
     FROM counted
-    """)
+    """
+)
+
+
+@tracked_transformation(
+    name="compute_osca_employment",
+    sources=["abs_employment", "osca_anzsco_map"],
+    target="abs_employment_osca",
+)
+async def _apportion(session: AsyncSession, version: str = "2024.1.0") -> int:
+    """Clear and repopulate abs_employment_osca; returns rows inserted (ADR-001 lineage)."""
+    await session.execute(text("DELETE FROM abs_employment_osca"))
+    result = await session.execute(_APPORTION_SQL, {"version": version})
+    return result.rowcount or 0  # type: ignore[attr-defined]
 
 
 async def compute_osca_employment(
     session: AsyncSession, version: str = "2024.1.0"
 ) -> dict[str, float]:
     """Apportion abs_employment ANZSCO -> OSCA per ADR-010. Returns summary stats."""
-    await session.execute(text("DELETE FROM abs_employment_osca"))
-    await session.execute(_APPORTION_SQL, {"version": version})
+    await _apportion(session, version=version)
 
-    stats = (await session.execute(text("""
+    stats = (
+        await session.execute(
+            text(
+                """
                 SELECT count(*) AS rows,
                        count(DISTINCT osca_code) AS occupations,
                        round(sum(apportioned_employment)) AS apportioned_emp
                 FROM abs_employment_osca
-                """))).one()
+                """
+            )
+        )
+    ).one()
 
     # Reconciliation: apportioned total must equal the de-duplicated base total.
-    base_emp = (await session.execute(text("""
+    base_emp = (
+        await session.execute(
+            text(
+                """
                 SELECT sum(employment) FROM abs_employment ae
                 WHERE length(anzsco_code) = 6
                    OR (length(anzsco_code) = 4 AND NOT EXISTS (
                          SELECT 1 FROM abs_employment c
                          WHERE length(c.anzsco_code) = 6
                            AND c.anzsco_code LIKE ae.anzsco_code || '%'))
-                """))).scalar_one()
+                """
+            )
+        )
+    ).scalar_one()
 
     await session.commit()
     result = {

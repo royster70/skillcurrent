@@ -74,8 +74,8 @@ Tier 1 (parallel track — no blockers):
       Frontend: GET /sectors/{code}/subdivisions endpoint; matched_subdivisions on classify response; SubdivisionBarPanel (lazy collapsible, indigo), OccupationMixPanel (8-colour ANZSCO dots), WorkforceProfileCards (top-4 cards), InsightCallout (educational callout); SectorDetailPage AU section; CompanyLookup subdivision breadcrumbs + workforce profile
   [x] FR-8.8 Data Refresh Pipeline: scripts/run_pipeline.py (16-stage DAG, --dry-run/--stages/--from-stage); GET /admin/pipeline/status + /admin/pipeline/dag; APScheduler AsyncIOScheduler (pipeline_auto_run=False, cron="0 2 * * 0"); 7 tests
   [x] ADR-002 Integrity: app/utils/hashing.py (compute_file_hash, compute_files_hash, compute_bytes_hash, compute_json_hash); hash verification on re-ingest for all 7 service + 3 script ingestors; aei_temporal placeholder 'multi-release' hash replaced with real SHA-256; 19/19 data invariant tests; 161 total tests
-  [x] FR-8.6/FR-8.7 GPTVal Waterline: migration 017 (gptval_benchmarks); scripts/ingest_epoch_eci.py (Epoch AI ECI, CC-BY runtime download → 408 rows, 39 benchmarks × 32 model eras); ERA_MAP 50+ model groups → platform era keys; GET /api/v1/gdpval/waterline (velocity per benchmark, sorted by descending rate of improvement, overall +0.030/era); epoch_eci stage added to run_pipeline.py DAG
-      FR-8.7 P0b: gdpval_evaluations populated — 220 tasks × claude-4-sonnet (avg 46.8% completion), 5 tasks × claude-4.5-sonnet (credit limit hit). Re-run with --eras claude-4.5-sonnet to complete era 2 when credits available.
+  [x] FR-8.6/FR-8.7 GPTVal Waterline: migration 017 (gptval_benchmarks); scripts/ingest_epoch_eci.py (Epoch AI ECI, CC-BY runtime download → ≥408 rows; 464 as of 2026-07 — upstream CSV grows, treat runtime-download counts as floors); ERA_MAP 50+ model groups → platform era keys; GET /api/v1/gdpval/waterline (velocity per benchmark, sorted by descending rate of improvement); epoch_eci stage added to run_pipeline.py DAG
+      FR-8.7 P0b: ⚠ gdpval_evaluations LOST in 2026-07 laptop rebuild (was 220 claude-4-sonnet @ avg 46.8% + 5 claude-4.5-sonnet; paid API output written only to DB, no dump existed). Re-run to restore: compute_gdpval_waterline (~$50 era 1 + ~$8 era 2) — decision pending. Back up this table before any future rebuild (see REBUILD_RUNBOOK Phase 2).
   [x] FR-9.1 OSCA Backbone + ANZSCO→OSCA Employment Apportionment: migrations 023 (osca_occupations 1,156; osca_main_tasks 6,887 descriptor_only; osca_anzsco_map 1,383; osca_isco_map 1,448; nullable osca_code added to abs_employment + industry_occupation_profiles) + 024 (abs_employment_osca, 2,997 rows); app/services/osca_ingestion.py + scripts/ingest_osca.py; app/services/osca_apportionment.py + scripts/compute_osca_employment.py; abs_employment.osca_code linked for 1,501 rows (unique 6-digit ANZSCO matches); industry_occupation_profiles.osca_code added but NOT YET populated (needs onet_soc→anzsco→osca chain, future step). Apportionment ladder (ADR-010): A0 double-count guard (prefer 6-digit ANZSCO), A1 exact link (`link_method='full'`, confidence 1.0 — 1,702 rows, 5,839,240 employment, ~61% measured), A3 equal split (`link_method='apportioned_equal'`, avg confidence 0.485 — 1,295 rows, 3,772,926 employment, ~39% modelled); reconciles exactly to de-duplicated ANZSCO base (9,612,166). A2 (employment-weighted apportionment) is documented in ADR-010 but not yet implemented — only A1/A3 are live. Not yet wired into `scripts/run_pipeline.py` DAG — run manually. See ADR-010 (`ai_working/decisions/ADR-010-anzsco-osca-employment-apportionment.md`).
       Acquired but not yet ingested (raw files on disk, no ingestion script yet): JSA "Our Gen AI Transition" (Occupations_8.csv, ANZSCO-keyed augmentation/automation scores, CC-BY); AEI geographic release (country-level incl. AUS, licence CC-BY vs MIT to be confirmed per release); AIOE (Felten AI Occupational Exposure, citation-only licence — NOT CC-BY, redistribution-restricted). Planned/roadmap only, not built: ASC (specialist task-level exposure carrier, FR-9.2), SML, ILO, VET signals, FR-9.5 crosswalk registry.
 
@@ -105,7 +105,7 @@ Tier 2 (sequential — each stage blocks the next):
 - **BLS OEWS**: US headcount weighting by occupation × industry (NAICS). 8,573 rows. LOADED.
 - **ABS/JSA**: JSA Occupation Profiles Nov 2025 (Revised). ANZSCO × ANZSIC employment by occupation. 2,743 rows across 19 ANZSIC divisions. LOADED. Industry Data Table 3: 214 ANZSIC subdivisions with employment counts. LOADED.
 - **ABS Census 2021**: Working Population Profiles (WPP), CC-BY 4.0. W12A: ANZSIC division × ANZSCO major group (180 rows). W13: ANZSCO sub-major group × Sex (159 rows). National level (AUS). LOADED. Census TableBuilder: INDP 2-digit × OCCP 1-digit cross-tab (838 rows — subdivision-level occupation mix). LOADED.
-- **Epoch AI ECI (GPTVal P0a)**: CC-BY, runtime download from epoch.ai. 408 rows loaded — 39 benchmarks × 32 model eras, covering Claude 2 through Claude 4.6 + GPT/Gemini/Llama families. Enables `GET /gdpval/waterline` velocity endpoint. LOADED.
+- **Epoch AI ECI (GPTVal P0a)**: CC-BY, runtime download from epoch.ai. ≥408 rows (464 as of 2026-07 — upstream CSV grows; treat runtime-download counts as floors), covering Claude 2 through Claude 4.6 + GPT/Gemini/Llama families. Enables `GET /gdpval/waterline` velocity endpoint. LOADED.
 - **OpenAI GDPval**: MIT license — 220 real-world knowledge tasks across 44 occupations and 9 NAICS sectors. Tasks mapped to O*NET SOC codes (43 exact + 1 contextual match). Rubric-graded evaluations (10,453 items). gdpval_evaluations table ready for model-era scores to enable FR-8.7 waterline velocity. LOADED.
 - **OSCA 2024 v1.0 (ABS)**: CC-BY 4.0, `abs.gov.au` — canonical AU occupation backbone (FR-9.1), replaces retired ANZSCO (kept as legacy dual key). 1,156 occupations, 6,887 descriptor-only main tasks, 1,383 OSCA↔ANZSCO correspondence rows, 1,448 OSCA↔ISCO-08 correspondence rows. LOADED.
 - **JSA "Our Gen AI Transition" (Aug 2025)**: CC-BY. ANZSCO-keyed augmentation/automation exposure scores (`Occupations_8.csv`, 714 occupation rows). ACQUIRED, not yet ingested.
@@ -146,8 +146,8 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | onet_title_embeddings | 66,512 | Derived (sentence-transformers, Layer 2 semantic search) |
 | gdpval_tasks | 220 | OpenAI GDPval |
 | gdpval_rubric_items | 10,453 | OpenAI GDPval |
-| gdpval_evaluations | 225 | Claude API eval (220 claude-4-sonnet + 5 claude-4.5-sonnet) |
-| gptval_benchmarks | 408 | Epoch AI ECI (FR-8.7 P0a — 39 benchmarks × 32 model eras) |
+| gdpval_evaluations | 0 ⚠ | Claude API eval — LOST in 2026-07 laptop rebuild (was 225); paid re-run pending decision |
+| gptval_benchmarks | 464 | Epoch AI ECI (FR-8.7 P0a — runtime download, floor ≥408; grows with upstream) |
 | abs_census_wpp | 180 | ABS Census 2021 W12A (ANZSIC div × ANZSCO major group) |
 | abs_census_w13 | 159 | ABS Census 2021 W13 (ANZSCO sub-major × Sex) |
 | abs_census_subdivision_occ | 838 | ABS Census 2021 TableBuilder (ANZSIC subdivision × ANZSCO major group) |
@@ -160,7 +160,7 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | osca_anzsco_map | 1,383 | OSCA↔ANZSCO v1.3 correspondence (ABS) |
 | osca_isco_map | 1,448 | OSCA↔ISCO-08 correspondence (ABS) |
 | abs_employment_osca | 2,997 | Derived (ANZSCO→OSCA apportionment, ADR-010) |
-| **TOTAL** | **~553,528** | |
+| **TOTAL** | **~553,359** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy

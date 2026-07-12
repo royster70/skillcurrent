@@ -8,7 +8,7 @@ status, and version provenance.
 import functools
 import traceback
 from collections.abc import Callable
-from datetime import datetime, timezone, tzinfo
+from datetime import datetime
 from typing import Any
 
 from sqlalchemy import insert, update
@@ -65,7 +65,7 @@ def tracked_transformation(
             await session.flush()
 
             try:
-                rows_affected = await func(session, *args, **kwargs)
+                rows_affected = int(await func(session, *args, **kwargs))
 
                 # Update on success
                 await session.execute(
