@@ -346,6 +346,16 @@ python -m ruff check app/ tests/ scripts/
 python -m mypy app/
 ```
 
+> **The pre-commit hooks — not the venv's `python -m black` — are the formatting source of truth.**
+> `git commit` runs black/ruff in pre-commit's own isolated environments, pinned by `rev:` in
+> [`.pre-commit-config.yaml`](../.pre-commit-config.yaml). The `[dev]` extra in
+> `src/backend/pyproject.toml` pins black and ruff to the **same** versions (black `24.10.0`,
+> ruff `0.8.6`) so that `python -m black --check` locally agrees with the commit gate. If the two
+> ever drift, a file can look clean under `python -m black --check` yet be reformatted by the hook
+> on commit (and vice-versa). **When bumping a formatter, change both files together** — the
+> `rev:` in `.pre-commit-config.yaml` and the pin in `pyproject.toml`. After changing the pin,
+> re-sync your venv with `pip install -e ".[dev]"`.
+
 ---
 
 ## Common issues
