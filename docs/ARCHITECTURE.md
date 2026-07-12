@@ -102,6 +102,51 @@ A **top-down → drill-down** experience: start at sectors/occupations coloured 
 - *DWA pivot* (`app/services/dwa_asc_bridge.py`) — embeds O\*NET DWA titles + distinct ASC task texts, `LATERAL` top-k nearest-neighbour match at a cosine floor; **confidence = cosine**, no fabricated lookup (ADR-011). ~99.9% task coverage, matches crushed near 1.0 because ASC tasks are reworded DWAs.
 - *Employment apportionment* (`app/services/osca_apportionment.py`) — the ADR-010 ladder: A0 double-count guard (prefer 6-digit detail) → A1 exact link → A3 employment-weighted / equal split. Reconciles **exactly** to the de-duplicated employment base; every row `link_method`-tagged (`full` = measured vs `apportioned_*` = modelled).
 
+#### The DWA pivot — the main crosswalk chain
+
+AI exposure is scored at **O\*NET DWA** grain. Australian ASC tasks were *built from* those DWAs, so a semantic bridge re-attaches exposure to Australian task structure, which then rolls up through ANZSCO→OSCA to Australian occupations. Employment (apportioned) weights it, and computing the US side the *same way* yields the divergence.
+
+```mermaid
+flowchart LR
+  subgraph USG["US / global — O*NET-keyed"]
+    direction TB
+    OCC["O*NET occupation<br/>(8-digit O*NET-SOC)"]
+    TSK["O*NET task statement"]
+    DWA{{"Detailed Work Activity (DWA)<br/>— the pivot grain"}}
+    OCC --> TSK --> DWA
+  end
+
+  EXP[/"AI exposure, scored at DWA grain<br/>Eloundou beta · Microsoft IWA"/]
+  EXP -. scores .-> DWA
+
+  BR["Semantic bridge — ADR-011 (L2)<br/>embed DWA titles vs ASC task texts<br/>MiniLM-L6-v2 · pgvector cosine >= 0.60<br/>confidence = similarity · no L1 lookup"]
+
+  subgraph AUS["Australia — OSCA-keyed"]
+    direction TB
+    ASC["ASC specialist task<br/>(ANZSCO-keyed · percent-of-time)"]
+    ANZ["ANZSCO occupation"]
+    OSCA["OSCA 2024 occupation<br/>(canonical AU backbone)"]
+    AUT["au_task — DWA beta per<br/>OSCA x task (tier T2)"]
+    ROLL["au_occupation_exposure<br/>(time-weighted rollup)"]
+    ASC --> ANZ
+    ANZ -->|"osca_anzsco_map<br/>+ 4 to 6-digit expansion"| OSCA
+    OSCA --> AUT
+    ASC --> AUT
+    AUT --> ROLL
+  end
+
+  DWA ==>|"1. nearest-DWA match"| BR
+  BR ==>|"2. matched DWA to task"| ASC
+  DWA -->|"3. global-avg beta attaches"| AUT
+
+  EMP[("ABS/JSA employment<br/>ANZSCO")]
+  EMP ==>|"apportionment ladder<br/>ADR-010 (method-tagged)"| OSCA
+
+  ROLL --> DIV["US-vs-AU divergence<br/>same beta, different task structure"]
+```
+
+**Reading it:** the heavy arrows (1→2→3) are the pivot itself — a DWA finds its nearest Australian task (the bridge), which places exposure onto `au_task`. Everything measured this way is tier **T2** (semantic); there is no L1 code-lookup rung because ASC publishes no source-DWA column (the Phase B0 finding). The occupation-level crosswalks (OSCA↔ANZSCO↔ISCO↔SOC) sit *underneath* this — they carry occupation-level exposure and the employment weights, independent of whether task-level detail exists.
+
 **Derived intelligence** — `task_drift_metrics` (velocity via linregress over AEI eras), `au_task` + `au_occupation_exposure` (DWA exposure attached to AU tasks, rolled up), `us_task_beta`/`divergence` (US and AU computed the *same way* so only task structure differs), coverage-by-tier metrics, and the 🧩 `signal_source_registry` + long-format `exposure_signal` table (any O\*NET/ISCO/DWA-keyed measure onboards as method-tagged rows).
 
 **API (`app/api/v1/`)** — versioned FastAPI routers; endpoints branch on a `region` query param; Tier 2 endpoints 🧩 read only through `manager_team_view` / `executive_dashboard_view`. Timing middleware stamps `X-Request-Duration-Ms` + `X-Request-ID` on every response.
