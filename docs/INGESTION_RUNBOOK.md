@@ -51,7 +51,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all migrations in order (currently 027), creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all migrations in order (currently 028), creating all tables documented in `docs/DATA_DICTIONARY.md`.
 
 ---
 
@@ -83,6 +83,8 @@ This applies all migrations in order (currently 027), creating all tables docume
     a. ASC v3.0 ingest (independent — depends only on the acquired `.rda` files)
     b. DWA↔ASC semantic bridge (depends on ASC ingest (a) + `onet_dwa_references` — embeds both sides, network required for the model on first run)
     c. AU task layer compute (depends on the bridge (b) + `eloundou_dwa_scores` + `osca_anzsco_map` from OSCA backbone (8h))
+    d. US-vs-AU divergence (depends on the au task layer (c) + `onet_tasks_to_dwas` + `anzsco_soc_concordance`; writes `us_task_beta` + `divergence` onto `au_occupation_exposure`):
+       `python -m scripts.compute_us_au_divergence`
 
 ---
 
