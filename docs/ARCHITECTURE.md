@@ -13,40 +13,31 @@ Status legend: ✅ built · 🧩 planned (see the roadmap in `CLAUDE.md`).
 
 ## 1. Functional architecture
 
-The platform is a **six-layer pipeline** from raw external research to an interactive picture of AI's impact on work. Data flows up; each layer adds meaning and provenance.
+The platform is a **six-layer data funnel** — many heterogeneous external research datasets flow in at the wide end (left), converge through a normalisation "neck", and emerge as one comparable, interactive picture of AI's impact on work (right). Each layer adds meaning and provenance.
 
 ```mermaid
-flowchart TB
-  subgraph SRC["① External data sources"]
-    direction LR
-    G["Global / US baseline<br/>O*NET · Eloundou · Microsoft · AEI · GDPval · Epoch"]
-    AUS["Australia (AU-native)<br/>OSCA · ASC · ABS/JSA · Census"]
-    BON["Bonus signals (pluggable)<br/>SML · AIOE · Webb · ILO · OECD · JSA-GenAI · WORKBank · METR"]
+flowchart LR
+  subgraph IN["Incoming data — the wide end (by type)"]
+    direction TB
+    TAX["Occupation taxonomies<br/>O*NET-SOC · ANZSCO · OSCA · ISCO"]
+    TSK["Task & skill layers<br/>O*NET tasks/DWAs · ASC · VET UoC"]
+    EXP["AI exposure & capability research<br/>Eloundou · Microsoft · AEI · GDPval · Epoch"]
+    SIG["Bonus signals (pluggable)<br/>SML · AIOE · Webb · ILO · OECD · JSA-GenAI · WORKBank · METR"]
+    EMP["Employment statistics<br/>BLS OEWS · ABS/JSA · Census"]
   end
-  subgraph ING["② Ingestion — get it in, faithfully"]
-    RD["Format readers<br/>tsv · csv · xlsx · parquet · rda · dta"]
-    VER["Versioned + hashed<br/>DatasetVersion · integrity_hash · idempotent"]
-  end
-  subgraph NORM["③ Normalisation & crosswalks — make it comparable"]
-    XW["Occupation crosswalks<br/>ANZSCO↔SOC · OSCA↔ANZSCO↔ISCO"]
-    PIV["DWA pivot — semantic task bridge"]
-    APP["Employment apportionment (honest, weighted)"]
-  end
-  subgraph DER["④ Derived intelligence — make it mean something"]
-    EXP["Exposure scoring · task drift · zones"]
-    TASK["AU-native task layer · occupation rollups"]
-    DIV["US-vs-AU divergence · coverage-by-tier"]
-    REG["Signal registry (N measures, method-tagged)"]
-  end
-  subgraph APIL["⑤ API — serve it"]
-    T1["Tier 1 — Industry Intelligence (public)"]
-    T2["Tier 2 — Organisational Overlay (privacy-gated) 🧩"]
-  end
-  subgraph UIL["⑥ UI — show it (top-down → drill-down)"]
-    TD["Macro: sectors → occupations, coloured by zone"]
-    DD["Drill: tasks · exposure · divergence · signals"]
-  end
-  SRC --> ING --> NORM --> DER --> APIL --> UIL
+
+  ING["② Ingest<br/>format readers · versioned · hashed"]
+  NORM["③ Normalise & crosswalk<br/>reconcile classifications · DWA pivot · apportionment<br/>-- the funnel neck --"]
+  DER["④ Derived intelligence<br/>exposure zones · task drift · AU-native tasks<br/>US-vs-AU divergence · coverage · signal registry"]
+  API["⑤ API<br/>Tier 1 public · Tier 2 overlay"]
+  UI["⑥ UI — the single spout<br/>top-down to drill-down"]
+
+  TAX --> ING
+  TSK --> ING
+  EXP --> ING
+  SIG --> ING
+  EMP --> ING
+  ING --> NORM --> DER --> API --> UI
 ```
 
 ### ① External data sources — three families
