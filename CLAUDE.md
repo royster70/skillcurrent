@@ -189,6 +189,9 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 ## Key Reference Docs (read when working in these areas)
 - Architecture overview (start here): `docs/ARCHITECTURE.md` (functional data-funnel + solution architecture + the DWA-pivot crosswalk diagram)
 - Development setup: `docs/SETUP.md`
+- Data dictionary (all tables/columns/joins): `docs/DATA_DICTIONARY.md`
+- Data sources, licences & attribution: `docs/data-sources.md`
+- Rebuild the data from scratch: `docs/INGESTION_RUNBOOK.md` / `docs/REBUILD_RUNBOOK.md`
 - Microsoft AI applicability data: `docs/MICROSOFT_AI_APPLICABILITY.md`
 - Domain rules & data contracts: `docs/domain-model.md`
 - FR-1 hierarchy (Tier 2 foundation): `docs/fr1-hierarchy.md`
@@ -196,7 +199,7 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 - Security / RBAC / privacy implementation: `docs/security.md`
 - Test strategy & coverage targets: `docs/testing.md`
 - Performance & observability: ADR-007 (`ai_working/decisions/ADR-007-performance-instrumentation.md`)
-- ADRs: `ai_working/decisions/`
+- ADRs (indexed): `ai_working/decisions/README.md`
 - Discoveries & patterns: `ai_working/discoveries/`
 
 ## Engineering Principles (Rob Pike — enforced, not aspirational)
