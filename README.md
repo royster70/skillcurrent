@@ -119,6 +119,7 @@ npm run test:e2e                              # 46 Playwright E2E tests
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here** — functional (data-funnel) + solution architecture, with the DWA-pivot crosswalk diagram |
 | [docs/SETUP.md](docs/SETUP.md) | Development environment setup |
 | [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) | Data loading procedure and verification |
 | [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | All database tables, columns, join paths |
