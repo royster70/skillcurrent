@@ -1,0 +1,7 @@
+# Repo-root ruff config for Python that lives ABOVE src/backend/ (scripts/*, tooling).
+# Without this, ruff-format resolves no config for root-level files and falls back to its
+# default line-length of 88, while the black pre-commit hook uses --line-length=100 — the
+# two then fight over every 89–100 char line. Pinning 100 here keeps them in agreement.
+# src/backend/ has its own pyproject.toml [tool.ruff]; this only governs files outside it.
+line-length = 100
+target-version = "py312"
