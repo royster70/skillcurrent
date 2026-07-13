@@ -8,6 +8,7 @@ DWA-level scores derived from occupation-level Eloundou scores via
 Strategy A: distribute occupation Beta across DWAs weighted by O*NET
 task importance ratings.
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa

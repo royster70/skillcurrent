@@ -10,6 +10,7 @@ Paper: Eloundou, Manning, Mishkin, Rock (2024). Science 384:1306-1308.
 Adds:
 - eloundou_occ_scores: 923 occupation-level scores from both GPT-4 and human raters
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -25,8 +26,9 @@ def upgrade() -> None:
     op.create_table(
         "eloundou_occ_scores",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(),
-                  sa.ForeignKey("onet_occupations.onet_soc"), nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("title", sa.Text(), nullable=True),
         # GPT-4 rater (dv_ prefix in source): alpha=E1, beta=E2, gamma=E0
         sa.Column("dv_e1_alpha", sa.Float(), nullable=True),

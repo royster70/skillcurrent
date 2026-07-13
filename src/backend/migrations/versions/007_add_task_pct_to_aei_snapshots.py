@@ -8,6 +8,7 @@ The AEI temporal releases provide an overall task usage percentage (task_pct)
 that is distinct from the automation_pct/augmentation_pct breakdown.
 task_pct = share of all conversations mapped to this O*NET task.
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa

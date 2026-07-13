@@ -17,6 +17,7 @@ Adds:
 - onet_alternate_titles: ~57,543 alternate titles (Layer 1 matching)
 - onet_emerging_tasks: 328 emerging tasks
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -49,12 +50,16 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
         sa.Column("dataset_name", sa.Text(), nullable=False),
         sa.Column(
-            "from_version_id", sa.Integer(),
-            sa.ForeignKey("dataset_versions.id"), nullable=True,
+            "from_version_id",
+            sa.Integer(),
+            sa.ForeignKey("dataset_versions.id"),
+            nullable=True,
         ),
         sa.Column(
-            "to_version_id", sa.Integer(),
-            sa.ForeignKey("dataset_versions.id"), nullable=False,
+            "to_version_id",
+            sa.Integer(),
+            sa.ForeignKey("dataset_versions.id"),
+            nullable=False,
         ),
         sa.Column("computed_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.Column("records_added", sa.Integer(), nullable=False, server_default="0"),
@@ -86,8 +91,9 @@ def upgrade() -> None:
 
     op.create_table(
         "onet_task_statements",
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  primary_key=True),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), primary_key=True
+        ),
         sa.Column("task_id", sa.Integer(), primary_key=True),
         sa.Column("task", sa.Text(), nullable=False),
         sa.Column("task_type", sa.Text(), nullable=True),
@@ -102,8 +108,9 @@ def upgrade() -> None:
     op.create_table(
         "onet_task_ratings",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("task_id", sa.Integer(), nullable=False),
         sa.Column("scale_id", sa.Text(), nullable=False),
         sa.Column("category", sa.Text(), nullable=True),
@@ -134,8 +141,9 @@ def upgrade() -> None:
     op.create_table(
         "onet_tasks_to_dwas",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("task_id", sa.Integer(), nullable=False),
         sa.Column("dwa_id", sa.Text(), nullable=False),
         sa.Column("date", sa.Text(), nullable=True),
@@ -149,8 +157,9 @@ def upgrade() -> None:
     op.create_table(
         "onet_work_activities",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("element_id", sa.Text(), nullable=False),
         sa.Column("element_name", sa.Text(), nullable=False),
         sa.Column("scale_id", sa.Text(), nullable=False),
@@ -172,35 +181,36 @@ def upgrade() -> None:
     op.create_table(
         "onet_sample_titles",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("reported_job_title", sa.Text(), nullable=False),
         sa.Column("shown_in_my_next_move", sa.Text(), nullable=True),
         sa.Column("onet_version", sa.Text(), nullable=False, server_default="28.1"),
     )
     op.create_index("ix_onet_sample_titles_onet_soc", "onet_sample_titles", ["onet_soc"])
-    op.create_index("ix_onet_sample_titles_title", "onet_sample_titles",
-                     ["reported_job_title"])
+    op.create_index("ix_onet_sample_titles_title", "onet_sample_titles", ["reported_job_title"])
 
     op.create_table(
         "onet_alternate_titles",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("alternate_title", sa.Text(), nullable=False),
         sa.Column("short_title", sa.Text(), nullable=True),
         sa.Column("sources", sa.Text(), nullable=True),
         sa.Column("onet_version", sa.Text(), nullable=False, server_default="28.1"),
     )
     op.create_index("ix_onet_alternate_titles_onet_soc", "onet_alternate_titles", ["onet_soc"])
-    op.create_index("ix_onet_alternate_titles_title", "onet_alternate_titles",
-                     ["alternate_title"])
+    op.create_index("ix_onet_alternate_titles_title", "onet_alternate_titles", ["alternate_title"])
 
     op.create_table(
         "onet_emerging_tasks",
         sa.Column("id", sa.Integer(), primary_key=True, autoincrement=True),
-        sa.Column("onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"),
-                  nullable=False),
+        sa.Column(
+            "onet_soc", sa.Text(), sa.ForeignKey("onet_occupations.onet_soc"), nullable=False
+        ),
         sa.Column("task", sa.Text(), nullable=False),
         sa.Column("category", sa.Text(), nullable=True),
         sa.Column("original_task_id", sa.Text(), nullable=True),

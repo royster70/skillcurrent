@@ -1,8 +1,8 @@
 # Workforce AI Impact Analysis Platform — PRD v1.1
 
-**Version:** 1.1 (consolidated)  
-**Date:** 2026-03-21  
-**Status:** Current  
+**Version:** 1.1 (consolidated)
+**Date:** 2026-03-21
+**Status:** Current
 **Changes from v1.0:** Two-tier architecture; FR-8 Role Evolution Intelligence (AEI, GPTVal, OEWS, industry crosswalk); updated data model (E0/E1/E2); updated build dependencies; longitudinal capability tracking.
 
 ---
@@ -125,9 +125,9 @@ Three task trajectories:
 
 ### Tier 1 — Industry Intelligence (Public Data Only)
 
-**Data required:** O*NET (public domain), AEI (CC-BY HuggingFace), Eloundou scores (published), BLS OEWS (public), GPTVal benchmarks, industry classification tables.  
-**Client data required:** None.  
-**Privacy controls required:** None (no PII).  
+**Data required:** O*NET (public domain), AEI (CC-BY HuggingFace), Eloundou scores (published), BLS OEWS (public), GPTVal benchmarks, industry classification tables.
+**Client data required:** None.
+**Privacy controls required:** None (no PII).
 **Time to first value:** Immediate on platform setup.
 
 Delivers:
@@ -139,8 +139,8 @@ Delivers:
 
 ### Tier 2 — Organisational Overlay (Requires HRIS)
 
-**Data required:** Client HRIS CSV (employee_id, job_title, department, manager_id).  
-**Depends on:** Tier 1 scores and occupation profiles.  
+**Data required:** Client HRIS CSV (employee_id, job_title, department, manager_id).
+**Depends on:** Tier 1 scores and occupation profiles.
 **Full privacy controls apply.**
 
 Delivers:

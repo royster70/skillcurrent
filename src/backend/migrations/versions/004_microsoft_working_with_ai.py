@@ -14,6 +14,7 @@ Adds:
 - ms_ai_soc_to_iwas: 13,698 SOC-to-IWA mappings
 - ms_ai_physical_tasks: 18,796 physical task flags
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa

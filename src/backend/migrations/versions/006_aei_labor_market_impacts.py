@@ -11,6 +11,7 @@ Adds:
 - aei_job_exposure: 756 occupation-level observed AI exposure scores
 - aei_task_penetration: 17,998 task-level AI penetration scores
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -40,9 +41,7 @@ def upgrade() -> None:
         sa.Column("penetration", sa.Float(), nullable=True),
         sa.Column("dataset_version", sa.Text(), nullable=False),
     )
-    op.create_index(
-        "ix_aei_task_penetration_penetration", "aei_task_penetration", ["penetration"]
-    )
+    op.create_index("ix_aei_task_penetration_penetration", "aei_task_penetration", ["penetration"])
 
 
 def downgrade() -> None:

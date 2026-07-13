@@ -9,6 +9,7 @@ Adds 384-dimensional vector columns (all-MiniLM-L6-v2) to:
 - A new dedicated table for title embeddings (more efficient than
   adding columns to both sample + alternate title tables)
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa

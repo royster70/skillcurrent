@@ -28,7 +28,9 @@ def upgrade() -> None:
         sa.Column("anzsic_code", sa.Text(), nullable=False),
         sa.Column("area_code", sa.Text(), nullable=False, server_default="AU0000"),
         sa.Column("apportioned_employment", sa.Float(), nullable=True),
-        sa.Column("link_method", sa.Text(), nullable=False),  # full | apportioned_equal | apportioned_employment
+        sa.Column(
+            "link_method", sa.Text(), nullable=False
+        ),  # full | apportioned_equal | apportioned_employment
         sa.Column("confidence", sa.Float(), nullable=True),
         sa.Column("release_year", sa.Integer(), nullable=False),
         sa.Column("osca_version", sa.Text(), nullable=False, server_default="2024.1.0"),

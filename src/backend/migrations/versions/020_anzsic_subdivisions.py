@@ -26,9 +26,7 @@ def upgrade() -> None:
         sa.Column("employment", sa.Integer, nullable=True),
         sa.Column("release_year", sa.Integer, nullable=False, server_default="2025"),
         sa.Column("integrity_hash", sa.Text, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
     op.create_index(

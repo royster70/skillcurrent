@@ -41,7 +41,7 @@ You are a privacy compliance reviewer for Tier 2 (organisational data) features.
 ## How to Use This Agent
 
 ```
-"Use the privacy-reviewer agent to audit the dashboard endpoints 
+"Use the privacy-reviewer agent to audit the dashboard endpoints
 in src/backend/dashboards/ before I write tests for them."
 ```
 

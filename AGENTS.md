@@ -111,11 +111,11 @@ Invoke these explicitly or Claude Code will match by description:
 
 ## Code Quality Standards
 
-**Python**: black (line 100), ruff, mypy --strict, pytest + pytest-asyncio, pytest-cov ≥80%  
-**TypeScript**: eslint + prettier, tsc --noEmit, vitest ≥70%  
-**Migrations**: Alembic — every schema change needs a migration  
-**APIs**: FastAPI + Pydantic v2, OpenAPI docs required for all endpoints  
-**ADRs**: `ai_working/decisions/` — any non-obvious architectural choice gets a record  
+**Python**: black (line 100), ruff, mypy --strict, pytest + pytest-asyncio, pytest-cov ≥80%
+**TypeScript**: eslint + prettier, tsc --noEmit, vitest ≥70%
+**Migrations**: Alembic — every schema change needs a migration
+**APIs**: FastAPI + Pydantic v2, OpenAPI docs required for all endpoints
+**ADRs**: `ai_working/decisions/` — any non-obvious architectural choice gets a record
 
 ## Success Metrics
 

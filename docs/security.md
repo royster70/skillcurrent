@@ -82,13 +82,13 @@ def create_access_token(data: dict, expires_delta: timedelta = None) -> str:
         expire = datetime.utcnow() + expires_delta
     else:
         expire = datetime.utcnow() + timedelta(minutes=ACCESS_TOKEN_EXPIRE_MINUTES)
-    
+
     to_encode.update({
         "exp": expire,
         "iat": datetime.utcnow(),
         "type": "access"
     })
-    
+
     encoded_jwt = jwt.encode(to_encode, SECRET_KEY, algorithm=ALGORITHM)
     return encoded_jwt
 
@@ -99,22 +99,22 @@ def get_current_user(token: str = Depends(oauth2_scheme)) -> User:
         detail="Could not validate credentials",
         headers={"WWW-Authenticate": "Bearer"},
     )
-    
+
     try:
         payload = jwt.decode(token, SECRET_KEY, algorithms=[ALGORITHM])
         employee_id: str = payload.get("sub")
         token_type: str = payload.get("type")
-        
+
         if employee_id is None or token_type != "access":
             raise credentials_exception
-            
+
     except JWTError:
         raise credentials_exception
-    
+
     user = get_user_by_employee_id(db, employee_id)
     if user is None:
         raise credentials_exception
-    
+
     return user
 
 def require_role(required_role: Role):
@@ -160,8 +160,8 @@ async def upload_employees(
 
 ### 3. Privacy Controls (RA-5) - REQUIRES FR-1.3/FR-1.4 HIERARCHY
 
-**CRITICAL DEPENDENCY:** Privacy controls cannot be implemented until organizational 
-hierarchy is built (FR-1.3) and hierarchy_path is generated (FR-1.4). This is a 
+**CRITICAL DEPENDENCY:** Privacy controls cannot be implemented until organizational
+hierarchy is built (FR-1.3) and hierarchy_path is generated (FR-1.4). This is a
 BLOCKER dependency per PRD Section 8.1.
 
 ```python
@@ -175,31 +175,31 @@ def get_accessible_employees(
 ) -> List[Employee]:
     """
     Get employees accessible to current user based on role.
-    
+
     DEPENDS ON: FR-1.3 (WITH RECURSIVE CTE), FR-1.4 (hierarchy_path)
-    
+
     - Admin: All employees
     - Executive: Department aggregates only (Nâ‰¥5)
     - Manager: Direct reports (anonymized if leaf node)
     - Analyst: Own record only
     """
-    
+
     if current_user.role == Role.ADMIN:
         return db.query(Employee).all()
-    
+
     elif current_user.role == Role.EXECUTIVE:
         # Executives must use aggregate endpoints only
         raise HTTPException(
             status_code=403,
             detail="Executives must use aggregate endpoints (Nâ‰¥5 minimum)"
         )
-    
+
     elif current_user.role == Role.MANAGER:
         # Return team members where current_user is in their hierarchy_path
         return db.query(Employee).filter(
             Employee.hierarchy_path.contains([current_user.employee_id])
         ).all()
-    
+
     elif current_user.role == Role.ANALYST:
         # Return own record only
         return [db.query(Employee).filter_by(
@@ -213,13 +213,13 @@ def enforce_privacy_view(
 ) -> Employee:
     """
     Apply privacy controls based on user role and employee position.
-    
+
     RA-5.3: Anonymize leaf nodes for manager views
     RA-5.4: Exclude C-suite from individual analysis
-    
+
     DEPENDS ON: is_leaf_node flag from hierarchy build (FR-1.3)
     """
-    
+
     # Check if user can access this employee
     if user.role == Role.MANAGER:
         # Verify employee is in user's reporting line
@@ -228,27 +228,27 @@ def enforce_privacy_view(
                 status_code=403,
                 detail="Employee not in your reporting line"
             )
-        
+
         # Anonymize leaf nodes (RA-5.3)
         if employee.is_leaf_node:
             employee.name = "Team Member"
             employee.employee_id = "***"
             employee.email = None
-    
+
     elif user.role == Role.EXECUTIVE:
         # Executives should never access individual records
         raise HTTPException(
             status_code=403,
             detail="Executives can only view aggregated data"
         )
-    
+
     # C-suite protection (RA-5.4)
     if employee.is_executive and user.role != Role.ADMIN:
         raise HTTPException(
             status_code=403,
             detail="C-suite records require admin access"
         )
-    
+
     return employee
 
 def check_minimum_cell_size(
@@ -258,18 +258,18 @@ def check_minimum_cell_size(
 ) -> bool:
     """
     Enforce Nâ‰¥5 minimum for privacy (RA-5.1)
-    
+
     Used in all aggregate views to prevent identification
     """
     count = db.query(Employee).filter_by(department=department).count()
-    
+
     if count < minimum:
         raise HTTPException(
             status_code=403,
             detail=f"Department has fewer than {minimum} employees. "
                    f"Cannot display to prevent identification."
         )
-    
+
     return True
 
 # Database Views for Privacy-Controlled Access
@@ -277,14 +277,14 @@ def create_privacy_views(db: Session):
     """
     Create database views that enforce privacy controls.
     Called during database migration after FR-1.3/FR-1.4 complete.
-    
+
     CRITICAL: These views MUST be used by FR-6 dashboards, not raw tables.
     """
-    
+
     # Manager team view with anonymized leaf nodes (RA-5.3)
     db.execute("""
         CREATE OR REPLACE VIEW manager_team_view AS
-        SELECT 
+        SELECT
             e.employee_id,
             e.manager_id,
             e.department,
@@ -292,24 +292,24 @@ def create_privacy_views(db: Session):
             e.job_title,
             e.hierarchy_path,
             -- Anonymize leaf nodes
-            CASE 
+            CASE
                 WHEN e.is_leaf_node THEN 'Team Member'
-                ELSE e.name 
+                ELSE e.name
             END as display_name,
-            CASE 
+            CASE
                 WHEN e.is_leaf_node THEN '***'
-                ELSE e.employee_id 
+                ELSE e.employee_id
             END as display_id,
             e.automation_score,
             e.exposure_zone
         FROM employees e
         WHERE e.is_executive = FALSE;  -- Exclude C-suite (RA-5.4)
     """)
-    
+
     # Executive aggregate view with Nâ‰¥5 enforcement (RA-5.1)
     db.execute("""
         CREATE OR REPLACE VIEW executive_dashboard_view AS
-        SELECT 
+        SELECT
             e.department,
             e.onet_soc,
             e.exposure_zone,
@@ -321,7 +321,7 @@ def create_privacy_views(db: Session):
         GROUP BY e.department, e.onet_soc, e.exposure_zone
         HAVING COUNT(*) >= 5;  -- Minimum cell size
     """)
-    
+
     db.commit()
 ```
 
@@ -356,14 +356,14 @@ async def llm_match_title(
 ) -> dict:
     """
     Layer 5: LLM-based O*NET matching for edge cases.
-    
+
     FR-2.5: Only called for <1% of titles after Layers 1-4 fail.
     Rate limited to prevent cost overruns.
     """
     import openai
-    
+
     openai.api_key = OPENAI_CONFIG["api_key"]
-    
+
     prompt = f"""Match this job title to the most appropriate O*NET-SOC code.
 
 Job Title: {title}
@@ -376,7 +376,7 @@ Examples:
 Software Engineer|15-1252.00|0.95
 Data Scientist|15-2051.00|0.90
 """
-    
+
     response = openai.ChatCompletion.create(
         model=OPENAI_CONFIG["model"],
         messages=[
@@ -387,10 +387,10 @@ Data Scientist|15-2051.00|0.90
         temperature=OPENAI_CONFIG["temperature"],
         timeout=OPENAI_CONFIG["timeout"]
     )
-    
+
     result = response.choices[0].message.content.strip()
     parts = result.split("|")
-    
+
     return {
         "onet_soc": parts[0],
         "confidence": float(parts[1]) if len(parts) > 1 else 0.5,
@@ -401,11 +401,11 @@ Data Scientist|15-2051.00|0.90
 def load_onet_data(version: str = "28.0") -> dict:
     """
     Load O*NET database from versioned files.
-    
+
     NOTE: O*NET Web Services API requires credentials and has rate limits.
     For MVP, use downloaded database files from:
     https://www.onetcenter.org/database.html
-    
+
     Files needed:
     - Occupation Data.txt (1,016 occupations)
     - Task Statements.txt (19,000+ tasks)
@@ -413,9 +413,9 @@ def load_onet_data(version: str = "28.0") -> dict:
     - Sample of Reported Titles.txt (37,000+ titles for Layer 1)
     """
     import pandas as pd
-    
+
     base_path = f"/data/onet/{version}"
-    
+
     return {
         "occupations": pd.read_csv(f"{base_path}/Occupation Data.txt", sep="\t"),
         "tasks": pd.read_csv(f"{base_path}/Task Statements.txt", sep="\t"),
@@ -430,9 +430,9 @@ from fastapi.middleware.cors import CORSMiddleware
 
 def configure_cors(app):
     """Configure CORS for frontend access"""
-    
+
     allowed_origins = os.getenv("CORS_ORIGINS", "http://localhost:3000").split(",")
-    
+
     app.add_middleware(
         CORSMiddleware,
         allow_origins=allowed_origins,
@@ -475,14 +475,14 @@ def contains_sql_injection(text: str) -> bool:
     """Check for SQL injection attempts"""
     if not text:
         return False
-    
+
     text_upper = text.upper()
     return any(re.search(pattern, text_upper) for pattern in SQL_INJECTION_PATTERNS)
 
 async def validate_csv_upload(file: UploadFile) -> bytes:
     """
     Validate CSV structure and content (FR-1.2)
-    
+
     Checks:
     - File size limits
     - Required columns present
@@ -490,14 +490,14 @@ async def validate_csv_upload(file: UploadFile) -> bytes:
     - Valid data types
     - No null employee_ids
     """
-    
+
     # Check file extension
     if not file.filename.endswith('.csv'):
         raise HTTPException(
             status_code=422,
             detail="File must be CSV format"
         )
-    
+
     # Read and check file size
     contents = await file.read()
     if len(contents) > MAX_CSV_SIZE:
@@ -505,7 +505,7 @@ async def validate_csv_upload(file: UploadFile) -> bytes:
             status_code=413,
             detail=f"File too large. Maximum size: {MAX_CSV_SIZE / 1_000_000}MB"
         )
-    
+
     # Parse CSV
     try:
         csv_text = contents.decode('utf-8')
@@ -514,39 +514,39 @@ async def validate_csv_upload(file: UploadFile) -> bytes:
             status_code=422,
             detail="File must be UTF-8 encoded"
         )
-    
+
     csv_reader = csv.DictReader(io.StringIO(csv_text))
-    
+
     # Validate headers
     headers = set(csv_reader.fieldnames or [])
-    
+
     if not REQUIRED_COLUMNS.issubset(headers):
         missing = REQUIRED_COLUMNS - headers
         raise HTTPException(
             status_code=422,
             detail=f"Missing required columns: {missing}"
         )
-    
+
     unknown = headers - ALLOWED_COLUMNS
     if unknown:
         raise HTTPException(
             status_code=422,
             detail=f"Unknown columns: {unknown}. Allowed: {ALLOWED_COLUMNS}"
         )
-    
+
     # Validate rows
     row_count = 0
     errors = []
-    
+
     for row_num, row in enumerate(csv_reader, start=2):
         row_count += 1
-        
+
         if row_count > MAX_ROWS:
             raise HTTPException(
                 status_code=422,
                 detail=f"Too many rows. Maximum: {MAX_ROWS}"
             )
-        
+
         # Required field: employee_id
         employee_id = row.get("employee_id", "").strip()
         if not employee_id:
@@ -556,7 +556,7 @@ async def validate_csv_upload(file: UploadFile) -> bytes:
                 f"Row {row_num}: employee_id must be alphanumeric with "
                 f"hyphens/underscores (1-50 chars)"
             )
-        
+
         # Required field: job_title
         job_title = row.get("job_title", "").strip()
         if not job_title:
@@ -567,7 +567,7 @@ async def validate_csv_upload(file: UploadFile) -> bytes:
             errors.append(
                 f"Row {row_num}: job_title contains invalid characters"
             )
-        
+
         # Optional fields validation
         department = row.get("department", "").strip()
         if department:
@@ -577,30 +577,30 @@ async def validate_csv_upload(file: UploadFile) -> bytes:
                 errors.append(
                     f"Row {row_num}: department contains invalid characters"
                 )
-        
+
         manager_id = row.get("manager_id", "").strip()
         if manager_id and not EMPLOYEE_ID_PATTERN.match(manager_id):
             errors.append(
                 f"Row {row_num}: manager_id format invalid"
             )
-        
+
         # Stop after collecting 10 errors
         if len(errors) >= 10:
             errors.append("... and more errors")
             break
-    
+
     if errors:
         raise HTTPException(
             status_code=422,
             detail={"message": "CSV validation failed", "errors": errors}
         )
-    
+
     if row_count == 0:
         raise HTTPException(
             status_code=422,
             detail="CSV file is empty"
         )
-    
+
     return contents
 
 # Endpoint with validation
@@ -613,17 +613,17 @@ async def upload_employees_csv(
 ):
     """
     Upload HRIS CSV file (FR-1.1, FR-1.2)
-    
+
     Security:
     - File size validation
     - SQL injection prevention
     - RBAC enforcement (managers only)
     - Audit logging
     """
-    
+
     # Validate CSV
     csv_data = await validate_csv_upload(file)
-    
+
     # Log the upload (RA-6)
     log_platform_event(
         db, user, "csv_upload",
@@ -634,10 +634,10 @@ async def upload_employees_csv(
         },
         request=request
     )
-    
+
     # Process CSV (implementation in data ingestion module)
     upload_id = process_csv_upload(db, csv_data, user)
-    
+
     return {
         "upload_id": upload_id,
         "message": "CSV uploaded successfully",
@@ -654,9 +654,9 @@ from sqlalchemy.dialects.postgresql import JSONB
 
 class AuditLog(Base):
     """Audit log for all privacy-sensitive operations (RA-6)"""
-    
+
     __tablename__ = "audit_logs"
-    
+
     id = Column(Integer, primary_key=True, index=True)
     user_id = Column(String(50), nullable=False, index=True)
     action = Column(String(100), nullable=False, index=True)
@@ -666,7 +666,7 @@ class AuditLog(Base):
     ip_address = Column(String(45))
     user_agent = Column(String(500))
     timestamp = Column(DateTime, default=datetime.utcnow, index=True)
-    
+
     def __repr__(self):
         return f"<AuditLog {self.action} by {self.user_id} at {self.timestamp}>"
 
@@ -695,23 +695,23 @@ def log_platform_event(
 ):
     """
     Log platform events for auditability (RA-6)
-    
+
     CRITICAL: All privacy-sensitive operations must be logged:
     - Individual employee views
     - CSV uploads
     - Manual corrections
     - Configuration changes
     """
-    
+
     audit_details = details or {}
-    
+
     # Add versioning information (RA-2.2)
     audit_details.update({
         "onet_version": get_current_onet_version(),
         "openai_dataset_version": get_openai_dataset_version(),
         "platform_version": get_platform_version()
     })
-    
+
     audit_entry = AuditLog(
         user_id=user.employee_id,
         action=event,
@@ -722,10 +722,10 @@ def log_platform_event(
         user_agent=request.headers.get("user-agent") if request else None,
         timestamp=datetime.utcnow()
     )
-    
+
     db.add(audit_entry)
     db.commit()
-    
+
     return audit_entry
 
 # Usage examples
@@ -737,14 +737,14 @@ async def get_employee(
     request: Request = None
 ):
     """Get employee details with audit logging"""
-    
+
     employee = db.query(Employee).filter_by(employee_id=employee_id).first()
     if not employee:
         raise HTTPException(status_code=404, detail="Employee not found")
-    
+
     # Apply privacy controls
     employee = enforce_privacy_view(user, employee, db)
-    
+
     # Log the access (RA-6)
     log_platform_event(
         db, user, "employee_view",
@@ -757,7 +757,7 @@ async def get_employee(
         },
         request=request
     )
-    
+
     return employee
 
 @router.post("/onet-matches/{match_id}/correct")
@@ -769,20 +769,20 @@ async def correct_onet_match(
     request: Request = None
 ):
     """Manually correct O*NET match with audit trail"""
-    
+
     match = db.query(ONetMatch).get(match_id)
     if not match:
         raise HTTPException(status_code=404, detail="Match not found")
-    
+
     old_soc = match.onet_soc
     match.onet_soc = correction.new_onet_soc
     match.confidence = 1.0
     match.method = "manual_correction"
     match.corrected_by = user.employee_id
     match.corrected_at = datetime.utcnow()
-    
+
     db.commit()
-    
+
     # Log the correction (RA-6.1)
     log_platform_event(
         db, user, "manual_correction",
@@ -797,7 +797,7 @@ async def correct_onet_match(
         },
         request=request
     )
-    
+
     return {"message": "Match corrected", "match_id": match_id}
 ```
 
