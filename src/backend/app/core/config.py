@@ -57,6 +57,16 @@ class Settings(BaseSettings):
         return os.environ.get("GDPVAL_DATA_PATH") or self._p("GDPval")
 
     @property
+    def osca_data_path(self) -> str:
+        # OSCA 2024 v1.0 (ABS) — FR-9.1 AU occupation backbone
+        return os.environ.get("OSCA_DATA_PATH") or self._p("OSCA")
+
+    @property
+    def asc_data_path(self) -> str:
+        # Australian Skills Classification v3.0 (JSA) — FR-9.2 task layer (.rda)
+        return os.environ.get("ASC_DATA_PATH") or self._p("ASC")
+
+    @property
     def abs_data_path(self) -> str:
         return os.environ.get("ABS_DATA_PATH") or self._p("ABS")
 

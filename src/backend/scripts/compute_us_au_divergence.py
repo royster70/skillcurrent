@@ -19,14 +19,23 @@ logging.basicConfig(
 )
 
 
-async def main() -> None:
+async def run() -> int:
+    """Compute US-vs-AU occupation exposure divergence. Returns occupations covered.
+
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
     async with async_session() as session:
         s = await compute_us_au_divergence(session)
-        print("\nUS-vs-AU divergence computed:")
-        print(f"  occupations:       {int(s['occupations']):,}")
-        print(f"  with divergence:   {int(s['with_divergence']):,}")
-        print(f"  avg divergence:    {s['avg_divergence']:+.4f} (US minus AU)")
-        print(f"  avg |divergence|:  {s['avg_abs_divergence']:.4f}")
+    print("\nUS-vs-AU divergence computed:")
+    print(f"  occupations:       {int(s['occupations']):,}")
+    print(f"  with divergence:   {int(s['with_divergence']):,}")
+    print(f"  avg divergence:    {s['avg_divergence']:+.4f} (US minus AU)")
+    print(f"  avg |divergence|:  {s['avg_abs_divergence']:.4f}")
+    return int(s["occupations"])
+
+
+async def main() -> None:
+    await run()
 
 
 if __name__ == "__main__":

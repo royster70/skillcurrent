@@ -20,16 +20,25 @@ logging.basicConfig(
 )
 
 
-async def main(version: str) -> None:
+async def run(version: str = "2024.1.0") -> int:
+    """Apportion AU employment ANZSCO→OSCA. Returns rows written.
+
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
     async with async_session() as session:
         stats = await compute_osca_employment(session, version)
-        print("\nOSCA employment apportionment complete:")
-        print(f"  rows written:        {int(stats['rows']):,}")
-        print(f"  OSCA occupations:    {int(stats['osca_occupations']):,}")
-        print(f"  apportioned emp:     {int(stats['apportioned_employment']):,}")
-        print(f"  base emp (dedup):    {int(stats['base_employment']):,}")
-        diff = stats["apportioned_employment"] - stats["base_employment"]
-        print(f"  reconciliation diff: {diff:+.1f} (must be ~0)")
+    print("\nOSCA employment apportionment complete:")
+    print(f"  rows written:        {int(stats['rows']):,}")
+    print(f"  OSCA occupations:    {int(stats['osca_occupations']):,}")
+    print(f"  apportioned emp:     {int(stats['apportioned_employment']):,}")
+    print(f"  base emp (dedup):    {int(stats['base_employment']):,}")
+    diff = stats["apportioned_employment"] - stats["base_employment"]
+    print(f"  reconciliation diff: {diff:+.1f} (must be ~0)")
+    return int(stats["rows"])
+
+
+async def main(version: str) -> None:
+    await run(version)
 
 
 if __name__ == "__main__":

@@ -71,7 +71,7 @@ dependency order, resolving source paths from `settings.data_root` (env
 single stage or debugging.
 
 ```bash
-python -m scripts.run_pipeline --stages all --dry-run   # preview the 21-stage plan
+python -m scripts.run_pipeline --stages all --dry-run   # preview the 27-stage plan
 python -m scripts.run_pipeline --stages all             # full rebuild
 ```
 

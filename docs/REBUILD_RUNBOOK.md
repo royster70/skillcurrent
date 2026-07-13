@@ -178,10 +178,10 @@ python -m alembic upgrade head
 
 ### Option A: Full pipeline (recommended)
 
-`scripts/run_pipeline.py` is a working rebuild path (FR-8.8): each of the 21
-stages invokes the corresponding ingest script's shared `run()` entry point in
-dependency order, tagging every derived-computation row with a `pipeline_run_id`
-(ADR-007 Phase 3). Source-data locations are resolved from `settings.data_root`
+`scripts/run_pipeline.py` is a working rebuild path (FR-8.8): each of the 27
+stages (Tier 1 + AU/Census/ASX + the FR-9 OSCA/ASC AU-native layer) invokes the
+corresponding ingest script's shared `run()` entry point in dependency order,
+tagging every derived-computation row with a `pipeline_run_id` (ADR-007 Phase 3). Source-data locations are resolved from `settings.data_root`
 (env `DATA_ROOT`, default `C:\Users\royst\Projects\Data`) — set `DATA_ROOT` in
 `src/backend/.env` if your data lives elsewhere.
 
@@ -191,10 +191,10 @@ cd C:\Users\royst\Projects\workforce-ai-platform\src\backend
 # Point the orchestrator at your source data (skip if using the default path)
 # Add to src\backend\.env:  DATA_ROOT=C:\path\to\Data
 
-# Dry run first — prints the 21-stage plan without executing
+# Dry run first — prints the 27-stage plan without executing
 python -m scripts.run_pipeline --stages all --dry-run
 
-# Execute all 21 stages (Tier 1 core + optional AU/Census/ASX overlay)
+# Execute all 27 stages (Tier 1 core + optional AU/Census/ASX/FR-9 OSCA overlay)
 python -m scripts.run_pipeline --stages all
 
 # Selective runs:

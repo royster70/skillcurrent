@@ -11,8 +11,8 @@ async def client():
     """Async HTTP client wired to a real test DB session."""
     from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-    TEST_DB_URL = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
-    engine = create_async_engine(TEST_DB_URL, echo=False)
+    test_db_url = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
+    engine = create_async_engine(test_db_url, echo=False)
     test_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async def get_test_db():
@@ -97,6 +97,35 @@ class TestPipelineOrchestrator:
         names = [s.name for s in _build_pipeline_dag()]
         assert "ingest_census_w13" in names
         assert "ingest_census_subdivision_occ" in names
+
+    @pytest.mark.asyncio
+    async def test_dag_has_fr9_osca_stages(self):
+        """FR-9 AU-native OSCA/ASC stages are wired into the DAG (all optional)."""
+        from scripts.run_pipeline import _build_pipeline_dag
+
+        by_name = {s.name: s for s in _build_pipeline_dag()}
+        fr9 = [
+            "ingest_osca",
+            "compute_osca_employment",
+            "ingest_asc",
+            "build_dwa_asc_bridge",
+            "compute_au_task_layer",
+            "compute_us_au_divergence",
+        ]
+        for name in fr9:
+            assert name in by_name, name
+            assert by_name[name].optional is True, f"{name} should be optional"
+
+    @pytest.mark.asyncio
+    async def test_dag_dependencies_all_resolve(self):
+        """Every depends_on names a real stage (no dangling edges after wiring)."""
+        from scripts.run_pipeline import _build_pipeline_dag
+
+        dag = _build_pipeline_dag()
+        names = {s.name for s in dag}
+        for stage in dag:
+            for dep in stage.depends_on:
+                assert dep in names, f"{stage.name} -> unknown dependency {dep}"
 
     @pytest.mark.asyncio
     async def test_every_stage_has_a_real_callable(self):

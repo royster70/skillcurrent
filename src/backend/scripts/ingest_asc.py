@@ -11,8 +11,8 @@ import argparse
 import asyncio
 import logging
 import sys
-from pathlib import Path
 
+from app.core.config import settings
 from app.db.session import async_session
 from app.services.asc_ingestion import ingest_asc
 
@@ -22,28 +22,37 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-_DEFAULT_PATH = Path(__file__).resolve().parents[4] / "Data" / "ASC"
+
+async def run(data_path: str | None = None, version: str = "3.0") -> int:
+    """Ingest the Australian Skills Classification v3.0. Returns total rows loaded.
+
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
+    data_path = data_path or settings.asc_data_path
+    async with async_session() as session:
+        counts = await ingest_asc(session, data_path, version)
+    total = sum(counts.values())
+    print(f"\nASC {version} ingestion complete:")
+    for table, count in counts.items():
+        print(f"  {table}: {count:,} rows")
+    print(f"  TOTAL: {total:,} rows")
+    return total
 
 
 async def main(data_path: str, version: str) -> None:
-    async with async_session() as session:
-        try:
-            counts = await ingest_asc(session, data_path, version)
-            print(f"\nASC {version} ingestion complete:")
-            for table, count in counts.items():
-                print(f"  {table}: {count:,} rows")
-            print(f"  TOTAL: {sum(counts.values()):,} rows")
-        except (ValueError, FileNotFoundError) as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
+    try:
+        await run(data_path, version)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest ASC v3.0 data files")
     parser.add_argument(
         "--path",
-        default=str(_DEFAULT_PATH),
-        help=f"Path to ASC data directory (default: {_DEFAULT_PATH})",
+        default=settings.asc_data_path,
+        help=f"Path to ASC data directory (default: {settings.asc_data_path})",
     )
     parser.add_argument("--version", default="3.0", help="ASC version key")
     args = parser.parse_args()

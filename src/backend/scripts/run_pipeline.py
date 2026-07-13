@@ -265,6 +265,48 @@ def _build_pipeline_dag() -> list[PipelineStage]:
             optional=True,
             description="ANZSIC subdivisions (JSA Industry Data Table 3)",
         ),
+        # ── FR-9 AU-native task layer (OSCA backbone → ASC/DWA-pivot → divergence) ──
+        PipelineStage(
+            "ingest_osca",
+            partial(_call, "ingest_osca"),
+            depends_on=["ingest_abs"],
+            optional=True,
+            description="OSCA 2024 backbone (FR-9.1; backfills abs_employment.osca_code)",
+        ),
+        PipelineStage(
+            "compute_osca_employment",
+            partial(_call, "compute_osca_employment"),
+            depends_on=["ingest_osca", "ingest_abs"],
+            optional=True,
+            description="ANZSCO→OSCA employment apportionment (FR-9.1, ADR-010)",
+        ),
+        PipelineStage(
+            "ingest_asc",
+            partial(_call, "ingest_asc"),
+            optional=True,
+            description="Australian Skills Classification v3.0 (FR-9.2, ADR-011)",
+        ),
+        PipelineStage(
+            "build_dwa_asc_bridge",
+            partial(_call, "build_dwa_asc_bridge"),
+            depends_on=["ingest_asc", "onet"],
+            optional=True,
+            description="Semantic DWA↔ASC bridge (FR-9.2, ADR-011 L2)",
+        ),
+        PipelineStage(
+            "compute_au_task_layer",
+            partial(_call, "compute_au_task_layer"),
+            depends_on=["build_dwa_asc_bridge", "derive_eloundou_dwas", "ingest_osca"],
+            optional=True,
+            description="AU task layer + occupation exposure rollup (FR-9.2)",
+        ),
+        PipelineStage(
+            "compute_us_au_divergence",
+            partial(_call, "compute_us_au_divergence"),
+            depends_on=["compute_au_task_layer", "build_anzsco_concordance"],
+            optional=True,
+            description="US-vs-AU occupation exposure divergence (FR-9.2)",
+        ),
         PipelineStage(
             "ingest_asx_companies",
             partial(_call, "ingest_asx_companies"),
