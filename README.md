@@ -119,9 +119,13 @@ npm run test:e2e                              # 46 Playwright E2E tests
 
 | Doc | Purpose |
 |-----|---------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here** — functional (data-funnel) + solution architecture, with the DWA-pivot crosswalk diagram |
 | [docs/SETUP.md](docs/SETUP.md) | Development environment setup |
 | [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) | Data loading procedure and verification |
+| [docs/REBUILD_RUNBOOK.md](docs/REBUILD_RUNBOOK.md) | Full environment rebuild from scratch (fresh machine) |
 | [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | All database tables, columns, join paths |
+| [docs/data-sources.md](docs/data-sources.md) | Data sources, licences & attribution |
+| [ai_working/decisions/README.md](ai_working/decisions/README.md) | Architecture Decision Records (index) |
 | [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) | Every tool in the stack with rationale |
 | [docs/domain-model.md](docs/domain-model.md) | Data contracts and invariants |
 | [docs/MICROSOFT_AI_APPLICABILITY.md](docs/MICROSOFT_AI_APPLICABILITY.md) | Microsoft dataset context |

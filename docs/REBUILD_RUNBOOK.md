@@ -40,17 +40,21 @@ claude --version
 ### Critical files to save (NOT in the git repo)
 
 ```
-C:\Users\royst\Projects\Data\           # All source data (10 directories)
+C:\Users\royst\Projects\Data\           # All source data (13 directories)
   ABS\
   ABS-2021-Census\
-  AEI\
+  AEI\                                  # includes AEI\geographic\ (acquired, not yet ingested)
+  AIOE\                                  # acquired, not yet ingested — citation-only licence, NOT CC-BY
   ANZSCO\
   ASX\
   BLS\
   GDPval\
+  JSA-GenAI\                            # acquired, not yet ingested
   microsoft-working-with-ai\
   ONet\
   OpenAI-Exposure-Score\
+  OSCA\                                  # OSCA 2024 v1.0 (ABS) — FR-9.1 backbone, LOADED
+  ASC\                                    # Australian Skills Classification v3.0 (JSA), strayr .rda files — FR-9.2 task layer, LOADED
 
 C:\Users\royst\.claude\                 # Global Claude Code config
   settings.json                         # Plugins, global permissions
@@ -62,6 +66,19 @@ C:\Users\royst\.claude\projects\        # Project-specific memory
     user_preferences.md                 # Working style preferences
     project_roadmap.md                  # Feature roadmap
     project_session_*.md                # Session logs (6 files)
+```
+
+### ⚠ DB tables that CANNOT be regenerated from `Data\` — dump BEFORE rebuild
+
+Most tables re-ingest from source files, but these are **paid API output / LLM caches**
+that exist only in the database. The 2026-07 rebuild lost `gdpval_evaluations`
+(~$50 of Claude API evals) because no dump existed. Do not repeat that:
+
+```powershell
+docker exec workforce-pg pg_dump -U workforce -d workforce_ai --data-only `
+  -t gdpval_evaluations -t company_classifications > db_paid_tables_backup.sql
+# Restore after migrations on the new machine:
+#   Get-Content db_paid_tables_backup.sql | docker exec -i workforce-pg psql -U workforce -d workforce_ai
 ```
 
 ### Files in the git repo (restored by clone)
@@ -142,6 +159,16 @@ python -m alembic upgrade head
 
 **Note:** If using miniconda instead of venv, update `.claude/launch.json` to point to the correct Python path (currently `C:\Users\royst\miniconda3\python.exe`).
 
+### Data-processing prerequisites (beyond `pip install`)
+
+`pip install -e ".[dev]"` installs everything declared, but data processing has conditions pip can't satisfy:
+
+- **Heavy ML dependencies are pulled** — `sentence-transformers` (→ PyTorch, several hundred MB) and `pyarrow` are core deps required by `embed_titles` / `build_anzsco_concordance` (embeddings) and `ingest_gdpval` (parquet). Allow time and disk on first install. If either is missing after install, re-run `pip install -e ".[dev]"`.
+- **Network access is required at ingest time** — some stages download at runtime:
+  - `embed_titles` / `build_anzsco_concordance` download the `all-MiniLM-L6-v2` model from HuggingFace on first run (cached to `~/.cache/huggingface`).
+  - `ingest_epoch_eci` downloads the ECI benchmark CSV from epoch.ai. **The upstream schema can drift** (Epoch has dropped columns before) — the loader tolerates missing optional columns; row counts may differ from this doc.
+- **`pre-commit install` (Phase 8) is not restored by `git clone`** — run it before committing or commits silently bypass black/ruff/mypy.
+
 ---
 
 ## Phase 6 — Data Ingestion
@@ -191,7 +218,16 @@ python -m scripts.build_anzsco_concordance
 python -m scripts.compute_industry_profiles --region AU --year 2025
 python -m scripts.ingest_abs_census_wpp
 python -m scripts.ingest_abs_census_w13
+# Census subdivision x occupation (INDP x OCCP) — needs explicit CSV path + level
+python -m scripts.ingest_census_subdivision_occ "C:\Users\royst\Projects\Data\ABS-2021-Census\IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv" --level 2
+python -m scripts.ingest_census_subdivision_occ "C:\Users\royst\Projects\Data\ABS-2021-Census\L3_CDGK_Industry_cat.csv" --level 3
 python -m scripts.ingest_anzsic_subdivisions
+python -m scripts.ingest_osca                # FR-9.1 OSCA backbone (ADR-010) — requires ingest_abs to have run first
+python -m scripts.compute_osca_employment     # ANZSCO->OSCA employment apportionment — requires ingest_osca
+python -m scripts.ingest_asc                  # FR-9.2 ASC v3.0 ingest (ADR-011) — requires the .rda files acquired via strayr, in Data\ASC\
+python -m scripts.build_dwa_asc_bridge        # semantic DWA<->ASC bridge (ADR-011 L2) — requires ingest_asc; needs the all-MiniLM-L6-v2 model (network on first run)
+python -m scripts.compute_au_task_layer       # AU task layer + occupation exposure rollup — requires build_dwa_asc_bridge + ingest_osca's osca_anzsco_map
+python -m scripts.compute_us_au_divergence    # US-vs-AU occupation exposure divergence — requires compute_au_task_layer + O*NET tasks + anzsco_soc_concordance
 python -m scripts.ingest_asx_companies
 ```
 
@@ -204,7 +240,7 @@ python -m scripts.compute_gdpval_waterline --estimate
 ```powershell
 python -m pytest tests/test_data_invariants.py -v
 ```
-Expected: ~539,000 total rows across 33 tables. All invariant tests pass.
+Expected: ~602,600 total rows across 50 data tables (see `CLAUDE.md` Data Load Status for the authoritative per-table breakdown, including the FR-9.1 OSCA tables: `osca_occupations`, `osca_main_tasks`, `osca_anzsco_map`, `osca_isco_map`, `abs_employment_osca`, and the FR-9.2 AU task layer tables: `asc_specialist_task`, `asc_core_competency`, `asc_technology_tool`, `dwa_embeddings`, `asc_task_embeddings`, `dwa_asc_bridge`, `au_task`, `au_occupation_exposure`). All invariant tests pass.
 
 ---
 
@@ -400,4 +436,9 @@ docker start workforce-pg
 | Port 5432 in use | `Get-NetTCPConnection -LocalPort 5432` to find process, or change port |
 | Port 8000 in use (WinError 10013) | `Get-NetTCPConnection -LocalPort 8000 \| Select OwningProcess` then `Stop-Process -Id <PID> -Force` |
 | `ModuleNotFoundError` | Run `pip install -e ".[dev]"` from `src/backend/` |
+| `No module named 'sentence_transformers'` at `embed_titles` | Declared core dep; ensure `pip install -e ".[dev]"` completed |
+| `Unable to find a usable engine` / parquet read fails (`ingest_gdpval`) | `pyarrow` missing — re-run `pip install -e ".[dev]"` |
+| `ingest_epoch_eci` `KeyError` on a CSV column | Upstream Epoch schema drift; the loader guards optional columns — patch if a *required* column changes |
+| `ingest_oews` FK violation (`onet_soc` not in `onet_occupations`) | FIXED in migrations 029/030 (drop the wrong 6-vs-8-digit FKs on `oews_employment` + `industry_occupation_profiles`). If it recurs, run `alembic upgrade head` to apply them. `onet_soc` there is a 6-digit BLS SOC, joined to O*NET by prefix. |
+| Commit bypasses black/ruff/mypy | `pre-commit install` not run (Phase 8) |
 | pre-commit hooks not running | Run `pre-commit install` from project root |

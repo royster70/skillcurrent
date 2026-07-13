@@ -7,10 +7,11 @@ How to rebuild the Workforce AI Platform database from scratch. This covers envi
 ## Prerequisites
 
 - **Docker**: For running PostgreSQL with pgvector
-- **Python 3.12**: With pip/uv for dependency management
-- **Python packages**: Install from `src/backend/requirements.txt` (or equivalent)
-  - Key dependencies: `asyncpg`, `sqlalchemy`, `alembic`, `pandas`, `openpyxl`, `pydantic-settings`
-- **Data files**: Downloaded to local directories (see per-dataset sections below)
+- **Python 3.12**: With pip for dependency management
+- **Python packages**: `cd src/backend && pip install -e ".[dev]"` (declared in `pyproject.toml` — there is no `requirements.txt`).
+  - This pulls the **heavy processing deps** required for ingestion: `sentence-transformers` (→ PyTorch, hundreds of MB; needed by `embed_titles`, `build_anzsco_concordance`, and `build_dwa_asc_bridge`), `pyarrow` (parquet, needed by `ingest_gdpval`), `pyreadr` (R `.rda` files, needed by `ingest_asc`), plus `pandas`, `scipy`, `openpyxl`, `asyncpg`, `sqlalchemy`, `alembic`, `pgvector`, `pydantic-settings`. If any are missing after install, re-run the command.
+- **Network access at ingest time**: `embed_titles` / `build_anzsco_concordance` / `build_dwa_asc_bridge` download the `all-MiniLM-L6-v2` model from HuggingFace on first run (cached to `~/.cache/huggingface`); `ingest_epoch_eci` downloads a CSV from epoch.ai (schema may drift — the loader guards optional columns).
+- **Data files**: Downloaded to local directories (see per-dataset sections below). ASC v3.0 (section 4.14a) is acquired via the `runapp-aus/strayr` R package's `.rda` files rather than a direct CSV/Excel download — see `docs/data-sources.md` for acquisition notes.
 
 ---
 
@@ -50,7 +51,16 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all migrations in order (currently 020), creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all migrations in order (currently 030), creating all tables documented in `docs/DATA_DICTIONARY.md`.
+
+> **Note (migrations 029/030):** `oews_employment.onet_soc` and
+> `industry_occupation_profiles.onet_soc` hold a **6-digit BLS SOC** (e.g.
+> `11-1011`), not the 8-digit O*NET-SOC (`11-1011.00`). Their original foreign
+> keys to `onet_occupations` were dropped (migrations 029/030) because they can
+> never match; the US profile compute prefix-joins O*NET (`onet_soc LIKE
+> ow.onet_soc || '%'`), and Microsoft/AEI join at 6-digit exact. If a clean
+> rebuild ever fails at `ingest_oews` with a FK violation, confirm migrations
+> 029/030 are applied.
 
 ---
 
@@ -75,7 +85,15 @@ This applies all migrations in order (currently 020), creating all tables docume
    e. Census WPP W12A (independent — ANZSIC division × ANZSCO major group Census 2021)
    f. Census WPP W13 (independent — ANZSCO sub-major group × Sex Census 2021)
    g. ANZSIC subdivisions (independent — 214 sub-sectors from JSA Industry Data Table 3)
+   h. OSCA 2024 backbone (independent — depends only on the OSCA workbooks; also backfills a conservative `abs_employment.osca_code` for unique 6-digit matches)
+   i. OSCA employment apportionment (depends on OSCA backbone (h) + ABS employment ingestion (b) — apportions all of `abs_employment` ANZSCO→OSCA, both granularities)
 9. ASX company sectors (independent — downloads live from asx.com.au, no local file required; company_classifications table populated at API runtime via Haiku 4.5 with subdivision-enriched prompt)
+10. FR-9.2 AU-native task layer (DWA pivot, ADR-011 — requires OSCA backbone (8h) for the ANZSCO→OSCA expansion; must run in this order):
+    a. ASC v3.0 ingest (independent — depends only on the acquired `.rda` files)
+    b. DWA↔ASC semantic bridge (depends on ASC ingest (a) + `onet_dwa_references` — embeds both sides, network required for the model on first run)
+    c. AU task layer compute (depends on the bridge (b) + `eloundou_dwa_scores` + `osca_anzsco_map` from OSCA backbone (8h))
+    d. US-vs-AU divergence (depends on the au task layer (c) + `onet_tasks_to_dwas` + `anzsco_soc_concordance`; writes `us_task_beta` + `divergence` onto `au_occupation_exposure`):
+       `python -m scripts.compute_us_au_divergence`
 
 ---
 
@@ -640,6 +658,75 @@ SELECT anzsic_division_code, count(*) FROM anzsic_subdivisions GROUP BY 1 ORDER 
 -- 19 divisions, Manufacturing (C) has the most subdivisions (55)
 ```
 
+#### 4.12h OSCA 2024 Backbone (FR-9.1)
+
+**Source**: ABS Occupation Standard Classification for Australia (OSCA) 2024 v1.0, released 6 Dec 2024 (CC BY 4.0). Establishes OSCA as the canonical AU occupation entity, replacing the retired ANZSCO (kept as a legacy dual key). See ADR-010 (`ai_working/decisions/ADR-010-anzsco-osca-employment-apportionment.md`) for the design.
+
+**Local path**: `C:\Users\royst\Projects\Data\OSCA`
+
+**Files**: `OSCA structure.xlsx`, `OSCA Category Descriptions.xlsx`, `OSCA correspondence tables v2.xlsx` (the fourth acquired file, the index-of-titles workbook, is not read by this script)
+
+**Command**:
+```bash
+python -m scripts.ingest_osca
+python -m scripts.ingest_osca --path "C:\Users\royst\Projects\Data\OSCA" --version 2024.1.0
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| osca_occupations | 1,156 |
+| osca_main_tasks | 6,887 |
+| osca_anzsco_map | 1,383 |
+| osca_isco_map | 1,448 |
+
+The script also backfills `abs_employment.osca_code` for 6-digit ANZSCO codes with a single unambiguous OSCA mapping — 1,501 of 2,743 rows. This is a conservative dual-key link only; it does not apportion the 4-digit or ambiguous rows (see 4.12i for the full apportionment).
+
+**Verification**:
+```sql
+SELECT 'osca_occupations' AS tbl, COUNT(*) FROM osca_occupations
+UNION ALL SELECT 'osca_main_tasks', COUNT(*) FROM osca_main_tasks
+UNION ALL SELECT 'osca_anzsco_map', COUNT(*) FROM osca_anzsco_map
+UNION ALL SELECT 'osca_isco_map', COUNT(*) FROM osca_isco_map;
+SELECT COUNT(*) FROM abs_employment WHERE osca_code IS NOT NULL;
+-- Should be 1,501
+SELECT COUNT(*) FROM osca_main_tasks WHERE descriptor_only = true;
+-- Should equal total row count — every row is descriptor_only, never an exposure carrier
+```
+
+#### 4.12i OSCA Employment Apportionment (FR-9.1, ADR-010)
+
+**Source**: Derived from already-loaded data (no external files). Uses `abs_employment` and `osca_anzsco_map`. **Requires 4.12h (OSCA backbone) and 4.12b (ABS employment) to have run first.**
+
+Apportions AU employment ANZSCO→OSCA per the ADR-010 ladder: A0 double-count guard (prefer 6-digit ANZSCO detail over 4-digit unit-group aggregates), A1 exact link (`link_method='full'`), A3 equal split (`link_method='apportioned_equal'`) where a source row splits across multiple OSCA targets with no finer employment to weight by. A2 (employment-weighted apportionment) is documented in ADR-010 but not yet implemented.
+
+**Command**:
+```bash
+python -m scripts.compute_osca_employment
+python -m scripts.compute_osca_employment --version 2024.1.0
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| abs_employment_osca | 2,997 |
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM abs_employment_osca;
+-- Should be 2,997
+SELECT link_method, COUNT(*), ROUND(AVG(confidence)::numeric, 3), ROUND(SUM(apportioned_employment)::numeric)
+FROM abs_employment_osca GROUP BY link_method;
+-- full: 1,702 rows, confidence 1.000, ~5,839,240 employment (~61%)
+-- apportioned_equal: 1,295 rows, avg confidence 0.485, ~3,772,926 employment (~39%)
+
+-- Reconciliation invariant: must match exactly
+SELECT ROUND(SUM(apportioned_employment)::numeric) FROM abs_employment_osca;
+-- Should equal the de-duplicated ANZSCO base: 9,612,166
+```
+
 ### 4.13 ASX Company Sectors (FR-8.5 Company Lookup)
 
 **Source**: https://www.asx.com.au/asx/research/ASXListedCompanies.csv — free public CSV, no API key required, updated regularly by ASX.
@@ -684,6 +771,104 @@ SELECT COUNT(*) FROM company_classifications;
 ```
 
 **LLM classify endpoint**: `POST /api/v1/companies/classify` uses `claude-haiku-4-5-20251001` (upgraded from claude-3-haiku on 2026-03-28) to classify any company name not found in the ASX list. The prompt is enriched with the top 6 ANZSIC subdivisions per division (from `anzsic_subdivisions`) so the model has sub-sector resolution for diversified companies. JSON fence stripping is applied to handle Haiku 4.5's markdown-wrapped responses. It requires `ANTHROPIC_API_KEY` to be set in the environment. If the key is absent the endpoint returns HTTP 503. Results are cached in `company_classifications` to avoid redundant API calls.
+
+### 4.14 AU-Native Task Layer — the DWA Pivot (FR-9.2, ADR-011)
+
+Three steps that **must run in order**: ASC ingest → semantic bridge → AU task layer compute. Requires the FR-9.1 OSCA backbone (section 4.12h) to have run first, for the ANZSCO→OSCA expansion. Not yet wired into `scripts/run_pipeline.py` — run manually. Full design: `ai_working/decisions/ADR-011-au-task-exposure-dwa-pivot-ladder.md`.
+
+#### 4.14a ASC v3.0 Ingest
+
+**Source**: Australian Skills Classification (ASC) v3.0, Jobs and Skills Australia (CC BY 4.0). Acquired via the `runapp-aus/strayr` R package's `.rda` files rather than a direct CSV/Excel download — read with `pyreadr` (declared dependency, `pyreadr>=0.5`).
+
+**Local path**: `C:\Users\royst\Projects\Data\ASC`
+
+**Files**: `asc_specialist_tasks.rda`, `asc_core_competencies.rda`, `asc_technology_tools.rda`
+
+**Command**:
+```bash
+python -m scripts.ingest_asc
+python -m scripts.ingest_asc --path "C:\Users\royst\Projects\Data\ASC" --version 3.0
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| asc_specialist_task | 10,963 |
+| asc_core_competency | 6,000 |
+| asc_technology_tool | 1,989 |
+| **TOTAL** | **18,952** |
+
+The published ASC v3.0 files carry no source-DWA/O*NET/IWA identifier column (B0 spike finding) — `asc_specialist_task.source_dwa_id` is always NULL. This is expected, not a bug; the DWA link is built semantically in the next step.
+
+**Verification**:
+```sql
+SELECT 'asc_specialist_task' AS tbl, COUNT(*) FROM asc_specialist_task
+UNION ALL SELECT 'asc_core_competency', COUNT(*) FROM asc_core_competency
+UNION ALL SELECT 'asc_technology_tool', COUNT(*) FROM asc_technology_tool;
+SELECT COUNT(*) FROM asc_specialist_task WHERE source_dwa_id IS NOT NULL;
+-- Should be 0 (v3.0 has no lineage column)
+SELECT COUNT(DISTINCT anzsco_code) FROM asc_specialist_task;
+-- Should be 600
+```
+
+#### 4.14b DWA↔ASC Semantic Bridge
+
+**Source**: Derived from already-loaded data (no external files). Embeds `onet_dwa_references` titles and distinct `asc_specialist_task` texts with `all-MiniLM-L6-v2` (same model as `embed_titles`/`build_anzsco_concordance` — downloads from HuggingFace on first run if not already cached), then records the top-3 nearest DWA per ASC task at a cosine floor of 0.60. **Requires 4.14a (ASC ingest) to have run first.**
+
+**Command**:
+```bash
+python -m scripts.build_dwa_asc_bridge
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| dwa_embeddings | 2,087 |
+| asc_task_embeddings | 1,925 |
+| dwa_asc_bridge | 5,033 |
+
+**Verification**:
+```sql
+SELECT 'dwa_embeddings' AS tbl, COUNT(*) FROM dwa_embeddings
+UNION ALL SELECT 'asc_task_embeddings', COUNT(*) FROM asc_task_embeddings
+UNION ALL SELECT 'dwa_asc_bridge', COUNT(*) FROM dwa_asc_bridge;
+SELECT COUNT(DISTINCT specialist_task) FROM dwa_asc_bridge;
+-- Should be 1,923 (of 1,925 distinct ASC task texts — 99.9% matched)
+SELECT COUNT(*) FROM dwa_asc_bridge WHERE rank = 1 AND cosine_similarity >= 0.95;
+-- Should be 1,201 (high-confidence rank-1 matches)
+SELECT MIN(cosine_similarity) FROM dwa_asc_bridge;
+-- Should be >= 0.60 (the floor)
+```
+
+#### 4.14c AU Task Layer Compute
+
+**Source**: Derived from already-loaded data (no external files). Uses `asc_specialist_task`, `dwa_asc_bridge`, `eloundou_dwa_scores`, and `osca_anzsco_map`. Attaches global `AVG(dv_beta_derived)` exposure per matched DWA (cosine-weighted where a task matches multiple DWAs), expands each ASC task to its OSCA occupation(s) via the ADR-010 4-digit→OSCA expansion, and rolls up to a task-weighted occupation exposure. **Requires 4.14b (bridge) and the FR-9.1 OSCA backbone (4.12h) to have run first.**
+
+**Command**:
+```bash
+python -m scripts.compute_au_task_layer
+```
+
+**Expected row counts**:
+
+| Table | Rows |
+|-------|------|
+| au_task | 20,329 |
+| au_occupation_exposure | 960 |
+
+**Verification**:
+```sql
+SELECT COUNT(*) FROM au_task;
+-- Should be 20,329
+SELECT COUNT(*) FILTER (WHERE task_level_available) FROM au_task;
+-- Should be 20,322 (99.97% measured, all tier T2)
+SELECT COUNT(*) FROM au_task WHERE task_source = 'OSCA_main' AND au_native_beta IS NOT NULL;
+-- Should be 0 — enforced by the ck_au_task_osca_main_no_exposure CHECK constraint
+SELECT COUNT(*) FROM au_occupation_exposure;
+-- Should be 960 (of 1,156 OSCA occupations — remainder have no ASC coverage, task-level NA)
+```
 
 ---
 
@@ -736,6 +921,20 @@ python -m scripts.ingest_abs_census_wpp    # abs_census_wpp: 180 rows (W12A)
 python -m scripts.ingest_abs_census_w13    # abs_census_w13: 159 rows (W13)
 python -m scripts.ingest_anzsic_subdivisions  # anzsic_subdivisions: 214 rows
 
+# Step 6c: OSCA backbone + employment apportionment (FR-9.1, ADR-010)
+# ingest_osca must run before compute_osca_employment; both depend on Step 6's ingest_abs
+python -m scripts.ingest_osca              # osca_occupations 1,156; osca_main_tasks 6,887; osca_anzsco_map 1,383; osca_isco_map 1,448
+python -m scripts.compute_osca_employment  # abs_employment_osca: 2,997 rows
+
+# Step 6d: ASC v3.0 ingest (FR-9.2, ADR-011 — independent of Step 6c, but requires the .rda files acquired via strayr)
+python -m scripts.ingest_asc               # asc_specialist_task 10,963; asc_core_competency 6,000; asc_technology_tool 1,989
+
+# Step 6e: DWA<->ASC semantic bridge (FR-9.2, ADR-011 L2 — requires Step 6d; network required for the model on first run)
+python -m scripts.build_dwa_asc_bridge     # dwa_embeddings 2,087; asc_task_embeddings 1,925; dwa_asc_bridge 5,033
+
+# Step 6f: AU task layer compute (FR-9.2 — requires Step 6e + Step 6c's osca_anzsco_map + Step 3's eloundou_dwa_scores)
+python -m scripts.compute_au_task_layer    # au_task 20,329; au_occupation_exposure 960
+
 # Step 7: ASX company sectors (independent — downloads live from asx.com.au)
 # Note: requires anzsic_subdivisions to be loaded for enriched classify prompt
 python -m scripts.ingest_asx_companies
@@ -768,7 +967,7 @@ SELECT source, COUNT(*) FROM onet_title_embeddings GROUP BY source;
 
 ---
 
-**Total expected rows across all tables: ~538,594** (455,200 + 66,512 embeddings + 10,673 GDPval + 408 gptval_benchmarks + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors + 553 Census/subdivisions: 180 abs_census_wpp + 159 abs_census_w13 + 214 anzsic_subdivisions)
+**Total expected rows across all tables: ~538,594** (455,200 + 66,512 embeddings + 10,673 GDPval + 408 gptval_benchmarks + 3,255 AU data: 2,743 abs_employment + 491 anzsco_soc_concordance + 21 industry_crosswalk + 1,978 asx_company_sectors + 553 Census/subdivisions: 180 abs_census_wpp + 159 abs_census_w13 + 214 anzsic_subdivisions), **plus ~13,871 from FR-9.1 OSCA (1,156 osca_occupations + 6,887 osca_main_tasks + 1,383 osca_anzsco_map + 1,448 osca_isco_map + 2,997 abs_employment_osca), plus ~49,286 from FR-9.2 AU task layer (10,963 asc_specialist_task + 6,000 asc_core_competency + 1,989 asc_technology_tool + 2,087 dwa_embeddings + 1,925 asc_task_embeddings + 5,033 dwa_asc_bridge + 20,329 au_task + 960 au_occupation_exposure) → ~601,751 total.** This figure has known drift against the `CLAUDE.md` Data Load Status total (~602,645) — both include OSCA and ASC, but predate a full reconciliation of `gdpval_evaluations`, `abs_census_subdivision_occ`, and `api_request_log` row counts across the two documents. Treat `CLAUDE.md`'s Data Load Status table as authoritative for current exact counts; this line is a rough sanity-check sum.
 
 ---
 
@@ -811,6 +1010,19 @@ UNION ALL SELECT 'company_classifications', COUNT(*) FROM company_classification
 UNION ALL SELECT 'abs_census_wpp', COUNT(*) FROM abs_census_wpp
 UNION ALL SELECT 'abs_census_w13', COUNT(*) FROM abs_census_w13
 UNION ALL SELECT 'anzsic_subdivisions', COUNT(*) FROM anzsic_subdivisions
+UNION ALL SELECT 'osca_occupations', COUNT(*) FROM osca_occupations
+UNION ALL SELECT 'osca_main_tasks', COUNT(*) FROM osca_main_tasks
+UNION ALL SELECT 'osca_anzsco_map', COUNT(*) FROM osca_anzsco_map
+UNION ALL SELECT 'osca_isco_map', COUNT(*) FROM osca_isco_map
+UNION ALL SELECT 'abs_employment_osca', COUNT(*) FROM abs_employment_osca
+UNION ALL SELECT 'asc_specialist_task', COUNT(*) FROM asc_specialist_task
+UNION ALL SELECT 'asc_core_competency', COUNT(*) FROM asc_core_competency
+UNION ALL SELECT 'asc_technology_tool', COUNT(*) FROM asc_technology_tool
+UNION ALL SELECT 'dwa_embeddings', COUNT(*) FROM dwa_embeddings
+UNION ALL SELECT 'asc_task_embeddings', COUNT(*) FROM asc_task_embeddings
+UNION ALL SELECT 'dwa_asc_bridge', COUNT(*) FROM dwa_asc_bridge
+UNION ALL SELECT 'au_task', COUNT(*) FROM au_task
+UNION ALL SELECT 'au_occupation_exposure', COUNT(*) FROM au_occupation_exposure
 ORDER BY tbl;
 ```
 

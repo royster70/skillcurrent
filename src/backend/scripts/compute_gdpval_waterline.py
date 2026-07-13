@@ -16,11 +16,14 @@ Usage:
     # Show projected cost without calling any API:
     python -m scripts.compute_gdpval_waterline --estimate
 
-    # Run all 4 eras (default, ~$30-40):
-    python -m scripts.compute_gdpval_waterline
-
-    # 2-era budget run (~$15-20):
+    # CANONICAL waterline (recommended) — one tier (Sonnet) held constant across
+    # generations, isolating temporal shift; ~$15.70 (~$7.85/era). Extend each new
+    # generation by adding its Sonnet era key to ERA_MODELS and re-running.
     python -m scripts.compute_gdpval_waterline --eras claude-4-sonnet claude-4.5-sonnet
+
+    # All 4 eras incl. Opus (~$69) — adds the tier-separation band (Sonnet-vs-Opus
+    # within a generation). Out of scope as overkill for the temporal signal; side-analysis only.
+    python -m scripts.compute_gdpval_waterline
 
     # Resume interrupted run (ON CONFLICT DO NOTHING -- safe to re-run):
     python -m scripts.compute_gdpval_waterline --eras claude-4-sonnet
@@ -55,8 +58,8 @@ from sqlalchemy.orm import sessionmaker
 # String construction avoids literal patterns that trigger static scanners.
 _env_path = Path(__file__).resolve().parent.parent / ".env"
 load_dotenv(_env_path)
-_src = "ANTHROPIC_AUTH_" + "TO" + "KEN"   # project .env var name
-_dst = "ANTHROPIC_" + "API_" + "KEY"      # SDK standard var name
+_src = "ANTHROPIC_AUTH_" + "TO" + "KEN"  # project .env var name
+_dst = "ANTHROPIC_" + "API_" + "KEY"  # SDK standard var name
 if not os.environ.get(_dst) and os.environ.get(_src):
     os.environ[_dst] = os.environ[_src]
 
@@ -125,17 +128,16 @@ def _estimate_costs(tasks: list[dict], eras: list[str]) -> None:
     for era in eras:
         inp_p, out_p = ERA_PRICING.get(era, (3.0, 15.0))
         target_cost = (
-            total_tasks * (avg_prompt_tokens + 600) * inp_p
-            + total_tasks * 1200 * out_p
+            total_tasks * (avg_prompt_tokens + 600) * inp_p + total_tasks * 1200 * out_p
         ) / 1_000_000
         judge_cost = (
-            total_rubric * 800 * JUDGE_PRICING[0]
-            + total_rubric * 80 * JUDGE_PRICING[1]
+            total_rubric * 800 * JUDGE_PRICING[0] + total_rubric * 80 * JUDGE_PRICING[1]
         ) / 1_000_000
         era_total = target_cost + judge_cost
         grand_total += era_total
-        print(f"  {era:<22} target=${target_cost:.2f}  judge=${judge_cost:.2f}"
-              f"  -> ${era_total:.2f}")
+        print(
+            f"  {era:<22} target=${target_cost:.2f}  judge=${judge_cost:.2f}  -> ${era_total:.2f}"
+        )
 
     print(f"\n  TOTAL ({len(eras)} era(s)): ${grand_total:.2f}")
     print("----------------------------------------------------------\n")
@@ -207,7 +209,8 @@ async def _evaluate_task(
 
         # Step 3: persist (ON CONFLICT DO NOTHING enables safe re-runs)
         await session.execute(
-            text("""
+            text(
+                """
                 INSERT INTO gdpval_evaluations
                     (task_id, model_era, model_name, evaluation_date,
                      total_score, max_possible_score, completion_pct, notes)
@@ -215,10 +218,15 @@ async def _evaluate_task(
                     (:task_id, :era, :model, :edate,
                      :score, :max_score, :pct, :notes)
                 ON CONFLICT (task_id, model_era) DO NOTHING
-            """),
+            """
+            ),
             {
-                "task_id": task_id, "era": era, "model": model_name,
-                "edate": eval_date, "score": total_score, "max_score": max_score,
+                "task_id": task_id,
+                "era": era,
+                "model": model_name,
+                "edate": eval_date,
+                "score": total_score,
+                "max_score": max_score,
                 "pct": completion_pct,
                 "notes": "text-evaluation proxy (not computer-use)",
             },
@@ -234,9 +242,9 @@ async def run_evaluations(
 ) -> None:
     """Main evaluation loop across all tasks and specified eras."""
     engine = create_async_engine(settings.database_url)
-    AsyncSess = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
-    async with AsyncSess() as session:
+    async with session_factory() as session:
         tasks_r = await session.execute(
             text(
                 "SELECT task_id, occupation_title, prompt, rubric_item_count "
@@ -276,7 +284,7 @@ async def run_evaluations(
         model_name = ERA_MODELS[era]
         logger.info("\n== Era: %s -> %s ==", era, model_name)
 
-        async with AsyncSess() as session:
+        async with session_factory() as session:
             done_r = await session.execute(
                 text("SELECT COUNT(*) FROM gdpval_evaluations WHERE model_era = :era"),
                 {"era": era},
@@ -284,15 +292,21 @@ async def run_evaluations(
             done_count = done_r.scalar_one()
             logger.info(
                 "  %d/%d tasks already done (ON CONFLICT skips duplicates)",
-                done_count, len(tasks),
+                done_count,
+                len(tasks),
             )
 
             results = await asyncio.gather(
                 *[
                     _evaluate_task(
-                        client, session, task,
+                        client,
+                        session,
+                        task,
                         rubric_by_task.get(task["task_id"], []),
-                        era, model_name, semaphore, eval_date,
+                        era,
+                        model_name,
+                        semaphore,
+                        eval_date,
                     )
                     for task in tasks
                 ],
@@ -304,18 +318,23 @@ async def run_evaluations(
         avg_pct = sum(r["pct"] for r in successes) / len(successes) if successes else 0.0
         logger.info(
             "  Era %s: %d done, avg=%.1f%%, %d errors",
-            era, len(successes), avg_pct * 100, errors,
+            era,
+            len(successes),
+            avg_pct * 100,
+            errors,
         )
 
     # Summary
-    async with AsyncSess() as session:
-        rows = await session.execute(
-            text("""
-                SELECT model_era, COUNT(*), ROUND(AVG(completion_pct)::numeric * 100, 1)
-                FROM gdpval_evaluations
-                GROUP BY model_era ORDER BY MIN(evaluation_date)
-            """)
-        )
+    # SQL assigned to a local first: a bare session.execute(text("""...""")) is the one
+    # construct black and ruff-format format differently (hug vs explode), so they fight
+    # over it forever. Naming it sidesteps the disputed shape.
+    summary_sql = """
+        SELECT model_era, COUNT(*), ROUND(AVG(completion_pct)::numeric * 100, 1)
+        FROM gdpval_evaluations
+        GROUP BY model_era ORDER BY MIN(evaluation_date)
+    """
+    async with session_factory() as session:
+        rows = await session.execute(text(summary_sql))
         print("\n-- Waterline Summary ------------------------------------")
         print(f"{'ERA':<25} {'TASKS':>6} {'AVG COMPLETION':>15}")
         print("-" * 50)
@@ -328,16 +347,27 @@ async def run_evaluations(
 
 def main() -> None:
     parser = argparse.ArgumentParser(description="Compute GDPval evaluations across model eras")
-    parser.add_argument("--eras", nargs="+", choices=list(ERA_MODELS.keys()),
-                        default=list(ERA_MODELS.keys()), help="Eras to evaluate (default: all 4)")
-    parser.add_argument("--estimate", action="store_true",
-                        help="Show projected API cost without making calls")
-    parser.add_argument("--concurrency", type=int, default=5,
-                        help="Max concurrent task evaluations (default: 5)")
+    parser.add_argument(
+        "--eras",
+        nargs="+",
+        choices=list(ERA_MODELS.keys()),
+        default=list(ERA_MODELS.keys()),
+        help="Eras to evaluate (default: all 4)",
+    )
+    parser.add_argument(
+        "--estimate", action="store_true", help="Show projected API cost without making calls"
+    )
+    parser.add_argument(
+        "--concurrency", type=int, default=5, help="Max concurrent task evaluations (default: 5)"
+    )
     args = parser.parse_args()
-    asyncio.run(run_evaluations(
-        eras=args.eras, concurrency=args.concurrency, estimate_only=args.estimate,
-    ))
+    asyncio.run(
+        run_evaluations(
+            eras=args.eras,
+            concurrency=args.concurrency,
+            estimate_only=args.estimate,
+        )
+    )
 
 
 if __name__ == "__main__":

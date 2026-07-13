@@ -2,6 +2,11 @@ from app.models.aei import (
     AeiJobExposure,
     AeiTaskPenetration,
 )
+from app.models.asc import (
+    AscCoreCompetency,
+    AscSpecialistTask,
+    AscTechnologyTool,
+)
 from app.models.drift import (
     TaskDriftMetric,
 )
@@ -32,6 +37,13 @@ from app.models.onet import (
     OnetTaskStatement,
     OnetTaskToDwa,
     OnetWorkActivity,
+)
+from app.models.osca import (
+    AbsEmploymentOsca,
+    OscaAnzscoMap,
+    OscaIscoMap,
+    OscaMainTask,
+    OscaOccupation,
 )
 from app.models.tier1 import (
     AEITaskSnapshot,
@@ -66,6 +78,14 @@ __all__ = [
     "OnetTaskStatement",
     "OnetTaskToDwa",
     "OnetWorkActivity",
+    "AbsEmploymentOsca",
+    "AscCoreCompetency",
+    "AscSpecialistTask",
+    "AscTechnologyTool",
+    "OscaAnzscoMap",
+    "OscaIscoMap",
+    "OscaMainTask",
+    "OscaOccupation",
     "TaskDriftMetric",
     "TransformationLog",
 ]

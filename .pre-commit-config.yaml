@@ -17,7 +17,7 @@ repos:
     rev: v1.13.0
     hooks:
       - id: mypy
-        args: ["--strict", "--python-version=3.12"]
+        args: ["--strict", "--python-version=3.12", "--config-file=src/backend/pyproject.toml"]
         additional_dependencies:
           - "sqlalchemy[mypy]"
           - "pydantic"
@@ -33,3 +33,12 @@ repos:
       - id: check-merge-conflict
       - id: check-added-large-files
         args: ["--maxkb=500"]
+
+  - repo: local
+    hooks:
+      - id: docs-reachability
+        name: docs reachability (broken links + orphaned docs)
+        entry: python scripts/check_docs.py
+        language: system
+        files: \.md$
+        pass_filenames: false

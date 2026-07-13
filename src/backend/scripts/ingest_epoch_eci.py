@@ -133,7 +133,9 @@ def _parse_and_filter(csv_bytes: bytes, all_models: bool) -> pd.DataFrame:
         logger.info("Filtered to %d platform-relevant rows", len(df))
 
     # Map to era key
-    df["model_era"] = df["model_group"].map(ERA_MAP).fillna(df["model_group"].str.lower().str.replace(" ", "-"))
+    df["model_era"] = (
+        df["model_group"].map(ERA_MAP).fillna(df["model_group"].str.lower().str.replace(" ", "-"))
+    )
 
     # Parse date column — some rows may be empty
     df["measurement_date"] = pd.to_datetime(df["date"], errors="coerce").dt.date
@@ -141,9 +143,13 @@ def _parse_and_filter(csv_bytes: bytes, all_models: bool) -> pd.DataFrame:
     # Normalise performance to float (already float, but be explicit)
     df["score"] = pd.to_numeric(df["performance"], errors="coerce")
 
-    # Boolean columns
-    df["is_math"] = df["is_math"].map({"True": True, "False": False, True: True, False: False})
-    df["is_coding"] = df["is_coding"].map({"True": True, "False": False, True: True, False: False})
+    # Boolean category columns. Epoch dropped is_math/is_coding from the CSV
+    # (upstream schema drift, 2026) — guard for their absence and store NULL
+    # rather than fabricate categories. Waterline velocity per benchmark does
+    # not depend on them; they are optional filter flags only.
+    _bool_map = {"True": True, "False": False, True: True, False: False}
+    for _col in ("is_math", "is_coding"):
+        df[_col] = df[_col].map(_bool_map) if _col in df.columns else None
 
     # Drop rows with no score
     missing_score = df["score"].isna().sum()
@@ -228,17 +234,19 @@ async def ingest(
     rows = []
     for _, row in df.iterrows():
         mdate = row["measurement_date"]
-        rows.append({
-            "benchmark": str(row["benchmark"]),
-            "model_group": str(row["model_group"]),
-            "model_era": str(row["model_era"]),
-            "measurement_date": mdate if not pd.isna(mdate) else None,
-            "score": float(row["score"]),
-            "is_math": bool(row["is_math"]) if pd.notna(row["is_math"]) else None,
-            "is_coding": bool(row["is_coding"]) if pd.notna(row["is_coding"]) else None,
-            "source_ref": str(row["source"])[:500] if pd.notna(row.get("source")) else None,
-            "dataset_version": version,
-        })
+        rows.append(
+            {
+                "benchmark": str(row["benchmark"]),
+                "model_group": str(row["model_group"]),
+                "model_era": str(row["model_era"]),
+                "measurement_date": mdate if not pd.isna(mdate) else None,
+                "score": float(row["score"]),
+                "is_math": bool(row["is_math"]) if pd.notna(row["is_math"]) else None,
+                "is_coding": bool(row["is_coding"]) if pd.notna(row["is_coding"]) else None,
+                "source_ref": str(row["source"])[:500] if pd.notna(row.get("source")) else None,
+                "dataset_version": version,
+            }
+        )
 
     logger.info("Loading %d ECI benchmark rows...", len(rows))
     await session.execute(
@@ -283,8 +291,8 @@ async def main() -> None:
     args = parser.parse_args()
 
     engine = create_async_engine(settings.database_url)
-    AsyncSess = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with AsyncSess() as session:
+    async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    async with async_session_maker() as session:
         counts = await ingest(session, all_models=args.all_models, data_version=args.data_version)
         print(f"\nLoaded: {counts}")
     await engine.dispose()

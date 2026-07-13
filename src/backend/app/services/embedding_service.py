@@ -12,6 +12,7 @@ Total: ~66,500 embeddings
 """
 
 import logging
+from typing import Any
 
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
@@ -26,7 +27,7 @@ BATCH_SIZE = 512
 
 def _get_model() -> SentenceTransformer:
     """Load sentence transformer model (cached after first call)."""
-    return SentenceTransformer(MODEL_NAME)
+    return SentenceTransformer(MODEL_NAME)  # type: ignore[no-any-return,unused-ignore]
 
 
 async def embed_all_titles(session: AsyncSession) -> dict[str, int]:
@@ -45,9 +46,7 @@ async def embed_all_titles(session: AsyncSession) -> dict[str, int]:
 
     # 1. Sample titles
     logger.info("Embedding sample titles...")
-    r = await session.execute(text(
-        "SELECT onet_soc, reported_job_title FROM onet_sample_titles"
-    ))
+    r = await session.execute(text("SELECT onet_soc, reported_job_title FROM onet_sample_titles"))
     sample_rows = r.fetchall()
     counts["sample"] = await _embed_batch(
         session, model, [(row[0], row[1], "sample") for row in sample_rows]
@@ -56,9 +55,7 @@ async def embed_all_titles(session: AsyncSession) -> dict[str, int]:
 
     # 2. Alternate titles
     logger.info("Embedding alternate titles...")
-    r = await session.execute(text(
-        "SELECT onet_soc, alternate_title FROM onet_alternate_titles"
-    ))
+    r = await session.execute(text("SELECT onet_soc, alternate_title FROM onet_alternate_titles"))
     alt_rows = r.fetchall()
     counts["alternate"] = await _embed_batch(
         session, model, [(row[0], row[1], "alternate") for row in alt_rows]
@@ -67,9 +64,9 @@ async def embed_all_titles(session: AsyncSession) -> dict[str, int]:
 
     # 3. Occupation descriptions (title + description combined for richer embedding)
     logger.info("Embedding occupation descriptions...")
-    r = await session.execute(text(
-        "SELECT onet_soc, title || ': ' || COALESCE(description, '') FROM onet_occupations"
-    ))
+    r = await session.execute(
+        text("SELECT onet_soc, title || ': ' || COALESCE(description, '') FROM onet_occupations")
+    )
     occ_rows = r.fetchall()
     counts["occupation"] = await _embed_batch(
         session, model, [(row[0], row[1], "occupation") for row in occ_rows]
@@ -132,7 +129,7 @@ async def search_by_embedding(
     query: str,
     limit: int = 20,
     source_filter: str | None = None,
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Search for nearest O*NET titles/occupations by semantic similarity.
 
     Args:
@@ -148,12 +145,14 @@ async def search_by_embedding(
     embedding_str = f"[{','.join(str(x) for x in query_embedding)}]"
 
     source_clause = ""
-    params: dict = {"embedding": embedding_str, "limit": limit}
+    params: dict[str, Any] = {"embedding": embedding_str, "limit": limit}
     if source_filter:
         source_clause = "AND te.source = :source"
         params["source"] = source_filter
 
-    r = await session.execute(text(f"""
+    r = await session.execute(
+        text(
+            f"""
         SELECT te.title, te.onet_soc, te.source,
                1 - (te.embedding <=> CAST(:embedding AS vector)) AS similarity,
                o.title AS occupation_title
@@ -162,7 +161,10 @@ async def search_by_embedding(
         WHERE te.embedding IS NOT NULL {source_clause}
         ORDER BY te.embedding <=> CAST(:embedding AS vector)
         LIMIT :limit
-    """), params)
+    """
+        ),
+        params,
+    )
 
     return [
         {
