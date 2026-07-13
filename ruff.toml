@@ -5,3 +5,12 @@
 # src/backend/ has its own pyproject.toml [tool.ruff]; this only governs files outside it.
 line-length = 100
 target-version = "py312"
+
+[lint]
+# black owns line length (sole formatter) — don't double-check it in the linter.
+ignore = ["E501"]
+
+[lint.per-file-ignores]
+# Procedural CLI scripts (e.g. the docs-reachability checker) are exempt from
+# C901 complexity — that limit is for application logic, not one-shot tooling.
+"scripts/**" = ["C901"]

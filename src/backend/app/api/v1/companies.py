@@ -339,6 +339,58 @@ async def search_companies(
     return CompanySearchResponse(results=results[:limit], query=q, region=region)
 
 
+async def _classify_sectors_via_llm(
+    db: AsyncSession,
+    req: ClassifyRequest,
+    region: str,
+    sectors_ref: dict[str, str],
+) -> list[dict]:
+    """Call Haiku to classify a company into sectors; returns raw suggestion dicts."""
+    if not settings.anthropic_auth_token:
+        raise HTTPException(
+            status_code=503,
+            detail="Anthropic credential not set in environment. Required for AI classification.",
+        )
+
+    system_label = "ANZSIC 2006 Divisions" if region == "AU" else "NAICS 2022 Sectors"
+    region_label = "Australia" if region == "AU" else "United States"
+
+    # AU: enrich sector list with subdivision context from JSA data
+    if region == "AU":
+        sector_list = await _build_au_sector_list_with_subs(db)
+    else:
+        sector_list = "\n".join(f"  {code}: {name}" for code, name in sectors_ref.items())
+
+    prompt = CLASSIFY_PROMPT.format(
+        name=req.name,
+        region_label=region_label,
+        system_label=system_label,
+        sector_list=sector_list,
+    )
+
+    raw_text = ""
+    try:
+        client = _get_anthropic_client()
+        response = client.messages.create(
+            model="claude-haiku-4-5-20251001",
+            max_tokens=256,
+            messages=[{"role": "user", "content": prompt}],
+        )
+        block = response.content[0]
+        raw_text = block.text.strip() if hasattr(block, "text") else ""
+        # Strip markdown code fences if present (Haiku 4.5 sometimes wraps JSON)
+        if raw_text.startswith("```"):
+            raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
+        parsed = json.loads(raw_text)
+        return parsed.get("sectors", [])
+    except json.JSONDecodeError:
+        logger.warning(f"LLM returned non-JSON for '{req.name}': {raw_text[:200]}")
+        raise HTTPException(status_code=502, detail="AI classification returned invalid format")
+    except anthropic.APIError as e:
+        logger.error(f"Anthropic error classifying '{req.name}': {e}")
+        raise HTTPException(status_code=502, detail=f"AI classification failed: {str(e)}")
+
+
 @router.post("/classify", response_model=ClassifyResponse)
 async def classify_company(
     req: ClassifyRequest,
@@ -384,49 +436,8 @@ async def classify_company(
         )
 
     # LLM classification -- uses Haiku for speed and cost efficiency
-    if not settings.anthropic_auth_token:
-        raise HTTPException(
-            status_code=503,
-            detail="Anthropic credential not set in environment. Required for AI classification.",
-        )
-
     sectors_ref = ANZSIC_DIVISIONS if region == "AU" else NAICS_SECTORS
-    system_label = "ANZSIC 2006 Divisions" if region == "AU" else "NAICS 2022 Sectors"
-    region_label = "Australia" if region == "AU" else "United States"
-
-    # AU: enrich sector list with subdivision context from JSA data
-    if region == "AU":
-        sector_list = await _build_au_sector_list_with_subs(db)
-    else:
-        sector_list = "\n".join(f"  {code}: {name}" for code, name in sectors_ref.items())
-
-    prompt = CLASSIFY_PROMPT.format(
-        name=req.name,
-        region_label=region_label,
-        system_label=system_label,
-        sector_list=sector_list,
-    )
-
-    try:
-        client = _get_anthropic_client()
-        response = client.messages.create(
-            model="claude-haiku-4-5-20251001",
-            max_tokens=256,
-            messages=[{"role": "user", "content": prompt}],
-        )
-        raw_text = response.content[0].text.strip()
-        # Strip markdown code fences if present (Haiku 4.5 sometimes wraps JSON)
-        if raw_text.startswith("```"):
-            raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
-        parsed = json.loads(raw_text)
-        suggestions = parsed.get("sectors", [])
-
-    except json.JSONDecodeError:
-        logger.warning(f"LLM returned non-JSON for '{req.name}': {raw_text[:200]}")
-        raise HTTPException(status_code=502, detail="AI classification returned invalid format")
-    except anthropic.APIError as e:
-        logger.error(f"Anthropic error classifying '{req.name}': {e}")
-        raise HTTPException(status_code=502, detail=f"AI classification failed: {str(e)}")
+    suggestions = await _classify_sectors_via_llm(db, req, region, sectors_ref)
 
     # Validate and filter suggestions
     valid_suggestions = []

@@ -32,6 +32,21 @@ def _clean_numeric(series: pd.Series, target_type: str = "int") -> pd.Series:
     return cleaned
 
 
+def _normalize_numpy_types(rows: list[dict]) -> None:
+    """In-place: convert numpy/pandas scalar types to plain Python for the DB driver."""
+    for row in rows:
+        for key, value in row.items():
+            try:
+                if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
+                    row[key] = None
+                elif isinstance(value, np.integer):
+                    row[key] = int(value)
+                elif isinstance(value, np.floating):
+                    row[key] = float(value)
+            except (TypeError, ValueError):
+                pass
+
+
 async def ingest_oews(
     session: AsyncSession,
     data_path: str,
@@ -137,17 +152,7 @@ async def ingest_oews(
 
     # Convert to rows with proper Python types
     rows = result_df.to_dict("records")
-    for row in rows:
-        for key, value in row.items():
-            try:
-                if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
-                    row[key] = None
-                elif isinstance(value, np.integer):
-                    row[key] = int(value)
-                elif isinstance(value, np.floating):
-                    row[key] = float(value)
-            except (TypeError, ValueError):
-                pass
+    _normalize_numpy_types(rows)
 
     # Bulk insert
     columns = list(rows[0].keys())

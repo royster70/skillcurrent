@@ -9,7 +9,6 @@ from app.services.drift_calculation import (
     _compute_velocity,
 )
 
-
 # ── FR-8.2: Velocity computation tests ──
 
 

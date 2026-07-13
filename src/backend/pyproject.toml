@@ -53,12 +53,25 @@ target-version = ["py312"]
 [tool.ruff]
 line-length = 100
 target-version = "py312"
+# Alembic migrations are generated, append-only history — black-formatted but NOT
+# linted (don't re-churn old migrations when lint rules change). force-exclude so
+# pre-commit's explicit file list honours the exclude.
+extend-exclude = ["migrations"]
+force-exclude = true
 
 [tool.ruff.lint]
 select = ["E", "F", "I", "N", "W", "UP", "C90"]
+# black is the sole formatter and owns line length — don't have the linter
+# re-flag the long lines (SQL/strings/signatures) black deliberately leaves.
+ignore = ["E501"]
 
 [tool.ruff.lint.mccabe]
 max-complexity = 10
+
+[tool.ruff.lint.per-file-ignores]
+# C901 complexity is enforced on app/ business logic. One-shot ingest/CLI
+# scripts are procedural (branchy CSV/format parsing) and exempt.
+"scripts/**" = ["C901"]
 
 [tool.mypy]
 strict = true

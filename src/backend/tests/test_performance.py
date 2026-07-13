@@ -10,8 +10,8 @@ Run P95 threshold tests only (requires a running backend):
     pytest tests/test_performance.py -v -m slow
 """
 
-import pytest
 import numpy as np
+import pytest
 from httpx import ASGITransport, AsyncClient
 from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 

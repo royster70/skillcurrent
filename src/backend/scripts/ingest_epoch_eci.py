@@ -288,9 +288,9 @@ async def run(all_models: bool = False, data_version: str | None = None) -> int:
     ``gptval_benchmarks`` row count instead of raising, so a rebuild is resumable.
     """
     engine = create_async_engine(settings.database_url)
-    AsyncSess = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    session_factory = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
     try:
-        async with AsyncSess() as session:
+        async with session_factory() as session:
             try:
                 counts = await ingest(session, all_models=all_models, data_version=data_version)
                 total = sum(counts.values())
