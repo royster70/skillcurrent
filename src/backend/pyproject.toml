@@ -43,6 +43,9 @@ dev = [
     "mypy>=1.8",
 ]
 
+# FORMATTER POLICY: black is the sole formatter; ruff is linter-only (no ruff-format hook —
+# see .pre-commit-config.yaml). Keep line-length=100 / py312 here == root ruff.toml == the hook
+# revs, and the [dev] black/ruff pins == those revs, so local `python -m black` == CI.
 [tool.black]
 line-length = 100
 target-version = ["py312"]
