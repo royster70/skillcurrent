@@ -5,6 +5,7 @@ Enable via environment variable: PIPELINE_AUTO_RUN=true
 """
 
 import logging
+
 from apscheduler.schedulers.asyncio import AsyncIOScheduler
 from apscheduler.triggers.cron import CronTrigger
 

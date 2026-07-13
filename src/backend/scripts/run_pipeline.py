@@ -31,6 +31,7 @@ from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
 from datetime import UTC, datetime
 from functools import partial
+from typing import Any
 
 from app.core.correlation import pipeline_run_id_var
 
@@ -46,14 +47,15 @@ class PipelineStage:
     description: str = ""
 
 
-async def _call(module: str, **kwargs) -> int:
+async def _call(module: str, **kwargs: Any) -> int:
     """Import ``scripts.<module>`` lazily and invoke its ``run(**kwargs)``.
 
     Lazy import keeps module load light (heavy deps like sentence-transformers
     are only imported when their stage actually runs).
     """
     mod = importlib.import_module(f"scripts.{module}")
-    return await mod.run(**kwargs)
+    result: int = await mod.run(**kwargs)
+    return result
 
 
 async def _stage_census_subdivision_occ() -> int:
@@ -63,18 +65,20 @@ async def _stage_census_subdivision_occ() -> int:
     ``indp_level`` (see migrations 021/022). Returns combined rows loaded.
     """
     mod = importlib.import_module("scripts.ingest_census_subdivision_occ")
-    total = await mod.run(level=2)
+    total: int = await mod.run(level=2)
     total += await mod.run(level=3)
     return total
 
 
-async def run_pipeline(stages: str = "all", dry_run: bool = False, from_stage: int = 0) -> dict:
+async def run_pipeline(
+    stages: str = "all", dry_run: bool = False, from_stage: int = 0
+) -> dict[str, Any]:
     """Run the Tier 1 (+ optional AU) data refresh pipeline.
 
     Returns a summary dict with per-stage results and the batch correlation key.
     """
     run_id = str(uuid.uuid4())
-    results: dict = {
+    results: dict[str, Any] = {
         "started_at": datetime.now(UTC).isoformat(),
         "pipeline_run_id": run_id,
         "dry_run": dry_run,
@@ -110,9 +114,9 @@ async def run_pipeline(stages: str = "all", dry_run: bool = False, from_stage: i
     return results
 
 
-async def _run_stage(stage: PipelineStage, dry_run: bool) -> dict:
+async def _run_stage(stage: PipelineStage, dry_run: bool) -> dict[str, Any]:
     """Execute a single stage and return its result dict."""
-    stage_result: dict = {
+    stage_result: dict[str, Any] = {
         "name": stage.name,
         "description": stage.description,
         "status": "skipped" if dry_run else "pending",

@@ -47,10 +47,10 @@ def test_build_hierarchy_simple():
         {"employee_id": "E1", "manager_id": None},
         {"employee_id": "E2", "manager_id": "E1"}
     ]
-    
+
     # Act: Execute function
     result = build_org_hierarchy(db, employees)
-    
+
     # Assert: Verify results
     assert result['hierarchy']['E2']['hierarchy_path'] == ['E1', 'E2']
     assert result['hierarchy']['E2']['is_leaf_node'] == True
@@ -91,13 +91,13 @@ def db_session():
     engine = create_engine("postgresql://test:test@localhost/workforce_ai_test")
     Session = sessionmaker(bind=engine)
     session = Session()
-    
+
     # Clean database
     session.execute("TRUNCATE employees, onet_matches, audit_logs CASCADE")
     session.commit()
-    
+
     yield session
-    
+
     session.close()
 
 @pytest.fixture(scope="module")
@@ -190,14 +190,14 @@ def test_exposure_zone_classification(exposure, expected_zone, expected_color):
 def test_hierarchy_simple_tree(db_session, sample_employees):
     """FR-1.3: Build basic organizational tree"""
     bulk_insert(db_session, sample_employees)
-    
+
     hierarchy = build_org_hierarchy(db_session)
-    
+
     # Verify paths
     assert hierarchy["CEO"]["hierarchy_path"] == ["CEO"]
     assert hierarchy["VP1"]["hierarchy_path"] == ["CEO", "VP1"]
     assert hierarchy["IC1"]["hierarchy_path"] == ["CEO", "VP1", "DIR1", "MGR1", "IC1"]
-    
+
     # Verify leaf nodes
     assert hierarchy["IC1"]["is_leaf_node"] == True
     assert hierarchy["IC2"]["is_leaf_node"] == True
@@ -211,7 +211,7 @@ def test_hierarchy_cycle_detection(db_session):
         {"employee_id": "E3", "job_title": "Manager", "manager_id": "E1"},  # Cycle!
     ]
     bulk_insert(db_session, employees)
-    
+
     with pytest.raises(HierarchyError, match="Cycle detected"):
         build_org_hierarchy(db_session)
 
@@ -223,9 +223,9 @@ def test_hierarchy_orphan_detection(db_session):
         {"employee_id": "ORPHAN", "job_title": "Engineer", "manager_id": "MISSING_MGR"},
     ]
     bulk_insert(db_session, employees)
-    
+
     result = build_org_hierarchy(db_session)
-    
+
     assert "ORPHAN" in result["orphans"]
     assert result["orphan_count"] == 1
     assert result["orphan_percentage"] == pytest.approx(33.3, rel=0.1)
@@ -238,9 +238,9 @@ def test_hierarchy_multiple_roots(db_session):
         {"employee_id": "VP1", "job_title": "VP", "manager_id": "CEO1"},
     ]
     bulk_insert(db_session, employees)
-    
+
     result = build_org_hierarchy(db_session)
-    
+
     assert len(result["root_nodes"]) == 2
     assert result["requires_review"] == True
     assert "Multiple root nodes detected" in result["warnings"]
@@ -248,9 +248,9 @@ def test_hierarchy_multiple_roots(db_session):
 def test_hierarchy_path_generation(db_session, sample_employees):
     """FR-1.4: Generate hierarchy_path for each employee"""
     bulk_insert(db_session, sample_employees)
-    
+
     hierarchy = build_org_hierarchy(db_session)
-    
+
     # Verify all employees have paths
     for emp_id in ["CEO", "VP1", "DIR1", "MGR1", "IC1"]:
         assert "hierarchy_path" in hierarchy[emp_id]
@@ -260,9 +260,9 @@ def test_hierarchy_path_generation(db_session, sample_employees):
 def test_hierarchy_depth_calculation(db_session, sample_employees):
     """Calculate org depth for metrics"""
     bulk_insert(db_session, sample_employees)
-    
+
     hierarchy = build_org_hierarchy(db_session)
-    
+
     assert hierarchy["CEO"]["depth"] == 0
     assert hierarchy["VP1"]["depth"] == 1
     assert hierarchy["DIR1"]["depth"] == 2
@@ -281,7 +281,7 @@ def test_layer_1_exact_dictionary_match(onet_sample_data):
         onet_data=onet_sample_data,
         max_layer=1
     )
-    
+
     assert result.onet_soc == "15-1252.00"
     assert result.matching_layer == "layer_1"
     assert result.confidence >= 0.95
@@ -295,7 +295,7 @@ def test_layer_2_contextual_fuzzy_match(onet_sample_data):
         onet_data=onet_sample_data,
         max_layer=2
     )
-    
+
     assert result.onet_soc == "15-1252.00"
     assert result.matching_layer == "layer_2"
     assert 0.7 <= result.confidence < 0.95
@@ -308,7 +308,7 @@ def test_layer_3_embedding_match(onet_sample_data):
         onet_data=onet_sample_data,
         max_layer=3
     )
-    
+
     assert result.onet_soc == "15-1252.00"
     assert result.matching_layer == "layer_3"
     assert 0.6 <= result.confidence < 0.9
@@ -324,7 +324,7 @@ def test_layer_4_onet_api_fallback(onet_sample_data):
         onet_data=onet_sample_data,
         max_layer=4
     )
-    
+
     assert result.matching_layer == "layer_4"
     assert result.method == "onet_api"
 
@@ -334,13 +334,13 @@ def test_layer_5_llm_match(onet_sample_data):
     """FR-2.5: Layer 5 - GPT-4o for edge cases"""
     with patch('openai.ChatCompletion.create') as mock_llm:
         mock_llm.return_value.choices[0].message.content = "15-1252.00|0.75"
-        
+
         result = match_title_to_onet(
             "Blockchain Metaverse Engineer",
             onet_data=onet_sample_data,
             max_layer=5
         )
-        
+
         assert result.onet_soc == "15-1252.00"
         assert result.matching_layer == "layer_5"
         assert result.method == "llm"
@@ -350,11 +350,11 @@ def test_matching_cascade_stops_at_high_confidence():
     """FR-2: Cascade stops when confidence â‰¥ threshold"""
     with patch('match_layer_1') as mock_l1, \
          patch('match_layer_2') as mock_l2:
-        
+
         mock_l1.return_value = {"onet_soc": "15-1252.00", "confidence": 0.95}
-        
+
         result = match_title_to_onet("Software Engineer")
-        
+
         # Should stop at Layer 1, never call Layer 2
         mock_l1.assert_called_once()
         mock_l2.assert_not_called()
@@ -362,7 +362,7 @@ def test_matching_cascade_stops_at_high_confidence():
 def test_matching_confidence_threshold_review_queue():
     """FR-2.6: Low confidence â†’ review queue"""
     result = match_title_to_onet("Synergy Facilitator")
-    
+
     assert result.confidence < 0.8
     assert result.requires_review == True
     assert result.review_reason == "low_confidence"
@@ -375,9 +375,9 @@ def test_matching_stores_metadata(db_session):
         job_title="Software Engineer",
         department="Engineering"
     )
-    
+
     match = db_session.query(ONetMatch).filter_by(employee_id="E1").first()
-    
+
     assert match.onet_soc == "15-1252.00"
     assert match.confidence >= 0.9
     assert match.matching_layer in ["layer_1", "layer_2", "layer_3", "layer_4", "layer_5"]
@@ -391,9 +391,9 @@ def test_matching_stores_metadata(db_session):
 def test_exposure_score_openai_lookup(openai_exposure_data):
     """FR-4.1: Primary lookup from OpenAI pre-computed data (80% coverage)"""
     dwa_code = "4.A.2.a.4"
-    
+
     score = get_exposure_score(dwa_code, exposure_data=openai_exposure_data)
-    
+
     assert score.source == "openai_precomputed"
     assert score.dwa_code == dwa_code
     assert 0 <= score.E0 <= 1  # Overall exposure
@@ -404,12 +404,12 @@ def test_exposure_score_openai_lookup(openai_exposure_data):
 def test_exposure_score_llm_fallback(openai_exposure_data):
     """FR-4.2: LLM fallback for missing DWAs (20% coverage)"""
     unknown_dwa = "NEW.TASK.2025"
-    
+
     with patch('openai.ChatCompletion.create') as mock_llm:
         mock_llm.return_value.choices[0].message.content = "E1|0.62|High routine, moderate autonomy"
-        
+
         score = get_exposure_score(unknown_dwa, exposure_data=openai_exposure_data)
-        
+
         assert score.source == "llm_fallback"
         assert score.exposure_level == "E1"
         assert score.estimated_score == pytest.approx(0.62, abs=0.05)
@@ -421,12 +421,12 @@ def test_exposure_zone_thresholds():
     # Green zone: 85-100% (E2 - Full automation)
     assert classify_automation_zone(0.92).zone == "E2"
     assert classify_automation_zone(0.85).zone == "E2"
-    
+
     # Blue zone: 40-84% (E1 - Augmentation)
     assert classify_automation_zone(0.84).zone == "E1"
     assert classify_automation_zone(0.50).zone == "E1"
     assert classify_automation_zone(0.40).zone == "E1"
-    
+
     # Orange zone: 0-39% (E0 - Insulated)
     assert classify_automation_zone(0.39).zone == "E0"
     assert classify_automation_zone(0.20).zone == "E0"
@@ -438,7 +438,7 @@ def test_exposure_autonomy_levels(onet_sample_data):
         dwa_code="4.A.2.a.4",
         onet_data=onet_sample_data
     )
-    
+
     assert 1 <= result.autonomy_level <= 5
     assert result.autonomy_description is not None
 
@@ -449,10 +449,10 @@ def test_exposure_parameterized_weights():
         "E1_threshold": 0.40,
         "E0_max": 0.39
     }
-    
+
     result = classify_automation_zone(0.75, config=config)
     assert result.zone == "E1"
-    
+
     # Change thresholds
     config["E1_threshold"] = 0.80
     result = classify_automation_zone(0.75, config=config)
@@ -465,13 +465,13 @@ def test_aggregate_role_exposure_score(db_session, openai_exposure_data):
         {"dwa_code": "4.A.2.a.4", "importance": 4.5},  # E0=0.72
         {"dwa_code": "4.A.2.b.2", "importance": 4.0},  # E0=0.85
     ])
-    
+
     result = calculate_role_exposure(
         onet_soc="15-1252.00",
         db=db_session,
         exposure_data=openai_exposure_data
     )
-    
+
     # Weighted average by importance
     expected = (0.72 * 4.5 + 0.85 * 4.0) / (4.5 + 4.0)
     assert result.avg_exposure == pytest.approx(expected, abs=0.01)
@@ -486,14 +486,14 @@ def test_leaf_node_anonymization(db_session, sample_employees):
     # Setup hierarchy
     bulk_insert(db_session, sample_employees)
     build_org_hierarchy(db_session)
-    
+
     manager = get_user(db_session, "MGR1")
-    
+
     # Get team members (IC1, IC2 are leaf nodes)
     team = get_team_members(db_session, manager)
-    
+
     leaf_employees = [e for e in team if e.is_leaf_node]
-    
+
     # Verify anonymization
     assert len(leaf_employees) == 2
     assert all(e.name == "Team Member" for e in leaf_employees)
@@ -504,14 +504,14 @@ def test_minimum_cell_size_enforcement(db_session):
     """RA-5.1: Enforce Nâ‰¥5 minimum for aggregates"""
     # Setup: Department with only 3 employees
     employees = [
-        {"employee_id": f"E{i}", "job_title": "Engineer", 
+        {"employee_id": f"E{i}", "job_title": "Engineer",
          "department": "SmallTeam", "manager_id": "MGR"}
         for i in range(3)
     ]
     bulk_insert(db_session, employees)
-    
+
     executive = get_user(db_session, "EXEC1", role=Role.EXECUTIVE)
-    
+
     # Should raise error
     with pytest.raises(HTTPException, match="minimum 5 employees"):
         get_department_analytics(
@@ -524,14 +524,14 @@ def test_manager_can_only_see_reporting_line(db_session, sample_employees):
     """RA-5.2: Managers restricted to their subtree"""
     bulk_insert(db_session, sample_employees)
     build_org_hierarchy(db_session)
-    
+
     # MGR1 manages IC1, IC2 under VP1â†’DIR1â†’MGR1
     manager = get_user(db_session, "MGR1")
-    
+
     # Can see own team
     ic1 = get_employee_with_privacy(db_session, "IC1", manager)
     assert ic1 is not None
-    
+
     # Cannot see VP2's team
     with pytest.raises(HTTPException, match="not in your reporting line"):
         get_employee_with_privacy(db_session, "VP2", manager)
@@ -539,7 +539,7 @@ def test_manager_can_only_see_reporting_line(db_session, sample_employees):
 def test_executive_cannot_see_individual_records(db_session):
     """RA-5.4: Executives limited to aggregates only"""
     executive = get_user(db_session, "EXEC1", role=Role.EXECUTIVE)
-    
+
     with pytest.raises(HTTPException, match="can only view aggregated data"):
         get_employee_with_privacy(db_session, "IC1", executive)
 
@@ -549,9 +549,9 @@ def test_csuite_protection(db_session):
     ceo = db_session.query(Employee).filter_by(employee_id="CEO").first()
     ceo.is_executive = True
     db_session.commit()
-    
+
     manager = get_user(db_session, "MGR1", role=Role.MANAGER)
-    
+
     # Even admins cannot see C-suite details (except other admins)
     with pytest.raises(HTTPException, match="C-suite records require admin"):
         get_employee_with_privacy(db_session, "CEO", manager)
@@ -563,7 +563,7 @@ def test_privacy_views_created(db_session):
         "SELECT * FROM manager_team_view LIMIT 1"
     )
     assert result is not None
-    
+
     # Check executive_dashboard_view
     result = db_session.execute(
         "SELECT * FROM executive_dashboard_view WHERE employee_count >= 5"
@@ -574,7 +574,7 @@ def test_admin_can_see_all(db_session, sample_employees):
     """Admins bypass privacy restrictions"""
     bulk_insert(db_session, sample_employees)
     admin = get_user(db_session, "ADMIN1", role=Role.ADMIN)
-    
+
     # Can see any employee
     for emp_id in ["CEO", "VP1", "IC1"]:
         employee = get_employee_with_privacy(db_session, emp_id, admin)
@@ -591,13 +591,13 @@ def test_csv_upload_valid(client, auth_headers):
         {"employee_id": "E1", "job_title": "CEO", "manager_id": ""},
         {"employee_id": "E2", "job_title": "VP", "manager_id": "E1"},
     ])
-    
+
     response = client.post(
         "/api/v1/employees/upload",
         files={"file": ("employees.csv", csv_data, "text/csv")},
         headers=auth_headers("manager")
     )
-    
+
     assert response.status_code == 200
     data = response.json()
     assert "upload_id" in data
@@ -606,13 +606,13 @@ def test_csv_upload_valid(client, auth_headers):
 def test_csv_upload_missing_columns(client, auth_headers):
     """FR-1.2: Reject CSV missing required columns"""
     csv_data = b"employee_id,department\nE1,Engineering"  # Missing job_title
-    
+
     response = client.post(
         "/api/v1/employees/upload",
         files={"file": ("bad.csv", csv_data, "text/csv")},
         headers=auth_headers("manager")
     )
-    
+
     assert response.status_code == 422
     assert "Missing required columns" in response.json()["detail"]["message"]
     assert "job_title" in str(response.json()["detail"]["errors"])
@@ -620,29 +620,29 @@ def test_csv_upload_missing_columns(client, auth_headers):
 def test_csv_upload_sql_injection_prevention(client, auth_headers):
     """FR-1.2: Block SQL injection attempts"""
     csv_data = create_test_csv([
-        {"employee_id": "E1", "job_title": "'; DROP TABLE employees; --", 
+        {"employee_id": "E1", "job_title": "'; DROP TABLE employees; --",
          "manager_id": ""},
     ])
-    
+
     response = client.post(
         "/api/v1/employees/upload",
         files={"file": ("malicious.csv", csv_data, "text/csv")},
         headers=auth_headers("manager")
     )
-    
+
     assert response.status_code == 422
     assert "invalid characters" in response.json()["detail"]["message"].lower()
 
 def test_csv_upload_size_limit(client, auth_headers):
     """Enforce 50MB file size limit"""
     large_csv = b"a" * (51 * 1024 * 1024)  # 51MB
-    
+
     response = client.post(
         "/api/v1/employees/upload",
         files={"file": ("large.csv", large_csv, "text/csv")},
         headers=auth_headers("manager")
     )
-    
+
     assert response.status_code == 413
     assert "too large" in response.json()["detail"].lower()
 
@@ -651,20 +651,20 @@ def test_csv_upload_invalid_employee_id_format(client, auth_headers):
     csv_data = create_test_csv([
         {"employee_id": "E@#$%1", "job_title": "Engineer", "manager_id": ""},
     ])
-    
+
     response = client.post(
         "/api/v1/employees/upload",
         files={"file": ("bad_ids.csv", csv_data, "text/csv")},
         headers=auth_headers("manager")
     )
-    
+
     assert response.status_code == 422
     assert "alphanumeric" in response.json()["detail"]["message"].lower()
 
 def test_csv_upload_rbac_enforcement(client, auth_headers):
     """Only managers and admins can upload"""
     csv_data = create_test_csv([{"employee_id": "E1", "job_title": "CEO"}])
-    
+
     # Analyst cannot upload
     response = client.post(
         "/api/v1/employees/upload",
@@ -672,7 +672,7 @@ def test_csv_upload_rbac_enforcement(client, auth_headers):
         headers=auth_headers("analyst")
     )
     assert response.status_code == 403
-    
+
     # Manager can upload
     response = client.post(
         "/api/v1/employees/upload",
@@ -697,14 +697,14 @@ def test_upload_then_query_hierarchy(client, db_session, auth_headers):
     )
     assert response.status_code == 200
     upload_id = response.json()["upload_id"]
-    
+
     # Step 2: Build hierarchy
     response = client.post(f"/api/v1/uploads/{upload_id}/build-hierarchy")
     assert response.status_code == 202  # Async job
-    
+
     # Wait for completion
     wait_for_job(client, upload_id, "hierarchy")
-    
+
     # Step 3: Query hierarchy
     response = client.get(
         "/api/v1/employees/E50/hierarchy",
@@ -717,7 +717,7 @@ def test_upload_then_query_hierarchy(client, db_session, auth_headers):
 
 def test_complete_workflow_csv_to_dashboard(client, db_session, auth_headers):
     """Integration: Full pipeline CSV â†’ Matching â†’ Scoring â†’ Dashboard"""
-    
+
     # Step 1: Upload CSV (FR-1)
     csv_data = create_realistic_csv(100)
     response = client.post(
@@ -726,7 +726,7 @@ def test_complete_workflow_csv_to_dashboard(client, db_session, auth_headers):
         headers=auth_headers("admin")
     )
     upload_id = response.json()["upload_id"]
-    
+
     # Step 2: Verify hierarchy built (FR-1.3, FR-1.4)
     wait_for_job(client, upload_id, "hierarchy")
     response = client.get(f"/api/v1/uploads/{upload_id}/hierarchy-report")
@@ -734,30 +734,30 @@ def test_complete_workflow_csv_to_dashboard(client, db_session, auth_headers):
     assert hierarchy["total_employees"] == 100
     assert hierarchy["orphan_percentage"] < 2.0  # Success metric
     assert hierarchy["max_depth"] >= 3
-    
+
     # Step 3: Trigger O*NET matching (FR-2)
     response = client.post(
         f"/api/v1/uploads/{upload_id}/match",
         headers=auth_headers("admin")
     )
     assert response.status_code == 202
-    
+
     wait_for_job(client, upload_id, "matching")
-    
+
     # Step 4: Verify matching results
     response = client.get(f"/api/v1/uploads/{upload_id}/match-report")
     matches = response.json()
     assert matches["automated_percentage"] >= 95.0  # Success metric
     assert matches["layer_1_percentage"] >= 70.0  # Layer 1 target
     assert matches["review_queue_count"] <= 5  # <5% review
-    
+
     # Step 5: Trigger exposure scoring (FR-4)
     response = client.post(
         f"/api/v1/uploads/{upload_id}/score",
         headers=auth_headers("admin")
     )
     wait_for_job(client, upload_id, "scoring")
-    
+
     # Step 6: Verify dashboard data (FR-6)
     response = client.get(
         "/api/v1/dashboard/executive",
@@ -770,10 +770,10 @@ def test_complete_workflow_csv_to_dashboard(client, db_session, auth_headers):
 
 def test_manual_correction_workflow(client, db_session, auth_headers):
     """Integration: Low confidence â†’ Review queue â†’ Manual correction â†’ Audit"""
-    
+
     # Step 1: Create low-confidence match
     match_id = create_low_confidence_match(db_session, confidence=0.65)
-    
+
     # Step 2: Verify in review queue
     response = client.get(
         "/api/v1/matches/review-queue",
@@ -781,7 +781,7 @@ def test_manual_correction_workflow(client, db_session, auth_headers):
     )
     queue = response.json()
     assert any(m["id"] == match_id for m in queue["items"])
-    
+
     # Step 3: Admin corrects match
     response = client.post(
         f"/api/v1/matches/{match_id}/correct",
@@ -789,7 +789,7 @@ def test_manual_correction_workflow(client, db_session, auth_headers):
         headers=auth_headers("admin")
     )
     assert response.status_code == 200
-    
+
     # Step 4: Verify audit trail (RA-6)
     response = client.get(
         f"/api/v1/audit/matches/{match_id}",
@@ -809,19 +809,19 @@ def test_hierarchy_cte_performance_10k(db_session):
     # Generate 10k employee hierarchy
     employees = generate_org_hierarchy(10000, depth=6, branching_factor=5)
     bulk_insert(db_session, employees)
-    
+
     # Time the CTE query
     import time
     start = time.time()
-    
+
     result = db_session.execute("""
         WITH RECURSIVE org_tree AS (
             SELECT employee_id, manager_id, ARRAY[employee_id] as path, 0 as depth
             FROM employees
             WHERE manager_id IS NULL
-            
+
             UNION ALL
-            
+
             SELECT e.employee_id, e.manager_id, ot.path || e.employee_id, ot.depth + 1
             FROM employees e
             JOIN org_tree ot ON e.manager_id = ot.employee_id
@@ -829,10 +829,10 @@ def test_hierarchy_cte_performance_10k(db_session):
         )
         SELECT * FROM org_tree
     """)
-    
+
     rows = result.fetchall()
     elapsed = time.time() - start
-    
+
     # Should complete in <5 seconds (PRD requirement)
     assert elapsed < 5.0
     assert len(rows) == 10000
@@ -843,23 +843,23 @@ def test_bulk_onet_matching_performance(db_session, onet_sample_data):
     # Insert 1000 employees with varied job titles
     employees = generate_realistic_employees(1000)
     bulk_insert(db_session, employees)
-    
+
     import time
     start = time.time()
-    
+
     # Bulk match
     results = bulk_match_to_onet(
         db_session,
         onet_data=onet_sample_data,
         batch_size=100
     )
-    
+
     elapsed = time.time() - start
-    
+
     # Should complete in reasonable time (~1 min for 1k employees)
     assert elapsed < 60
     assert len(results) == 1000
-    
+
     # Check success metrics
     automated = sum(1 for r in results if r.confidence >= 0.8)
     assert automated / len(results) >= 0.95  # 95% automated
@@ -874,19 +874,19 @@ def test_10k_employee_matching_performance(db_session, onet_sample_data):
     """PRD Success Metric: 95% automated matching on 10k employees"""
     employees = generate_realistic_employees(10000)
     bulk_insert(db_session, employees)
-    
+
     start_time = time.time()
     results = bulk_match_to_onet(db_session, onet_data=onet_sample_data)
     elapsed = time.time() - start_time
-    
+
     # Performance target: <5 minutes for 10k employees
     assert elapsed < 300
-    
+
     # Success metric: 95% automated
     automated = sum(1 for r in results if r.confidence >= 0.8)
     automated_pct = automated / len(results) * 100
     assert automated_pct >= 95.0
-    
+
     # Layer distribution (FR-2)
     layer_1 = sum(1 for r in results if r.matching_layer == "layer_1")
     assert layer_1 / len(results) >= 0.70  # 70% Layer 1
@@ -896,11 +896,11 @@ def test_dashboard_query_performance(db_session):
     """Dashboard queries should return in <2 seconds"""
     # Setup: 5k employees with complete data
     setup_complete_dataset(db_session, 5000)
-    
+
     start = time.time()
     result = get_executive_dashboard(db_session)
     elapsed = time.time() - start
-    
+
     assert elapsed < 2.0
     assert result is not None
 
@@ -908,18 +908,18 @@ def test_dashboard_query_performance(db_session):
 def test_concurrent_api_requests(client, auth_headers):
     """Test API under concurrent load"""
     import concurrent.futures
-    
+
     def make_request(i):
         return client.get(
             f"/api/v1/employees/E{i}",
             headers=auth_headers("admin")
         )
-    
+
     # 50 concurrent requests
     with concurrent.futures.ThreadPoolExecutor(max_workers=50) as executor:
         futures = [executor.submit(make_request, i) for i in range(50)]
         results = [f.result() for f in futures]
-    
+
     # All should succeed
     assert all(r.status_code == 200 for r in results)
 ```
@@ -936,28 +936,28 @@ def test_complete_user_workflow(page: Page):
     page.fill("#email", "admin@example.com")
     page.fill("#password", "test123")
     page.click("button[type='submit']")
-    
+
     # 2. Upload CSV
     page.goto("http://localhost:3000/upload")
     page.set_input_files("#csv-upload", "tests/fixtures/employees.csv")
     page.click("#submit-upload")
-    
+
     # Wait for processing
     expect(page.locator(".upload-success")).to_be_visible(timeout=30000)
-    
+
     # 3. Build hierarchy
     page.click("#build-hierarchy-btn")
     expect(page.locator(".hierarchy-complete")).to_be_visible(timeout=60000)
-    
+
     # 4. Run matching
     page.click("#run-matching-btn")
     expect(page.locator(".matching-complete")).to_be_visible(timeout=120000)
-    
+
     # 5. View dashboard
     page.goto("http://localhost:3000/dashboard")
     expect(page.locator(".hierarchy-tree")).to_be_visible()
     expect(page.locator(".total-employees")).to_have_text("100")
-    
+
     # 6. Verify privacy controls
     page.goto("http://localhost:3000/team")
     leaf_nodes = page.locator(".employee-card[data-is-leaf='true']")
@@ -967,18 +967,18 @@ def test_review_queue_workflow(page: Page):
     """E2E: Admin reviews low-confidence matches"""
     page.goto("http://localhost:3000/login")
     # Login as admin...
-    
+
     page.goto("http://localhost:3000/review-queue")
-    
+
     # Should see low-confidence matches
     expect(page.locator(".review-item")).to_have_count(5)
-    
+
     # Correct first match
     page.click(".review-item:first-child .correct-btn")
     page.fill("#onet-soc-input", "15-1252.00")
     page.fill("#reason-input", "Better match based on job description")
     page.click("#submit-correction")
-    
+
     # Verify audit trail
     expect(page.locator(".correction-saved")).to_be_visible()
     expect(page.locator(".audit-log")).to_contain_text("manual_correction")
@@ -1135,7 +1135,7 @@ on: [push, pull_request]
 jobs:
   test:
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:15
@@ -1146,29 +1146,29 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-    
+
     steps:
       - uses: actions/checkout@v3
-      
+
       - name: Set up Python
         uses: actions/setup-python@v4
         with:
           python-version: '3.11'
-      
+
       - name: Install dependencies
         run: |
           pip install -r requirements.txt
           pip install pytest pytest-cov pytest-asyncio
-      
+
       - name: Run unit tests
         run: pytest -m "unit" --cov --cov-report=xml
-      
+
       - name: Run integration tests
         run: pytest -m "integration and not external" --cov --cov-append
-      
+
       - name: Check coverage
         run: pytest --cov --cov-fail-under=80 --cov-report=term
-      
+
       - name: Upload coverage
         uses: codecov/codecov-action@v3
 ```

@@ -7,6 +7,7 @@ Create Date: 2026-03-23
 Adds trigram indexes on onet_sample_titles.reported_job_title and
 onet_alternate_titles.alternate_title for fast fuzzy matching.
 """
+
 from typing import Sequence, Union
 
 from alembic import op

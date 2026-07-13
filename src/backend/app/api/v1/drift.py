@@ -32,7 +32,7 @@ async def get_drift_summary(
     """
         )
     )
-    row = r.fetchone()
+    row = r.one()
     return DriftSummaryResponse(
         total_tasks=row[0],
         classified_tasks=row[1],

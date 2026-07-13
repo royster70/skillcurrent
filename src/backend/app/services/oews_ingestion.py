@@ -9,6 +9,7 @@ Data: May 2024 Occupational Employment and Wage Statistics
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -30,6 +31,21 @@ def _clean_numeric(series: pd.Series, target_type: str = "int") -> pd.Series:
     if target_type == "int":
         return cleaned.astype("Int64")
     return cleaned
+
+
+def _normalize_numpy_types(rows: list[dict[str, Any]]) -> None:
+    """In-place: convert numpy/pandas scalar types to plain Python for the DB driver."""
+    for row in rows:
+        for key, value in row.items():
+            try:
+                if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
+                    row[key] = None
+                elif isinstance(value, np.integer):
+                    row[key] = int(value)
+                elif isinstance(value, np.floating):
+                    row[key] = float(value)
+            except (TypeError, ValueError):
+                pass
 
 
 async def ingest_oews(
@@ -137,17 +153,7 @@ async def ingest_oews(
 
     # Convert to rows with proper Python types
     rows = result_df.to_dict("records")
-    for row in rows:
-        for key, value in row.items():
-            try:
-                if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
-                    row[key] = None
-                elif isinstance(value, (np.integer,)):
-                    row[key] = int(value)
-                elif isinstance(value, (np.floating,)):
-                    row[key] = float(value)
-            except (TypeError, ValueError):
-                pass
+    _normalize_numpy_types(rows)
 
     # Bulk insert
     columns = list(rows[0].keys())

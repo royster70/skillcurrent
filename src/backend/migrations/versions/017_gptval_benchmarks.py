@@ -21,15 +21,15 @@ def upgrade() -> None:
     op.create_table(
         "gptval_benchmarks",
         sa.Column("id", sa.Integer, primary_key=True),
-        sa.Column("benchmark", sa.Text, nullable=False),          # e.g. "MMLU", "HumanEval"
-        sa.Column("model_group", sa.Text, nullable=False),         # e.g. "Claude 3.5 Sonnet"
-        sa.Column("model_era", sa.Text, nullable=False),           # mapped from model_group to platform era
-        sa.Column("measurement_date", sa.Date, nullable=True),     # date column from ECI
-        sa.Column("score", sa.Float, nullable=False),              # performance 0.0–1.0
+        sa.Column("benchmark", sa.Text, nullable=False),  # e.g. "MMLU", "HumanEval"
+        sa.Column("model_group", sa.Text, nullable=False),  # e.g. "Claude 3.5 Sonnet"
+        sa.Column("model_era", sa.Text, nullable=False),  # mapped from model_group to platform era
+        sa.Column("measurement_date", sa.Date, nullable=True),  # date column from ECI
+        sa.Column("score", sa.Float, nullable=False),  # performance 0.0–1.0
         sa.Column("is_math", sa.Boolean, nullable=True),
         sa.Column("is_coding", sa.Boolean, nullable=True),
-        sa.Column("source_ref", sa.Text, nullable=True),           # citation / paper name
-        sa.Column("dataset_version", sa.Text, nullable=False),     # ECI version (date-stamped)
+        sa.Column("source_ref", sa.Text, nullable=True),  # citation / paper name
+        sa.Column("dataset_version", sa.Text, nullable=False),  # ECI version (date-stamped)
         sa.Column(
             "created_at",
             sa.TIMESTAMP(timezone=True),

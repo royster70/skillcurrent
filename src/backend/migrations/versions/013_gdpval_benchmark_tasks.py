@@ -13,6 +13,7 @@ longitudinal waterline velocity tracking at the occupation level (FR-8.7).
 
 Source: https://huggingface.co/datasets/openai/gdpval
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -57,8 +58,10 @@ def upgrade() -> None:
     op.create_index("ix_gdpval_rubric_items_task_id", "gdpval_rubric_items", ["task_id"])
     op.create_foreign_key(
         "fk_gdpval_rubric_task",
-        "gdpval_rubric_items", "gdpval_tasks",
-        ["task_id"], ["task_id"],
+        "gdpval_rubric_items",
+        "gdpval_tasks",
+        ["task_id"],
+        ["task_id"],
     )
 
     # Future table for model evaluation scores per task per era
@@ -83,8 +86,10 @@ def upgrade() -> None:
     )
     op.create_foreign_key(
         "fk_gdpval_eval_task",
-        "gdpval_evaluations", "gdpval_tasks",
-        ["task_id"], ["task_id"],
+        "gdpval_evaluations",
+        "gdpval_tasks",
+        ["task_id"],
+        ["task_id"],
     )
 
 

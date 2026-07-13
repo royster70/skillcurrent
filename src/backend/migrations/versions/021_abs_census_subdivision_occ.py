@@ -27,7 +27,7 @@ def upgrade() -> None:
         sa.Column("id", sa.Integer, primary_key=True, autoincrement=True),
         # ANZSIC Subdivision (2-digit INDP code)
         sa.Column("indp_code", sa.Text, nullable=True),  # e.g. '26' — not in TableBuilder export
-        sa.Column("indp_name", sa.Text, nullable=False),   # TableBuilder label
+        sa.Column("indp_name", sa.Text, nullable=False),  # TableBuilder label
         # Parent ANZSIC Division — derived from INDP code range
         sa.Column("anzsic_division_code", sa.Text, nullable=True),  # 'D', 'K', etc.
         # ANZSCO Major Group (1-digit)

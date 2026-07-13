@@ -6,9 +6,7 @@ conversation analysis via the Clio classification system.
 Source: https://huggingface.co/datasets/Anthropic/EconomicIndex (CC-BY)
 """
 
-from datetime import datetime
-
-from sqlalchemy import Float, Index, Integer, Text, func
+from sqlalchemy import Float, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base

@@ -19,7 +19,6 @@ from httpx import ASGITransport, AsyncClient
 
 from app.main import app
 
-
 # -- Test case definitions --
 
 EVAL_CASES = [
@@ -306,13 +305,13 @@ class TestSubdivisionData:
     async def test_subdivision_count(self, client: AsyncClient) -> None:
         """Should have 214 subdivisions across 19 divisions."""
         from sqlalchemy import text as sa_text
-        from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, create_async_engine
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
         engine = create_async_engine(
             "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
         )
-        S = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-        async with S() as s:
+        session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with session_factory() as s:
             r = await s.execute(
                 sa_text("SELECT COUNT(*) FROM anzsic_subdivisions WHERE release_year = 2025")
             )
@@ -331,13 +330,13 @@ class TestSubdivisionData:
     async def test_electricity_subdivisions(self, client: AsyncClient) -> None:
         """Division D should have generation, distribution, and gas sub-sectors."""
         from sqlalchemy import text as sa_text
-        from sqlalchemy.ext.asyncio import async_sessionmaker, AsyncSession, create_async_engine
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
         engine = create_async_engine(
             "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
         )
-        S = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-        async with S() as s:
+        session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+        async with session_factory() as s:
             r = await s.execute(
                 sa_text(
                     "SELECT subdivision_name FROM anzsic_subdivisions "

@@ -7,6 +7,7 @@ Create Date: 2026-03-23
 Adds Eloundou Beta and Microsoft AI applicability columns to the existing
 industry_occupation_profiles table, reflecting the three-tier evidence stack.
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -19,16 +20,21 @@ depends_on: Union[str, Sequence[str], None] = None
 
 
 def upgrade() -> None:
-    op.add_column("industry_occupation_profiles",
-                  sa.Column("eloundou_beta", sa.Float(), nullable=True))
-    op.add_column("industry_occupation_profiles",
-                  sa.Column("ms_ai_applicability", sa.Float(), nullable=True))
-    op.add_column("industry_occupation_profiles",
-                  sa.Column("aei_exposure", sa.Float(), nullable=True))
-    op.add_column("industry_occupation_profiles",
-                  sa.Column("drift_velocity", sa.Float(), nullable=True))
-    op.add_column("industry_occupation_profiles",
-                  sa.Column("drift_classification", sa.Text(), nullable=True))
+    op.add_column(
+        "industry_occupation_profiles", sa.Column("eloundou_beta", sa.Float(), nullable=True)
+    )
+    op.add_column(
+        "industry_occupation_profiles", sa.Column("ms_ai_applicability", sa.Float(), nullable=True)
+    )
+    op.add_column(
+        "industry_occupation_profiles", sa.Column("aei_exposure", sa.Float(), nullable=True)
+    )
+    op.add_column(
+        "industry_occupation_profiles", sa.Column("drift_velocity", sa.Float(), nullable=True)
+    )
+    op.add_column(
+        "industry_occupation_profiles", sa.Column("drift_classification", sa.Text(), nullable=True)
+    )
 
 
 def downgrade() -> None:

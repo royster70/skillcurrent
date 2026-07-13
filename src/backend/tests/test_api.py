@@ -17,10 +17,10 @@ async def client():
     Creates a fresh engine for the app to avoid event loop conflicts
     between tests with pytest-asyncio.
     """
-    from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
+    from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-    TEST_DB_URL = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
-    engine = create_async_engine(TEST_DB_URL, echo=False)
+    test_db_url = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
+    engine = create_async_engine(test_db_url, echo=False)
     test_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async def get_test_db():
@@ -486,8 +486,8 @@ class TestTaskMatrix:
         for snap in all_snaps:
             auto = snap["automation_pct"]
             aug = snap["augmentation_pct"]
-            assert auto is None or isinstance(auto, (int, float))
-            assert aug is None or isinstance(aug, (int, float))
+            assert auto is None or isinstance(auto, int | float)
+            assert aug is None or isinstance(aug, int | float)
 
     @pytest.mark.asyncio
     async def test_matrix_automation_pct_range(self, client):
@@ -932,11 +932,11 @@ class TestCompanyClassify:
     @pytest.mark.asyncio
     async def test_classify_cached_result(self, client):
         """Cached classification is returned with source='cached'."""
-        from sqlalchemy.ext.asyncio import create_async_engine, async_sessionmaker, AsyncSession
         from sqlalchemy import text
+        from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_async_engine
 
-        TEST_DB_URL = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
-        engine = create_async_engine(TEST_DB_URL, echo=False)
+        test_db_url = "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai"
+        engine = create_async_engine(test_db_url, echo=False)
         session_factory = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
         # Insert a cached classification row

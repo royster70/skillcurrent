@@ -368,4 +368,3 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
     </div>
   );
 }
-

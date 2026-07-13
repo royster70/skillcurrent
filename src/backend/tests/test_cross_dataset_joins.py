@@ -5,7 +5,6 @@ between O*NET, Eloundou, Microsoft, and AEI datasets produce
 expected row counts and coverage levels.
 """
 
-import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 

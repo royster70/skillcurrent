@@ -7,9 +7,11 @@ into a composite impact score.
 Priority = the roles a sector leader should focus on first.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
-from sqlalchemy import text
+from sqlalchemy import Row, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.db.session import get_db
@@ -140,7 +142,7 @@ async def get_sector_priorities(
     naics_title = rows[0][2]
     total_emp = sum(row[3] or 0 for row in rows)
 
-    def to_role(row: tuple) -> PriorityRole:
+    def to_role(row: Row[Any]) -> PriorityRole:
         risk_factors = []
         if row[6] and row[6] >= 0.85:
             risk_factors.append("High Eloundou exposure (E2 zone)")

@@ -7,6 +7,7 @@ Create Date: 2026-03-23
 Stores per-task drift velocity computed via linear regression of task_pct
 over AEI temporal snapshots, plus FR-8.3 classification.
 """
+
 from typing import Sequence, Union
 
 import sqlalchemy as sa
@@ -36,8 +37,12 @@ def upgrade() -> None:
         sa.Column("platform", sa.Text(), nullable=False, server_default="claude_ai"),
     )
     op.create_index("ix_task_drift_metrics_velocity", "task_drift_metrics", ["velocity"])
-    op.create_index("ix_task_drift_metrics_classification", "task_drift_metrics", ["classification"])
-    op.create_index("ix_task_drift_metrics_latest_task_pct", "task_drift_metrics", ["latest_task_pct"])
+    op.create_index(
+        "ix_task_drift_metrics_classification", "task_drift_metrics", ["classification"]
+    )
+    op.create_index(
+        "ix_task_drift_metrics_latest_task_pct", "task_drift_metrics", ["latest_task_pct"]
+    )
 
 
 def downgrade() -> None:

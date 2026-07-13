@@ -8,9 +8,7 @@ Source: https://github.com/microsoft/working-with-ai (CC-BY 4.0)
 Paper: "Working with AI: Measuring the Applicability of Generative AI to Occupations"
 """
 
-from datetime import datetime
-
-from sqlalchemy import Boolean, Float, Index, Integer, Text, func
+from sqlalchemy import Boolean, Float, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base

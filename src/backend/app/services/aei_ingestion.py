@@ -8,6 +8,7 @@ Source: https://huggingface.co/datasets/Anthropic/EconomicIndex (CC-BY)
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -23,16 +24,16 @@ DATASET_NAME = "aei"
 DATASET_VERSION = "labor_market_2026"
 
 
-def _df_to_rows(df: pd.DataFrame) -> list[dict]:
-    rows = df.to_dict("records")
+def _df_to_rows(df: pd.DataFrame) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = df.to_dict("records")
     for row in rows:
         for key, value in row.items():
             try:
                 if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
                     row[key] = None
-                elif isinstance(value, (np.integer,)):
+                elif isinstance(value, np.integer):
                     row[key] = int(value)
-                elif isinstance(value, (np.floating,)):
+                elif isinstance(value, np.floating):
                     row[key] = float(value)
             except (TypeError, ValueError):
                 pass

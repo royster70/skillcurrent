@@ -12,9 +12,7 @@ Source: OpenAI supplementary data (occ_level.csv)
 Paper: Eloundou, Manning, Mishkin, Rock (2024). Science 384:1306-1308.
 """
 
-from datetime import datetime
-
-from sqlalchemy import Float, ForeignKey, Index, Integer, Text, func
+from sqlalchemy import Float, ForeignKey, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base

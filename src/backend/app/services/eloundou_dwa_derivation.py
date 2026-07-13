@@ -111,7 +111,7 @@ async def derive_eloundou_dwa_scores(
     """
     )
 
-    result = await session.execute(
+    await session.execute(
         derivation_sql,
         {"dataset_version": dataset_version, "onet_version": onet_version},
     )

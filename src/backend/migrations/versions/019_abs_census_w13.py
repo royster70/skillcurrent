@@ -42,17 +42,11 @@ def upgrade() -> None:
         sa.Column("census_year", sa.Integer, nullable=False, server_default="2021"),
         sa.Column("source_table", sa.Text, nullable=False, server_default="W13"),
         sa.Column("integrity_hash", sa.Text, nullable=True),
-        sa.Column(
-            "created_at", sa.DateTime(timezone=True), server_default=sa.func.now()
-        ),
+        sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
     )
 
-    op.create_index(
-        "ix_abs_census_w13_major", "abs_census_w13", ["anzsco_major_group"]
-    )
-    op.create_index(
-        "ix_abs_census_w13_submajor", "abs_census_w13", ["anzsco_submajor_code"]
-    )
+    op.create_index("ix_abs_census_w13_major", "abs_census_w13", ["anzsco_major_group"])
+    op.create_index("ix_abs_census_w13_submajor", "abs_census_w13", ["anzsco_submajor_code"])
     op.create_index("ix_abs_census_w13_sex", "abs_census_w13", ["sex"])
     op.create_index(
         "ix_abs_census_w13_geo_year",

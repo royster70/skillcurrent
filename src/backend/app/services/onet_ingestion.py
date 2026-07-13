@@ -20,7 +20,7 @@ import logging
 from pathlib import Path
 
 import pandas as pd
-from sqlalchemy import delete, insert, select, text
+from sqlalchemy import insert, select, text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.models.infrastructure import DatasetVersion, DatasetVersionDelta
@@ -210,8 +210,8 @@ async def _bulk_insert(
         batch = rows[i : i + batch_size]
         await session.execute(text(f"DELETE FROM {table_name} WHERE FALSE"))  # validate table name
         await session.execute(
-            insert(text(table_name)), batch
-        )  # noqa: not raw SQL injection — table name from code
+            insert(text(table_name)), batch  # type: ignore[arg-type]
+        )  # not raw SQL injection — table name from code
         total += len(batch)
 
     return total
@@ -241,9 +241,9 @@ async def _bulk_insert_safe(
             try:
                 if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
                     row[key] = None
-                elif isinstance(value, (np.integer,)):
+                elif isinstance(value, np.integer):
                     row[key] = int(value)
-                elif isinstance(value, (np.floating,)):
+                elif isinstance(value, np.floating):
                     row[key] = float(value)
             except (TypeError, ValueError):
                 pass

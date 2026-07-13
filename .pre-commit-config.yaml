@@ -25,6 +25,7 @@ repos:
         additional_dependencies:
           - "sqlalchemy[mypy]"
           - "pydantic"
+          - "pydantic-settings"
           - "fastapi"
         files: ^src/backend/app/
 

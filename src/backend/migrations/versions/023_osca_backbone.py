@@ -64,9 +64,7 @@ def upgrade() -> None:
         sa.Column("osca_code", sa.Text(), nullable=False),
         sa.Column("task_id", sa.Text(), nullable=True),  # source task id if present
         sa.Column("task_text", sa.Text(), nullable=False),
-        sa.Column(
-            "descriptor_only", sa.Boolean(), nullable=False, server_default="true"
-        ),
+        sa.Column("descriptor_only", sa.Boolean(), nullable=False, server_default="true"),
         sa.Column("osca_version", sa.Text(), nullable=False, server_default="2024.1.0"),
         sa.Column("created_at", sa.DateTime(timezone=True), server_default=sa.func.now()),
         sa.PrimaryKeyConstraint("id"),
@@ -113,9 +111,7 @@ def upgrade() -> None:
     op.add_column("abs_employment", sa.Column("osca_code", sa.Text(), nullable=True))
     op.create_index("ix_abs_employment_osca", "abs_employment", ["osca_code"])
 
-    op.add_column(
-        "industry_occupation_profiles", sa.Column("osca_code", sa.Text(), nullable=True)
-    )
+    op.add_column("industry_occupation_profiles", sa.Column("osca_code", sa.Text(), nullable=True))
     op.create_index(
         "ix_industry_occupation_profiles_osca",
         "industry_occupation_profiles",

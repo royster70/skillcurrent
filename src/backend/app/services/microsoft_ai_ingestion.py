@@ -16,6 +16,7 @@ Files ingested:
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -39,19 +40,19 @@ def _read_csv_safe(data_path: Path, filename: str) -> pd.DataFrame:
     return pd.read_csv(filepath)
 
 
-def _df_to_rows(df: pd.DataFrame) -> list[dict]:
+def _df_to_rows(df: pd.DataFrame) -> list[dict[str, Any]]:
     """Convert DataFrame to list of dicts with proper Python types (no numpy)."""
-    rows = df.to_dict("records")
+    rows: list[dict[str, Any]] = df.to_dict("records")
     for row in rows:
         for key, value in row.items():
             try:
                 if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
                     row[key] = None
-                elif isinstance(value, (np.integer,)):
+                elif isinstance(value, np.integer):
                     row[key] = int(value)
-                elif isinstance(value, (np.floating,)):
+                elif isinstance(value, np.floating):
                     row[key] = float(value)
-                elif isinstance(value, (np.bool_,)):
+                elif isinstance(value, np.bool_):
                     row[key] = bool(value)
             except (TypeError, ValueError):
                 pass
@@ -61,7 +62,7 @@ def _df_to_rows(df: pd.DataFrame) -> list[dict]:
 async def _bulk_insert(
     session: AsyncSession,
     table_name: str,
-    rows: list[dict],
+    rows: list[dict[str, Any]],
     batch_size: int = 5000,
 ) -> int:
     """Bulk insert rows into a table."""
