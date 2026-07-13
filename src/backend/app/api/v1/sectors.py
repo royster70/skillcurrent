@@ -27,7 +27,9 @@ async def list_sectors(
     US returns NAICS sectors; AU returns ANZSIC divisions.
     """
     region = region.upper()
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT
             naics_code, naics_title,
             COUNT(DISTINCT onet_soc) AS occupation_count,
@@ -56,7 +58,10 @@ async def list_sectors(
         WHERE region = :region
         GROUP BY naics_code, naics_title
         ORDER BY SUM(headcount) DESC NULLS LAST
-    """), {"region": region})
+    """
+        ),
+        {"region": region},
+    )
     sectors = [
         SectorSummary(
             naics_code=row[0],
@@ -80,14 +85,18 @@ async def list_sectors(
     ]
     # Enrich AU sectors with Census occupation mix from abs_census_wpp (W12A)
     if region == "AU" and sectors:
-        mix_r = await db.execute(text("""
+        mix_r = await db.execute(
+            text(
+                """
             SELECT anzsic_division_code, anzsco_major_group,
                    anzsco_major_group_name, employed_count
             FROM abs_census_wpp
             WHERE geography_code = 'AUS' AND census_year = 2021
               AND anzsco_major_group IS NOT NULL
             ORDER BY anzsic_division_code, employed_count DESC NULLS LAST
-        """))
+        """
+            )
+        )
         # Group by division code and compute shares
         mix_by_div: dict[str, list[OccupationMixEntry]] = {}
         div_totals: dict[str, int] = {}
@@ -95,9 +104,7 @@ async def list_sectors(
             div_code = row[0]
             count = row[3] or 0
             div_totals[div_code] = div_totals.get(div_code, 0) + count
-            mix_by_div.setdefault(div_code, []).append(
-                (row[1], row[2], count)
-            )
+            mix_by_div.setdefault(div_code, []).append((row[1], row[2], count))
         for div_code, entries in mix_by_div.items():
             total = div_totals.get(div_code, 0)
             mix_by_div[div_code] = [
@@ -114,12 +121,16 @@ async def list_sectors(
 
     # Enrich AU sectors with ANZSIC subdivisions from JSA Industry Data Table 3
     if region == "AU" and sectors:
-        subs_r = await db.execute(text("""
+        subs_r = await db.execute(
+            text(
+                """
             SELECT anzsic_division_code, subdivision_name, employment
             FROM anzsic_subdivisions
             WHERE release_year = 2025 AND employment IS NOT NULL
             ORDER BY anzsic_division_code, employment DESC
-        """))
+        """
+            )
+        )
         subs_by_div: dict[str, list[tuple[str, int]]] = {}
         div_totals: dict[str, int] = {}
         for row in subs_r.fetchall():
@@ -153,13 +164,18 @@ async def get_sector_subdivisions(
     Returns employment breakdown by subdivision within the given
     ANZSIC division code (e.g. "D" → Electricity Generation, Gas Supply, etc.).
     """
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT subdivision_name, employment
         FROM anzsic_subdivisions
         WHERE anzsic_division_code = :code
           AND release_year = 2025 AND employment IS NOT NULL
         ORDER BY employment DESC
-    """), {"code": sector_code.upper()})
+    """
+        ),
+        {"code": sector_code.upper()},
+    )
     rows = r.fetchall()
 
     if not rows:
@@ -189,7 +205,9 @@ async def get_sector_occupation_mix(
     Returns the breakdown of ANZSCO major groups within this sector,
     with employed counts and percentage shares from W12A.
     """
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT anzsic_division_code, anzsic_division_name,
                anzsco_major_group, anzsco_major_group_name,
                employed_count, census_year
@@ -198,7 +216,10 @@ async def get_sector_occupation_mix(
           AND geography_code = 'AUS' AND census_year = 2021
           AND anzsco_major_group IS NOT NULL
         ORDER BY employed_count DESC NULLS LAST
-    """), {"code": sector_code.upper()})
+    """
+        ),
+        {"code": sector_code.upper()},
+    )
     rows = r.fetchall()
 
     if not rows:
@@ -235,7 +256,9 @@ async def get_sector_occupations(
 ) -> list[OccupationSummary]:
     """Get occupations within a sector, grouped by SOC major group."""
     region = region.upper()
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT
             p.onet_soc, p.occupation_title,
             SUBSTRING(p.onet_soc, 1, 2) || '-0000' AS major_group,
@@ -245,7 +268,10 @@ async def get_sector_occupations(
         FROM industry_occupation_profiles p
         WHERE p.naics_code = :naics_code AND p.region = :region
         ORDER BY p.headcount DESC NULLS LAST
-    """), {"naics_code": naics_code, "region": region})
+    """
+        ),
+        {"naics_code": naics_code, "region": region},
+    )
 
     rows = r.fetchall()
     if not rows:

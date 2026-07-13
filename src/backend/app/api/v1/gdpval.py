@@ -47,26 +47,32 @@ class WaterlineResponse(BaseModel):
 @router.get("/summary", response_model=GDPvalSummaryResponse)
 async def gdpval_summary(db: AsyncSession = Depends(get_db)) -> GDPvalSummaryResponse:
     """Overview of GDPval benchmark coverage."""
-    stats = await db.execute(text("""
+    stats = await db.execute(
+        text(
+            """
         SELECT
             COUNT(*) AS total_tasks,
             COUNT(DISTINCT onet_soc) AS total_occupations,
             SUM(rubric_item_count) AS total_rubric_items
         FROM gdpval_tasks
-    """))
+    """
+        )
+    )
     row = stats.fetchone()
 
-    sectors = await db.execute(text(
-        "SELECT DISTINCT sector FROM gdpval_tasks ORDER BY sector"
-    ))
+    sectors = await db.execute(text("SELECT DISTINCT sector FROM gdpval_tasks ORDER BY sector"))
 
-    occs = await db.execute(text("""
+    occs = await db.execute(
+        text(
+            """
         SELECT onet_soc, occupation_title, sector, COUNT(*) AS task_count
         FROM gdpval_tasks
         WHERE onet_soc IS NOT NULL
         GROUP BY onet_soc, occupation_title, sector
         ORDER BY occupation_title
-    """))
+    """
+        )
+    )
 
     return GDPvalSummaryResponse(
         total_tasks=row[0],
@@ -75,7 +81,10 @@ async def gdpval_summary(db: AsyncSession = Depends(get_db)) -> GDPvalSummaryRes
         sectors=[r[0] for r in sectors.fetchall()],
         occupations=[
             GDPvalOccupationSummary(
-                soc_code=r[0], title=r[1], sector=r[2], task_count=r[3],
+                soc_code=r[0],
+                title=r[1],
+                sector=r[2],
+                task_count=r[3],
             )
             for r in occs.fetchall()
         ],
@@ -92,14 +101,16 @@ async def gdpval_occupation(
 ) -> GDPvalOccupationResponse:
     """Full benchmark detail for one occupation — tasks + rubric items."""
     tasks = await db.execute(
-        text("""
+        text(
+            """
             SELECT task_id, occupation_title, sector, prompt,
                    rubric_item_count, max_score, min_score,
                    reference_file_count, deliverable_file_count
             FROM gdpval_tasks
             WHERE onet_soc = :soc_code
             ORDER BY task_id
-        """),
+        """
+        ),
         {"soc_code": soc_code},
     )
     task_rows = tasks.fetchall()
@@ -113,19 +124,24 @@ async def gdpval_occupation(
     # Fetch all rubric items for these tasks in one query
     task_ids = [r[0] for r in task_rows]
     rubrics = await db.execute(
-        text("""
+        text(
+            """
             SELECT task_id, criterion, score, required, tags
             FROM gdpval_rubric_items
             WHERE task_id = ANY(:task_ids)
             ORDER BY task_id, id
-        """),
+        """
+        ),
         {"task_ids": task_ids},
     )
     rubric_by_task: dict[str, list[GDPvalRubricItem]] = {}
     for r in rubrics.fetchall():
         tags = json.loads(r[4]) if r[4] else None
         item = GDPvalRubricItem(
-            criterion=r[1], score=r[2], required=r[3], tags=tags,
+            criterion=r[1],
+            score=r[2],
+            required=r[3],
+            tags=tags,
         )
         rubric_by_task.setdefault(r[0], []).append(item)
 
@@ -178,18 +194,24 @@ async def gdpval_waterline(
         )
 
     # Get era ordering by earliest measurement date
-    era_order_result = await db.execute(text("""
+    era_order_result = await db.execute(
+        text(
+            """
         SELECT model_era, MIN(measurement_date) AS earliest_date
         FROM gptval_benchmarks
         WHERE measurement_date IS NOT NULL
         GROUP BY model_era
         ORDER BY earliest_date
-    """))
+    """
+        )
+    )
     era_rows = era_order_result.fetchall()
     eras_in_order = [r[0] for r in era_rows]
 
     # Get per-benchmark × per-era aggregate scores
-    scores_result = await db.execute(text("""
+    scores_result = await db.execute(
+        text(
+            """
         SELECT
             benchmark,
             model_era,
@@ -201,7 +223,9 @@ async def gdpval_waterline(
         FROM gptval_benchmarks
         GROUP BY benchmark, model_era, is_math, is_coding
         ORDER BY benchmark, MIN(measurement_date) NULLS LAST
-    """))
+    """
+        )
+    )
     score_rows = scores_result.fetchall()
 
     # Organise into benchmark → era map

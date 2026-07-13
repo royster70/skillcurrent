@@ -84,9 +84,7 @@ class OnetDwaReference(Base):
     dwa_title: Mapped[str] = mapped_column(Text, nullable=False)
     onet_version: Mapped[str] = mapped_column(Text, nullable=False, server_default="28.1")
 
-    __table_args__ = (
-        Index("ix_onet_dwa_references_element_id", "element_id"),
-    )
+    __table_args__ = (Index("ix_onet_dwa_references_element_id", "element_id"),)
 
 
 class OnetTaskToDwa(Base):

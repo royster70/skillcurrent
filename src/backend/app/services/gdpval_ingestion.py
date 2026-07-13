@@ -155,32 +155,36 @@ async def ingest_gdpval(
         positive_scores = sum(r["score"] for r in rubric if r["score"] > 0)
         negative_scores = sum(r["score"] for r in rubric if r["score"] < 0)
 
-        task_rows.append({
-            "task_id": row["task_id"],
-            "occupation_title": occupation,
-            "onet_soc": soc_code,
-            "sector": row["sector"],
-            "prompt": row["prompt"],
-            "rubric_item_count": len(rubric),
-            "max_score": positive_scores,
-            "min_score": negative_scores,
-            "reference_file_count": _count_files(row.get("reference_files")),
-            "deliverable_file_count": _count_files(row.get("deliverable_files")),
-        })
+        task_rows.append(
+            {
+                "task_id": row["task_id"],
+                "occupation_title": occupation,
+                "onet_soc": soc_code,
+                "sector": row["sector"],
+                "prompt": row["prompt"],
+                "rubric_item_count": len(rubric),
+                "max_score": positive_scores,
+                "min_score": negative_scores,
+                "reference_file_count": _count_files(row.get("reference_files")),
+                "deliverable_file_count": _count_files(row.get("deliverable_files")),
+            }
+        )
 
         for item in rubric:
             tags = item.get("tags")
             tags_str = json.dumps(tags) if tags else None
 
-            rubric_rows.append({
-                "task_id": row["task_id"],
-                "rubric_item_id": item.get("rubric_item_id", ""),
-                "score": item["score"],
-                "criterion": item["criterion"],
-                "required": bool(item.get("required", False)),
-                "author_type": item.get("author_type", "human"),
-                "tags": tags_str,
-            })
+            rubric_rows.append(
+                {
+                    "task_id": row["task_id"],
+                    "rubric_item_id": item.get("rubric_item_id", ""),
+                    "score": item["score"],
+                    "criterion": item["criterion"],
+                    "required": bool(item.get("required", False)),
+                    "author_type": item.get("author_type", "human"),
+                    "tags": tags_str,
+                }
+            )
 
     if unmapped:
         logger.warning("Unmapped occupations: %s", unmapped)
@@ -203,7 +207,7 @@ async def ingest_gdpval(
     )
     batch_size = 5000
     for i in range(0, len(rubric_rows), batch_size):
-        await session.execute(rubric_sql, rubric_rows[i:i + batch_size])
+        await session.execute(rubric_sql, rubric_rows[i : i + batch_size])
 
     # ── Register dataset version (ADR-002) ──
     version_result = await session.execute(

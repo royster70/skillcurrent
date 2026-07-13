@@ -34,6 +34,7 @@ DATASET_NAME = "aei_temporal"
 @dataclass
 class ReleaseConfig:
     """Configuration for each AEI release."""
+
     version_key: str
     model_era: str
     snapshot_date: date
@@ -105,12 +106,14 @@ def _df_to_rows(df: pd.DataFrame) -> list[dict]:
 def _load_release_v1(base_path: Path) -> pd.DataFrame:
     """Release 2025-02-10: Simple task → pct format."""
     df = pd.read_csv(base_path / "release_2025_02_10" / "onet_task_mappings.csv")
-    return pd.DataFrame({
-        "task_text": df["task_name"],
-        "automation_pct": None,
-        "augmentation_pct": None,
-        "task_pct": df["pct"],
-    })
+    return pd.DataFrame(
+        {
+            "task_text": df["task_name"],
+            "automation_pct": None,
+            "augmentation_pct": None,
+            "task_pct": df["pct"],
+        }
+    )
 
 
 def _load_release_v2(base_path: Path) -> pd.DataFrame:
@@ -131,12 +134,14 @@ def _load_release_v2(base_path: Path) -> pd.DataFrame:
         + merged["validation"].fillna(0)
     )
 
-    return pd.DataFrame({
-        "task_text": merged["task_name"],
-        "automation_pct": merged["automation_pct"],
-        "augmentation_pct": merged["augmentation_pct"],
-        "task_pct": merged["pct"],
-    })
+    return pd.DataFrame(
+        {
+            "task_text": merged["task_name"],
+            "automation_pct": merged["automation_pct"],
+            "augmentation_pct": merged["augmentation_pct"],
+            "task_pct": merged["pct"],
+        }
+    )
 
 
 def _load_release_long_format(
@@ -155,12 +160,14 @@ def _load_release_long_format(
         & (df["variable"] == "onet_task_pct")
     ].copy()
 
-    return pd.DataFrame({
-        "task_text": onet_tasks["cluster_name"].values,
-        "automation_pct": None,
-        "augmentation_pct": None,
-        "task_pct": onet_tasks["value"].values,
-    })
+    return pd.DataFrame(
+        {
+            "task_text": onet_tasks["cluster_name"].values,
+            "automation_pct": None,
+            "augmentation_pct": None,
+            "task_pct": onet_tasks["value"].values,
+        }
+    )
 
 
 async def _insert_snapshot(
@@ -216,13 +223,25 @@ async def ingest_aei_temporal(
         base_path / "release_2025_02_10" / "onet_task_mappings.csv",
         base_path / "release_2025_03_27" / "task_pct_v2.csv",
         base_path / "release_2025_03_27" / "automation_vs_augmentation_by_task.csv",
-        base_path / "release_2025_09_15" / "data" / "intermediate"
+        base_path
+        / "release_2025_09_15"
+        / "data"
+        / "intermediate"
         / "aei_raw_claude_ai_2025-08-04_to_2025-08-11.csv",
-        base_path / "release_2025_09_15" / "data" / "intermediate"
+        base_path
+        / "release_2025_09_15"
+        / "data"
+        / "intermediate"
         / "aei_raw_1p_api_2025-08-04_to_2025-08-11.csv",
-        base_path / "release_2026_01_15" / "data" / "intermediate"
+        base_path
+        / "release_2026_01_15"
+        / "data"
+        / "intermediate"
         / "aei_raw_claude_ai_2025-11-13_to_2025-11-20.csv",
-        base_path / "release_2026_01_15" / "data" / "intermediate"
+        base_path
+        / "release_2026_01_15"
+        / "data"
+        / "intermediate"
         / "aei_raw_1p_api_2025-11-13_to_2025-11-20.csv",
     ]
     existing_for_check = [p for p in source_files_for_check if p.exists()]
@@ -269,7 +288,8 @@ async def ingest_aei_temporal(
     # ── Release 3: 2025-09-15 (Sonnet 4) — Claude.ai + 1P API ──
     logger.info("Loading release 2025-09-15 (Sonnet 4)...")
     r3_claude_df = _load_release_long_format(
-        base_path, "release_2025_09_15",
+        base_path,
+        "release_2025_09_15",
         "aei_raw_claude_ai_2025-08-04_to_2025-08-11.csv",
     )
     r3_claude_count = await _insert_snapshot(session, r3_claude_df, RELEASES[2])
@@ -278,7 +298,8 @@ async def ingest_aei_temporal(
     logger.info("  Claude.ai: %d tasks", r3_claude_count)
 
     r3_api_df = _load_release_long_format(
-        base_path, "release_2025_09_15",
+        base_path,
+        "release_2025_09_15",
         "aei_raw_1p_api_2025-08-04_to_2025-08-11.csv",
     )
     r3_api_count = await _insert_snapshot(session, r3_api_df, API_RELEASES[0])
@@ -289,7 +310,8 @@ async def ingest_aei_temporal(
     # ── Release 4: 2026-01-15 (Sonnet 4.5) — Claude.ai + 1P API ──
     logger.info("Loading release 2026-01-15 (Sonnet 4.5)...")
     r4_claude_df = _load_release_long_format(
-        base_path, "release_2026_01_15",
+        base_path,
+        "release_2026_01_15",
         "aei_raw_claude_ai_2025-11-13_to_2025-11-20.csv",
     )
     r4_claude_count = await _insert_snapshot(session, r4_claude_df, RELEASES[3])
@@ -298,7 +320,8 @@ async def ingest_aei_temporal(
     logger.info("  Claude.ai: %d tasks", r4_claude_count)
 
     r4_api_df = _load_release_long_format(
-        base_path, "release_2026_01_15",
+        base_path,
+        "release_2026_01_15",
         "aei_raw_1p_api_2025-11-13_to_2025-11-20.csv",
     )
     r4_api_count = await _insert_snapshot(session, r4_api_df, API_RELEASES[1])
@@ -342,6 +365,9 @@ async def ingest_aei_temporal(
 
     await session.commit()
 
-    logger.info("AEI temporal ingestion complete. Total: %d rows across %d snapshots",
-                total_rows, len(counts))
+    logger.info(
+        "AEI temporal ingestion complete. Total: %d rows across %d snapshots",
+        total_rows,
+        len(counts),
+    )
     return counts

@@ -116,9 +116,7 @@ async def client():
         "postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai",
         echo=False,
     )
-    test_session = async_sessionmaker(
-        engine, class_=AsyncSession, expire_on_commit=False
-    )
+    test_session = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
     async def get_test_db():
         async with test_session() as session:
@@ -196,16 +194,12 @@ class TestWorkforceProfile:
     async def test_composite_profile_blends(self, client: AsyncClient) -> None:
         """Composite D+G profile should differ from D-only."""
         r_d = await client.get("/api/v1/sectors/D/occupation-mix")
-        r_dg = await client.get(
-            "/api/v1/sectors/composite?codes=D,G&region=AU"
-        )
+        r_dg = await client.get("/api/v1/sectors/composite?codes=D,G&region=AU")
         d_only = r_d.json()["mix"]
         composite = r_dg.json().get("occupation_mix", [])
         assert composite  # should exist for AU
         # D+G composite should have more Sales Workers than D alone
-        d_sales = next(
-            (e["share_pct"] for e in d_only if "Sales" in e["major_group_name"]), 0
-        )
+        d_sales = next((e["share_pct"] for e in d_only if "Sales" in e["major_group_name"]), 0)
         comp_sales = next(
             (e["share_pct"] for e in composite if "Sales" in e["major_group_name"]),
             0,
@@ -225,9 +219,7 @@ class TestLLMClassification:
     @pytest.mark.llm
     @pytest.mark.asyncio
     @pytest.mark.parametrize("case", EVAL_CASES, ids=[c["name"] for c in EVAL_CASES])
-    async def test_classification_accuracy(
-        self, client: AsyncClient, case: dict
-    ) -> None:
+    async def test_classification_accuracy(self, client: AsyncClient, case: dict) -> None:
         """Evaluate classification accuracy for each company.
 
         Note: If a cached result exists, it will be returned. To force fresh
@@ -248,8 +240,7 @@ class TestLLMClassification:
         # Primary sector must be present
         for primary in case["expected_primary"]:
             assert primary in codes, (
-                f"{case['name']}: expected primary sector {primary} "
-                f"but got {codes}"
+                f"{case['name']}: expected primary sector {primary} " f"but got {codes}"
             )
 
         # At least one of the expected_any should be present
@@ -262,9 +253,7 @@ class TestLLMClassification:
 
         # Not-expected sectors should be absent
         for bad in case.get("not_expected", []):
-            assert bad not in codes, (
-                f"{case['name']}: unexpected sector {bad} in {codes}"
-            )
+            assert bad not in codes, f"{case['name']}: unexpected sector {bad} in {codes}"
 
         # Max sectors constraint (for focused companies)
         if "max_sectors" in case:
@@ -274,16 +263,14 @@ class TestLLMClassification:
             )
 
         # AU classifications should have workforce_profile
-        assert data.get("workforce_profile") is not None, (
-            f"{case['name']}: missing workforce_profile"
-        )
+        assert (
+            data.get("workforce_profile") is not None
+        ), f"{case['name']}: missing workforce_profile"
         assert len(data["workforce_profile"]) > 0
 
     @pytest.mark.llm
     @pytest.mark.asyncio
-    async def test_agl_vs_ausnet_differentiation(
-        self, client: AsyncClient
-    ) -> None:
+    async def test_agl_vs_ausnet_differentiation(self, client: AsyncClient) -> None:
         """AGL should classify to more sectors than AusNet."""
         r_agl = await client.post(
             "/api/v1/companies/classify",
@@ -302,8 +289,7 @@ class TestLLMClassification:
 
         # AGL should be more diversified
         assert len(agl_codes) > len(aus_codes), (
-            f"AGL ({agl_codes}) should have more sectors than "
-            f"AusNet ({aus_codes})"
+            f"AGL ({agl_codes}) should have more sectors than " f"AusNet ({aus_codes})"
         )
         # Both should include D
         assert "D" in agl_codes
@@ -327,15 +313,17 @@ class TestSubdivisionData:
         )
         S = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         async with S() as s:
-            r = await s.execute(sa_text(
-                "SELECT COUNT(*) FROM anzsic_subdivisions WHERE release_year = 2025"
-            ))
+            r = await s.execute(
+                sa_text("SELECT COUNT(*) FROM anzsic_subdivisions WHERE release_year = 2025")
+            )
             assert r.scalar() == 214
 
-            r2 = await s.execute(sa_text(
-                "SELECT COUNT(DISTINCT anzsic_division_code) "
-                "FROM anzsic_subdivisions WHERE release_year = 2025"
-            ))
+            r2 = await s.execute(
+                sa_text(
+                    "SELECT COUNT(DISTINCT anzsic_division_code) "
+                    "FROM anzsic_subdivisions WHERE release_year = 2025"
+                )
+            )
             assert r2.scalar() == 19
         await engine.dispose()
 
@@ -350,10 +338,12 @@ class TestSubdivisionData:
         )
         S = async_sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
         async with S() as s:
-            r = await s.execute(sa_text(
-                "SELECT subdivision_name FROM anzsic_subdivisions "
-                "WHERE anzsic_division_code = 'D' ORDER BY employment DESC"
-            ))
+            r = await s.execute(
+                sa_text(
+                    "SELECT subdivision_name FROM anzsic_subdivisions "
+                    "WHERE anzsic_division_code = 'D' ORDER BY employment DESC"
+                )
+            )
             names = [row[0] for row in r.fetchall()]
             assert any("Generation" in n for n in names)
             assert any("Distribution" in n for n in names)

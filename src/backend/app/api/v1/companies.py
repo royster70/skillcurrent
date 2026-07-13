@@ -157,12 +157,16 @@ def _get_anthropic_client() -> anthropic.Anthropic:
 
 async def _build_au_sector_list_with_subs(db: AsyncSession) -> str:
     """Build ANZSIC sector list enriched with subdivision context for AU prompts."""
-    subs_r = await db.execute(text("""
+    subs_r = await db.execute(
+        text(
+            """
         SELECT anzsic_division_code, subdivision_name, employment
         FROM anzsic_subdivisions
         WHERE release_year = 2025 AND employment IS NOT NULL
         ORDER BY anzsic_division_code, employment DESC
-    """))
+    """
+        )
+    )
     subs_by_div: dict[str, list[tuple[str, int]]] = {}
     for row in subs_r.fetchall():
         subs_by_div.setdefault(row[0], []).append((row[1], row[2]))
@@ -173,19 +177,20 @@ async def _build_au_sector_list_with_subs(db: AsyncSession) -> str:
         subs = subs_by_div.get(code, [])
         if subs:
             # Top 6 subdivisions with headcounts
-            sub_strs = [
-                f"{s[0]} ({s[1]:,})" for s in subs[:6]
-            ]
+            sub_strs = [f"{s[0]} ({s[1]:,})" for s in subs[:6]]
             line += "\n     Sub-sectors: " + ", ".join(sub_strs)
         lines.append(line)
     return "\n".join(lines)
 
 
 async def _load_workforce_profile(
-    db: AsyncSession, sector_codes: list[str],
+    db: AsyncSession,
+    sector_codes: list[str],
 ) -> list[OccupationMixEntry] | None:
     """Load blended Census occupation mix for given ANZSIC sector codes."""
-    mix_r = await db.execute(text("""
+    mix_r = await db.execute(
+        text(
+            """
         SELECT anzsco_major_group, anzsco_major_group_name,
                SUM(employed_count) AS employed_count
         FROM abs_census_wpp
@@ -194,7 +199,10 @@ async def _load_workforce_profile(
           AND anzsco_major_group IS NOT NULL
         GROUP BY anzsco_major_group, anzsco_major_group_name
         ORDER BY SUM(employed_count) DESC NULLS LAST
-    """), {"codes": sector_codes})
+    """
+        ),
+        {"codes": sector_codes},
+    )
     rows = mix_r.fetchall()
     if not rows:
         return None
@@ -211,18 +219,24 @@ async def _load_workforce_profile(
 
 
 async def _load_matched_subdivisions(
-    db: AsyncSession, sector_codes: list[str],
+    db: AsyncSession,
+    sector_codes: list[str],
 ) -> dict[str, list[SubdivisionEntry]] | None:
     """Load top 5 ANZSIC subdivisions per sector code from JSA data."""
     if not sector_codes:
         return None
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT anzsic_division_code, subdivision_name, employment
         FROM anzsic_subdivisions
         WHERE anzsic_division_code = ANY(:codes)
           AND release_year = 2025 AND employment IS NOT NULL
         ORDER BY anzsic_division_code, employment DESC
-    """), {"codes": sector_codes})
+    """
+        ),
+        {"codes": sector_codes},
+    )
     rows = r.fetchall()
     if not rows:
         return None
@@ -265,7 +279,9 @@ async def search_companies(
 
     # Layer 1: ASX search (AU only, instant)
     if region == "AU":
-        asx_r = await db.execute(text("""
+        asx_r = await db.execute(
+            text(
+                """
             SELECT company_name, asx_code, anzsic_codes, naics_codes,
                    similarity(company_name, :q) AS sim
             FROM asx_company_sectors
@@ -273,41 +289,53 @@ async def search_companies(
                OR company_name % :q
             ORDER BY sim DESC
             LIMIT :limit
-        """), {"q": q, "prefix": f"%{q}%", "limit": limit})
+        """
+            ),
+            {"q": q, "prefix": f"%{q}%", "limit": limit},
+        )
 
         for row in asx_r.fetchall():
             codes = row[2] if row[2] else []
             valid_codes = [c for c in codes if c != "Z"]
             names = [ANZSIC_DIVISIONS.get(c, c) for c in valid_codes]
             if names:
-                results.append(CompanySearchResult(
-                    company_name=row[0],
-                    asx_code=row[1],
-                    sector_codes=valid_codes,
-                    sector_names=names,
-                    source="asx",
-                    confidence=round(float(row[4]), 2) if row[4] else None,
-                    single_sector_asx=len(valid_codes) == 1,
-                ))
+                results.append(
+                    CompanySearchResult(
+                        company_name=row[0],
+                        asx_code=row[1],
+                        sector_codes=valid_codes,
+                        sector_names=names,
+                        source="asx",
+                        confidence=round(float(row[4]), 2) if row[4] else None,
+                        single_sector_asx=len(valid_codes) == 1,
+                    )
+                )
 
     # Layer 2: Check LLM classification cache
-    cache_r = await db.execute(text("""
+    cache_r = await db.execute(
+        text(
+            """
         SELECT company_name_lower, sector_codes, sector_names, confidence
         FROM company_classifications
         WHERE company_name_lower ILIKE :prefix AND region = :region
         ORDER BY classified_at DESC
         LIMIT :limit
-    """), {"prefix": f"%{q.lower()}%", "region": region, "limit": limit})
+    """
+        ),
+        {"prefix": f"%{q.lower()}%", "region": region, "limit": limit},
+    )
 
     for row in cache_r.fetchall():
         if not any(r.company_name.lower() == row[0] for r in results):
-            results.append(CompanySearchResult(
-                company_name=row[0].title(),
-                sector_codes=row[1] if row[1] else [],
-                sector_names=row[2] if row[2] else [],
-                source="cached",
-                confidence=row[3],
-            ))
+            results.append(
+                CompanySearchResult(
+                    company_name=row[0].title(),
+                    sector_codes=row[1] if row[1] else [],
+                    sector_names=row[2] if row[2] else [],
+                    source="cached",
+                    confidence=row[3],
+                )
+            )
 
     return CompanySearchResponse(results=results[:limit], query=q, region=region)
 
@@ -325,11 +353,16 @@ async def classify_company(
         raise HTTPException(status_code=400, detail="Region must be US or AU")
 
     # Check cache first
-    cached = await db.execute(text("""
+    cached = await db.execute(
+        text(
+            """
         SELECT sector_codes, sector_names, confidence
         FROM company_classifications
         WHERE company_name_lower = :name AND region = :region
-    """), {"name": name_lower, "region": region})
+    """
+        ),
+        {"name": name_lower, "region": region},
+    )
     cached_row = cached.fetchone()
 
     if cached_row:
@@ -340,8 +373,10 @@ async def classify_company(
         subs = await _load_matched_subdivisions(db, codes) if is_au else None
         return ClassifyResponse(
             company_name=req.name,
-            sectors=[SectorSuggestion(code=c, name=n, confidence=cached_row[2])
-                     for c, n in zip(codes, names)],
+            sectors=[
+                SectorSuggestion(code=c, name=n, confidence=cached_row[2])
+                for c, n in zip(codes, names)
+            ],
             sector_codes=codes,
             source="cached",
             region=region,
@@ -364,9 +399,7 @@ async def classify_company(
     if region == "AU":
         sector_list = await _build_au_sector_list_with_subs(db)
     else:
-        sector_list = "\n".join(
-            f"  {code}: {name}" for code, name in sectors_ref.items()
-        )
+        sector_list = "\n".join(f"  {code}: {name}" for code, name in sectors_ref.items())
 
     prompt = CLASSIFY_PROMPT.format(
         name=req.name,
@@ -401,21 +434,27 @@ async def classify_company(
     for s in suggestions:
         code = s.get("code", "")
         if code in sectors_ref:
-            valid_suggestions.append(SectorSuggestion(
-                code=code,
-                name=sectors_ref[code],
-                confidence=s.get("confidence"),
-            ))
+            valid_suggestions.append(
+                SectorSuggestion(
+                    code=code,
+                    name=sectors_ref[code],
+                    confidence=s.get("confidence"),
+                )
+            )
 
     if not valid_suggestions:
-        raise HTTPException(status_code=404, detail=f"Could not classify '{req.name}' into known sectors")
+        raise HTTPException(
+            status_code=404, detail=f"Could not classify '{req.name}' into known sectors"
+        )
 
     sector_codes = [s.code for s in valid_suggestions]
     sector_names = [s.name for s in valid_suggestions]
     avg_confidence = sum(s.confidence or 0 for s in valid_suggestions) / len(valid_suggestions)
 
     # Cache the result
-    await db.execute(text("""
+    await db.execute(
+        text(
+            """
         INSERT INTO company_classifications (company_name_lower, region, sector_codes, sector_names, confidence)
         VALUES (:name, :region, :codes, :names, :conf)
         ON CONFLICT (company_name_lower, region) DO UPDATE SET
@@ -423,13 +462,16 @@ async def classify_company(
             sector_names = EXCLUDED.sector_names,
             confidence = EXCLUDED.confidence,
             classified_at = NOW()
-    """), {
-        "name": name_lower,
-        "region": region,
-        "codes": sector_codes,
-        "names": sector_names,
-        "conf": round(avg_confidence, 3),
-    })
+    """
+        ),
+        {
+            "name": name_lower,
+            "region": region,
+            "codes": sector_codes,
+            "names": sector_names,
+            "conf": round(avg_confidence, 3),
+        },
+    )
     await db.commit()
 
     is_au = region == "AU"

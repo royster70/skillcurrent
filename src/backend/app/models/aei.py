@@ -30,9 +30,7 @@ class AeiJobExposure(Base):
     observed_exposure: Mapped[float | None] = mapped_column(Float)
     dataset_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("ix_aei_job_exposure_occ_code", "occ_code"),
-    )
+    __table_args__ = (Index("ix_aei_job_exposure_occ_code", "occ_code"),)
 
 
 class AeiTaskPenetration(Base):
@@ -51,6 +49,4 @@ class AeiTaskPenetration(Base):
     penetration: Mapped[float | None] = mapped_column(Float)
     dataset_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("ix_aei_task_penetration_penetration", "penetration"),
-    )
+    __table_args__ = (Index("ix_aei_task_penetration_penetration", "penetration"),)

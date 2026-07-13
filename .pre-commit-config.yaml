@@ -1,4 +1,9 @@
 repos:
+  # FORMATTER POLICY: black is the SOLE formatter. ruff runs as linter only (never re-add ruff-format —
+  # black and ruff-format are separate implementations and diverge on edge cases, e.g. multiline-string
+  # call args, causing commit oscillation; see the 2026-07 toolchain PR). Keep line-length=100 + target
+  # py312 in lockstep across [tool.black], [tool.ruff] (src/backend/pyproject.toml) and root ruff.toml,
+  # and keep the [dev] black/ruff pins == these hook revs so local == CI.
   - repo: https://github.com/psf/black
     rev: 24.10.0
     hooks:
@@ -11,7 +16,6 @@ repos:
     hooks:
       - id: ruff
         args: ["--fix"]
-      - id: ruff-format
 
   - repo: https://github.com/pre-commit/mirrors-mypy
     rev: v1.13.0

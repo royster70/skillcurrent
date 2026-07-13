@@ -195,9 +195,9 @@ class TestP95Thresholds:
         for _ in range(self.SAMPLE_COUNT):
             r = await client.get(path)
             assert r.status_code == 200, f"Unexpected status {r.status_code} for {path}"
-            assert "X-Request-Duration-Ms" in r.headers, (
-                f"Missing X-Request-Duration-Ms header on {path}"
-            )
+            assert (
+                "X-Request-Duration-Ms" in r.headers
+            ), f"Missing X-Request-Duration-Ms header on {path}"
             durations.append(float(r.headers["X-Request-Duration-Ms"]))
 
         p95 = float(np.percentile(durations, 95))

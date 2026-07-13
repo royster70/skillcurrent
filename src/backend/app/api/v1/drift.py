@@ -15,7 +15,9 @@ async def get_drift_summary(
     db: AsyncSession = Depends(get_db),
 ) -> DriftSummaryResponse:
     """Get drift classification distribution and summary stats."""
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT
             COUNT(*) AS total,
             COUNT(classification) AS classified,
@@ -27,7 +29,9 @@ async def get_drift_summary(
             AVG(CASE WHEN classification = 'departing' THEN velocity END),
             AVG(CASE WHEN classification = 'enduring' THEN velocity END)
         FROM task_drift_metrics
-    """))
+    """
+        )
+    )
     row = r.fetchone()
     return DriftSummaryResponse(
         total_tasks=row[0],
@@ -50,9 +54,7 @@ async def get_departing_tasks(
     db: AsyncSession = Depends(get_db),
 ) -> DriftListResponse:
     """Get departing tasks ranked by velocity (fastest growing AI usage)."""
-    return await _get_drift_tasks(
-        db, "departing", min_snapshots, page, page_size
-    )
+    return await _get_drift_tasks(db, "departing", min_snapshots, page, page_size)
 
 
 @router.get("/below-threshold", response_model=DriftListResponse)
@@ -76,9 +78,7 @@ async def get_enduring_tasks(
     db: AsyncSession = Depends(get_db),
 ) -> DriftListResponse:
     """Get enduring tasks — stable or declining AI usage."""
-    return await _get_drift_tasks(
-        db, "enduring", min_snapshots, page, page_size
-    )
+    return await _get_drift_tasks(db, "enduring", min_snapshots, page, page_size)
 
 
 async def _get_drift_tasks(
@@ -96,16 +96,27 @@ async def _get_drift_tasks(
         "offset": (page - 1) * page_size,
     }
 
-    count_r = await db.execute(text("""
+    count_r = await db.execute(
+        text(
+            """
         SELECT COUNT(*) FROM task_drift_metrics
         WHERE classification = :classification
           AND snapshot_count >= :min_snapshots
-    """), params)
+    """
+        ),
+        params,
+    )
     total = count_r.scalar() or 0
 
-    order = "velocity DESC" if classification in ("departing", "below_threshold") else "latest_task_pct DESC"
+    order = (
+        "velocity DESC"
+        if classification in ("departing", "below_threshold")
+        else "latest_task_pct DESC"
+    )
 
-    r = await db.execute(text(f"""
+    r = await db.execute(
+        text(
+            f"""
         SELECT task_text, velocity, r_squared, latest_task_pct,
                peak_task_pct, classification, snapshot_count
         FROM task_drift_metrics
@@ -113,7 +124,10 @@ async def _get_drift_tasks(
           AND snapshot_count >= :min_snapshots
         ORDER BY {order}
         LIMIT :limit OFFSET :offset
-    """), params)
+    """
+        ),
+        params,
+    )
 
     tasks = [
         DriftTaskSummary(

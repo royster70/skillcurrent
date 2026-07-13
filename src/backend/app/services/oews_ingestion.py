@@ -89,22 +89,26 @@ async def ingest_oews(
     logger.info("Filtered to %d detail-level rows", len(df))
 
     # Map columns to our schema
-    result_df = pd.DataFrame({
-        "onet_soc": df["OCC_CODE"],
-        "naics_code": df["NAICS"],
-        "naics_title": df["NAICS_TITLE"],
-        "area_code": "US0000",
-        "employment": _clean_numeric(df["TOT_EMP"], "int"),
-        "employment_per_1000": _clean_numeric(df["JOBS_1000"], "float"),
-        "mean_annual_wage": _clean_numeric(df["A_MEAN"], "int"),
-        "median_annual_wage": _clean_numeric(df["A_MEDIAN"], "int"),
-        "release_year": release_year,
-    })
+    result_df = pd.DataFrame(
+        {
+            "onet_soc": df["OCC_CODE"],
+            "naics_code": df["NAICS"],
+            "naics_title": df["NAICS_TITLE"],
+            "area_code": "US0000",
+            "employment": _clean_numeric(df["TOT_EMP"], "int"),
+            "employment_per_1000": _clean_numeric(df["JOBS_1000"], "float"),
+            "mean_annual_wage": _clean_numeric(df["A_MEAN"], "int"),
+            "median_annual_wage": _clean_numeric(df["A_MEDIAN"], "int"),
+            "release_year": release_year,
+        }
+    )
 
     # Drop rows where both employment and wages are null (fully suppressed)
     before = len(result_df)
     result_df = result_df.dropna(subset=["employment", "mean_annual_wage"], how="all")
-    logger.info("Dropped %d fully suppressed rows, %d remaining", before - len(result_df), len(result_df))
+    logger.info(
+        "Dropped %d fully suppressed rows, %d remaining", before - len(result_df), len(result_df)
+    )
 
     # Register version (ADR-002)
     version_result = await session.execute(

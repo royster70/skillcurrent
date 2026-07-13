@@ -32,7 +32,12 @@ logger = logging.getLogger(__name__)
 
 @tracked_transformation(
     name="derive_eloundou_dwa_scores",
-    sources=["eloundou_occ_scores", "onet_tasks_to_dwas", "onet_task_ratings", "onet_dwa_references"],
+    sources=[
+        "eloundou_occ_scores",
+        "onet_tasks_to_dwas",
+        "onet_task_ratings",
+        "onet_dwa_references",
+    ],
     target="eloundou_dwa_scores",
 )
 async def derive_eloundou_dwa_scores(
@@ -54,7 +59,8 @@ async def derive_eloundou_dwa_scores(
     # 4. Multiplies occupation scores by weight to get DWA scores
     # 5. Joins DWA reference for titles
 
-    derivation_sql = text("""
+    derivation_sql = text(
+        """
         INSERT INTO eloundou_dwa_scores (
             onet_soc, dwa_id, dwa_title,
             dv_e1_alpha, dv_e2_beta, dv_e0_gamma, dv_beta_derived,
@@ -102,7 +108,8 @@ async def derive_eloundou_dwa_scores(
         JOIN eloundou_occ_scores e ON e.onet_soc = agg.onet_soc
         LEFT JOIN onet_dwa_references dwa ON dwa.dwa_id = agg.dwa_id
         ORDER BY agg.onet_soc, agg.dwa_id
-    """)
+    """
+    )
 
     result = await session.execute(
         derivation_sql,

@@ -31,9 +31,7 @@ class MsAiApplicabilityScore(Base):
     ai_applicability_score: Mapped[float | None] = mapped_column(Float)
     dataset_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("ix_ms_ai_applicability_soc", "soc_code"),
-    )
+    __table_args__ = (Index("ix_ms_ai_applicability_soc", "soc_code"),)
 
 
 class MsAiSocMetric(Base):
@@ -60,9 +58,7 @@ class MsAiSocMetric(Base):
     ai_applicability_score_ai_nonphysical: Mapped[float | None] = mapped_column(Float)
     dataset_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("ix_ms_ai_soc_metrics_soc", "soc_code"),
-    )
+    __table_args__ = (Index("ix_ms_ai_soc_metrics_soc", "soc_code"),)
 
 
 class MsAiIwaMetric(Base):
@@ -89,9 +85,7 @@ class MsAiIwaMetric(Base):
     completion_x_scope_x_coverage_ai: Mapped[float | None] = mapped_column(Float)
     dataset_version: Mapped[str] = mapped_column(Text, nullable=False)
 
-    __table_args__ = (
-        Index("ix_ms_ai_iwa_metrics_iwa", "iwa_code"),
-    )
+    __table_args__ = (Index("ix_ms_ai_iwa_metrics_iwa", "iwa_code"),)
 
 
 class MsAiSocToIwa(Base):

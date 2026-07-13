@@ -74,9 +74,9 @@ async def test_osca_anzsco_map_covers_six_digit_abs(session: AsyncSession):
         session,
         "SELECT COUNT(DISTINCT anzsco_code) FROM abs_employment WHERE length(anzsco_code) = 6",
     )
-    assert total6 == 0 or matched / total6 >= 0.8, (
-        f"6-digit ANZSCO->OSCA coverage {matched}/{total6} below 80%"
-    )
+    assert (
+        total6 == 0 or matched / total6 >= 0.8
+    ), f"6-digit ANZSCO->OSCA coverage {matched}/{total6} below 80%"
 
 
 async def test_abs_employment_dual_keyed_to_osca(session: AsyncSession):

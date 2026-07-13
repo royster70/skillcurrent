@@ -174,9 +174,7 @@ def _read_onet_file(
     return df
 
 
-async def _check_existing_version(
-    session: AsyncSession, version_key: str
-) -> DatasetVersion | None:
+async def _check_existing_version(session: AsyncSession, version_key: str) -> DatasetVersion | None:
     """Check if this O*NET version is already ingested."""
     result = await session.execute(
         select(DatasetVersion).where(
@@ -211,7 +209,9 @@ async def _bulk_insert(
     for i in range(0, len(rows), batch_size):
         batch = rows[i : i + batch_size]
         await session.execute(text(f"DELETE FROM {table_name} WHERE FALSE"))  # validate table name
-        await session.execute(insert(text(table_name)), batch)  # noqa: not raw SQL injection — table name from code
+        await session.execute(
+            insert(text(table_name)), batch
+        )  # noqa: not raw SQL injection — table name from code
         total += len(batch)
 
     return total
@@ -340,9 +340,17 @@ async def ingest_onet(
     emerging_df = _read_onet_file(path, "Emerging Tasks.txt", _EMERGING_TASK_COLS)
 
     total_rows = sum(
-        len(df) for df in [
-            occupations_df, tasks_df, ratings_df, activities_df, dwa_ref_df,
-            tasks_to_dwas_df, sample_titles_df, alt_titles_df, emerging_df,
+        len(df)
+        for df in [
+            occupations_df,
+            tasks_df,
+            ratings_df,
+            activities_df,
+            dwa_ref_df,
+            tasks_to_dwas_df,
+            sample_titles_df,
+            alt_titles_df,
+            emerging_df,
         ]
     )
 

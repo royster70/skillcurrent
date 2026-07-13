@@ -25,9 +25,7 @@ def start_scheduler() -> None:
     settings = get_settings()
 
     if not settings.pipeline_auto_run:
-        logger.info(
-            "Pipeline auto-run disabled (pipeline_auto_run=False). Scheduler not started."
-        )
+        logger.info("Pipeline auto-run disabled (pipeline_auto_run=False). Scheduler not started.")
         return
 
     _scheduler = AsyncIOScheduler()

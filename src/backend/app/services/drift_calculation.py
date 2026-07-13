@@ -34,9 +34,7 @@ ENDURING_MAX_VELOCITY = 0.005  # near-zero velocity
 ENDURING_MIN_IMPORTANCE = 3.5  # O*NET importance rating (1-5 scale)
 
 
-def _compute_velocity(
-    dates: list[date], values: list[float]
-) -> dict[str, float | None]:
+def _compute_velocity(dates: list[date], values: list[float]) -> dict[str, float | None]:
     """Compute linear regression velocity over time.
 
     Args:
@@ -56,7 +54,7 @@ def _compute_velocity(
 
     return {
         "velocity": float(slope),
-        "r_squared": float(r_value ** 2),
+        "r_squared": float(r_value**2),
         "p_value": float(p_value),
     }
 
@@ -109,9 +107,11 @@ def _classify_task(
         return "enduring"
 
     # If high importance but low AI usage — enduring
-    if avg_importance and avg_importance >= ENDURING_MIN_IMPORTANCE and (
-        latest_task_pct or 0
-    ) < 0.1:
+    if (
+        avg_importance
+        and avg_importance >= ENDURING_MIN_IMPORTANCE
+        and (latest_task_pct or 0) < 0.1
+    ):
         return "enduring"
 
     return None
@@ -119,7 +119,12 @@ def _classify_task(
 
 @tracked_transformation(
     name="compute_task_drift",
-    sources=["aei_task_snapshots", "onet_emerging_tasks", "onet_task_statements", "onet_task_ratings"],
+    sources=[
+        "aei_task_snapshots",
+        "onet_emerging_tasks",
+        "onet_task_statements",
+        "onet_task_ratings",
+    ],
     target="task_drift_metrics",
 )
 async def compute_task_drift(
@@ -140,12 +145,17 @@ async def compute_task_drift(
     logger.info("Starting drift calculation for platform=%s...", platform)
 
     # Step 1: Fetch all task snapshots grouped by task_text
-    snapshots_result = await session.execute(text("""
+    snapshots_result = await session.execute(
+        text(
+            """
         SELECT task_text, snapshot_date, task_pct
         FROM aei_task_snapshots
         WHERE platform = :platform AND task_pct IS NOT NULL
         ORDER BY task_text, snapshot_date
-    """), {"platform": platform})
+    """
+        ),
+        {"platform": platform},
+    )
 
     # Group by task_text
     task_snapshots: dict[str, list[tuple[date, float]]] = {}
@@ -158,20 +168,22 @@ async def compute_task_drift(
     logger.info("Found %d unique tasks with snapshot data", len(task_snapshots))
 
     # Step 2: Fetch emerging task texts (for classification)
-    emerging_result = await session.execute(text(
-        "SELECT LOWER(task) FROM onet_emerging_tasks"
-    ))
+    emerging_result = await session.execute(text("SELECT LOWER(task) FROM onet_emerging_tasks"))
     emerging_tasks = {row[0] for row in emerging_result.fetchall()}
     logger.info("Found %d emerging tasks", len(emerging_tasks))
 
     # Step 3: Fetch average importance per task text from O*NET
-    importance_result = await session.execute(text("""
+    importance_result = await session.execute(
+        text(
+            """
         SELECT LOWER(ts.task), AVG(tr.data_value)
         FROM onet_task_statements ts
         JOIN onet_task_ratings tr ON tr.onet_soc = ts.onet_soc
             AND tr.task_id = ts.task_id AND tr.scale_id = 'IM'
         GROUP BY LOWER(ts.task)
-    """))
+    """
+        )
+    )
     task_importance: dict[str, float] = {
         row[0]: float(row[1]) for row in importance_result.fetchall()
     }
@@ -206,20 +218,22 @@ async def compute_task_drift(
             avg_importance=avg_imp,
         )
 
-        rows_to_insert.append({
-            "task_text": task_text,
-            "first_seen_date": first_seen,
-            "latest_date": latest,
-            "snapshot_count": len(points),
-            "velocity": vel["velocity"],
-            "r_squared": vel["r_squared"],
-            "p_value": vel["p_value"],
-            "classification": classification,
-            "latest_task_pct": latest_pct,
-            "peak_task_pct": peak_pct,
-            "mean_task_pct": mean_pct,
-            "platform": platform,
-        })
+        rows_to_insert.append(
+            {
+                "task_text": task_text,
+                "first_seen_date": first_seen,
+                "latest_date": latest,
+                "snapshot_count": len(points),
+                "velocity": vel["velocity"],
+                "r_squared": vel["r_squared"],
+                "p_value": vel["p_value"],
+                "classification": classification,
+                "latest_task_pct": latest_pct,
+                "peak_task_pct": peak_pct,
+                "mean_task_pct": mean_pct,
+                "platform": platform,
+            }
+        )
 
     # Step 5: Bulk insert
     if rows_to_insert:

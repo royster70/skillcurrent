@@ -41,8 +41,13 @@ def _classify_zone(beta: float | None) -> str | None:
 
 @tracked_transformation(
     name="compute_industry_profiles",
-    sources=["oews_employment", "eloundou_occ_scores", "ms_ai_applicability_scores",
-             "aei_job_exposure", "task_drift_metrics"],
+    sources=[
+        "oews_employment",
+        "eloundou_occ_scores",
+        "ms_ai_applicability_scores",
+        "aei_job_exposure",
+        "task_drift_metrics",
+    ],
     target="industry_occupation_profiles",
 )
 async def compute_industry_profiles(
@@ -66,11 +71,17 @@ async def compute_industry_profiles(
     Returns:
         Number of profile rows created.
     """
-    logger.info("Starting industry profile computation for region=%s, release_year=%d...", region, release_year)
+    logger.info(
+        "Starting industry profile computation for region=%s, release_year=%d...",
+        region,
+        release_year,
+    )
 
     # Clear existing profiles for this release year and region (idempotent recomputation)
     await session.execute(
-        text("DELETE FROM industry_occupation_profiles WHERE release_year = :year AND region = :region"),
+        text(
+            "DELETE FROM industry_occupation_profiles WHERE release_year = :year AND region = :region"
+        ),
         {"year": release_year, "region": region},
     )
 
@@ -82,7 +93,9 @@ async def compute_industry_profiles(
     # Compute profiles via SQL join
     # OEWS uses 6-digit SOC codes; Eloundou uses 8-digit; Microsoft/AEI use 6-digit
     # For Eloundou, we take the first matching 8-digit score (most specific)
-    result = await session.execute(text("""
+    result = await session.execute(
+        text(
+            """
         INSERT INTO industry_occupation_profiles (
             naics_code, naics_title, onet_soc, occupation_title,
             employment_share, headcount,
@@ -167,15 +180,20 @@ async def compute_industry_profiles(
         ) drift_agg ON TRUE
         WHERE ow.release_year = :release_year
           AND ow.employment IS NOT NULL
-    """), {
-        "release_year": release_year,
-        "e2_threshold": E2_THRESHOLD,
-        "e1_threshold": E1_THRESHOLD,
-    })
+    """
+        ),
+        {
+            "release_year": release_year,
+            "e2_threshold": E2_THRESHOLD,
+            "e1_threshold": E1_THRESHOLD,
+        },
+    )
 
     # Count rows created
     count_result = await session.execute(
-        text("SELECT COUNT(*) FROM industry_occupation_profiles WHERE release_year = :year AND region = 'US'"),
+        text(
+            "SELECT COUNT(*) FROM industry_occupation_profiles WHERE release_year = :year AND region = 'US'"
+        ),
         {"year": release_year},
     )
     rows_created = count_result.scalar() or 0
@@ -196,7 +214,9 @@ async def _compute_au_profiles(
     """
     logger.info("Computing AU profiles from ABS employment data...")
 
-    result = await session.execute(text("""
+    result = await session.execute(
+        text(
+            """
         INSERT INTO industry_occupation_profiles (
             naics_code, naics_title, onet_soc, occupation_title,
             employment_share, headcount,
@@ -297,15 +317,20 @@ async def _compute_au_profiles(
               AND tdm.velocity IS NOT NULL
             HAVING COUNT(*) > 0
         ) drift_agg ON TRUE
-    """), {
-        "release_year": release_year,
-        "e2_threshold": E2_THRESHOLD,
-        "e1_threshold": E1_THRESHOLD,
-    })
+    """
+        ),
+        {
+            "release_year": release_year,
+            "e2_threshold": E2_THRESHOLD,
+            "e1_threshold": E1_THRESHOLD,
+        },
+    )
 
     # Count rows created
     count_result = await session.execute(
-        text("SELECT COUNT(*) FROM industry_occupation_profiles WHERE release_year = :year AND region = 'AU'"),
+        text(
+            "SELECT COUNT(*) FROM industry_occupation_profiles WHERE release_year = :year AND region = 'AU'"
+        ),
         {"year": release_year},
     )
     rows_created = count_result.scalar() or 0

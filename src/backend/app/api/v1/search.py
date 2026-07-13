@@ -57,7 +57,9 @@ async def search_occupations(
     """
     search_term = f"%{q}%"
 
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         WITH matched_titles AS (
             -- Pass 1: Substring match (highest priority)
             SELECT reported_job_title AS matched_title,
@@ -138,7 +140,10 @@ async def search_occupations(
         ) ow_total ON ow_total.onet_soc = SUBSTRING(o.onet_soc, 1, 7)
         ORDER BY bm.match_score DESC, o.title
         LIMIT :limit
-    """), {"substring": search_term, "raw_query": q, "limit": limit})
+    """
+        ),
+        {"substring": search_term, "raw_query": q, "limit": limit},
+    )
 
     results = [
         SearchResult(
@@ -203,10 +208,12 @@ async def semantic_search(
     soc_codes = list(seen.keys())
     enriched_results = []
 
-    for soc in soc_codes[:body.limit]:
+    for soc in soc_codes[: body.limit]:
         m = seen[soc]
         # Get scores
-        r = await db.execute(text("""
+        r = await db.execute(
+            text(
+                """
             SELECT e.dv_beta_derived, m.ai_applicability_score, a.observed_exposure, ow.total_emp,
                    EXISTS (SELECT 1 FROM onet_task_statements ts WHERE ts.onet_soc = o.onet_soc) AS has_tasks,
                    CASE
@@ -223,7 +230,10 @@ async def semantic_search(
                 FROM oews_employment WHERE employment IS NOT NULL GROUP BY onet_soc
             ) ow ON ow.onet_soc = SUBSTRING(o.onet_soc, 1, 7)
             WHERE o.onet_soc = :soc
-        """), {"soc": soc})
+        """
+            ),
+            {"soc": soc},
+        )
         score_row = r.fetchone()
 
         beta = score_row[0] if score_row else None
@@ -231,20 +241,22 @@ async def semantic_search(
         if beta is not None:
             zone = "E2" if beta >= 0.85 else ("E1" if beta >= 0.40 else "E0")
 
-        enriched_results.append(SearchResult(
-            matched_title=m["matched_title"],
-            source=f"semantic_{m['source']}",
-            soc_code=soc,
-            occupation_title=m["occupation_title"],
-            similarity=m["similarity"],
-            eloundou_beta=round(beta, 4) if beta else None,
-            ms_ai_applicability=round(score_row[1], 4) if score_row and score_row[1] else None,
-            aei_exposure=round(score_row[2], 4) if score_row and score_row[2] else None,
-            dominant_zone=zone,
-            total_employment=score_row[3] if score_row else None,
-            has_tasks=score_row[4] if score_row and score_row[4] is not None else False,
-            category=score_row[5] if score_row else None,
-        ))
+        enriched_results.append(
+            SearchResult(
+                matched_title=m["matched_title"],
+                source=f"semantic_{m['source']}",
+                soc_code=soc,
+                occupation_title=m["occupation_title"],
+                similarity=m["similarity"],
+                eloundou_beta=round(beta, 4) if beta else None,
+                ms_ai_applicability=round(score_row[1], 4) if score_row and score_row[1] else None,
+                aei_exposure=round(score_row[2], 4) if score_row and score_row[2] else None,
+                dominant_zone=zone,
+                total_employment=score_row[3] if score_row else None,
+                has_tasks=score_row[4] if score_row and score_row[4] is not None else False,
+                category=score_row[5] if score_row else None,
+            )
+        )
 
     # Sort by similarity
     enriched_results.sort(key=lambda r: r.similarity or 0, reverse=True)

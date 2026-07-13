@@ -22,10 +22,13 @@ router = APIRouter(prefix="/sectors", tags=["sectors"])
 
 
 async def _load_au_occupation_mix(
-    db: AsyncSession, code_list: list[str],
+    db: AsyncSession,
+    code_list: list[str],
 ) -> list[OccupationMixEntry] | None:
     """Load aggregated Census occupation mix for selected AU sectors."""
-    mix_r = await db.execute(text("""
+    mix_r = await db.execute(
+        text(
+            """
         SELECT anzsco_major_group, anzsco_major_group_name,
                SUM(employed_count) AS employed_count
         FROM abs_census_wpp
@@ -34,7 +37,10 @@ async def _load_au_occupation_mix(
           AND anzsco_major_group IS NOT NULL
         GROUP BY anzsco_major_group, anzsco_major_group_name
         ORDER BY SUM(employed_count) DESC NULLS LAST
-    """), {"codes": code_list})
+    """
+        ),
+        {"codes": code_list},
+    )
     mix_rows = mix_r.fetchall()
     if not mix_rows:
         return None
@@ -44,30 +50,35 @@ async def _load_au_occupation_mix(
             anzsco_major_group=row[0],
             major_group_name=row[1],
             employed_count=row[2] or 0,
-            share_pct=(
-                round((row[2] or 0) / mix_total * 100, 1) if mix_total > 0 else 0
-            ),
+            share_pct=(round((row[2] or 0) / mix_total * 100, 1) if mix_total > 0 else 0),
         )
         for row in mix_rows
     ]
 
 
 async def _load_au_subdivisions(
-    db: AsyncSession, code_list: list[str],
+    db: AsyncSession,
+    code_list: list[str],
 ) -> dict[str, list[SubdivisionEntry]] | None:
     """Load subdivisions for each AU sector in the composite."""
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT anzsic_division_code, subdivision_name, employment
         FROM anzsic_subdivisions
         WHERE anzsic_division_code = ANY(:codes)
           AND release_year = 2025 AND employment IS NOT NULL
         ORDER BY anzsic_division_code, employment DESC
-    """), {"codes": code_list})
+    """
+        ),
+        {"codes": code_list},
+    )
     rows = r.fetchall()
     if not rows:
         return None
     # Group by division, compute share_pct within each
     from collections import defaultdict
+
     grouped: dict[str, list[tuple[str, int]]] = defaultdict(list)
     for div_code, name, emp in rows:
         grouped[div_code].append((name, emp))
@@ -86,7 +97,8 @@ async def _load_au_subdivisions(
 
 
 async def _load_subdivision_occupation_mix(
-    db: AsyncSession, code_list: list[str],
+    db: AsyncSession,
+    code_list: list[str],
 ) -> list[SubdivisionOccupationProfile] | None:
     """Load per-subdivision occupation breakdowns from Census 2021 cross-tab.
 
@@ -95,7 +107,9 @@ async def _load_subdivision_occupation_mix(
     Electricity Supply is 35% Technicians while Gas Supply is 40%
     Machinery Operators.
     """
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT indp_name, anzsic_division_code,
                anzsco_major_group, anzsco_major_group_name,
                employed_count
@@ -104,7 +118,10 @@ async def _load_subdivision_occupation_mix(
           AND census_year = 2021
         ORDER BY anzsic_division_code, indp_name,
                  employed_count DESC
-    """), {"codes": code_list})
+    """
+        ),
+        {"codes": code_list},
+    )
     rows = r.fetchall()
     if not rows:
         return None
@@ -132,12 +149,14 @@ async def _load_subdivision_occupation_mix(
             )
             for mg, mg_name, count in occ_rows
         ]
-        profiles.append(SubdivisionOccupationProfile(
-            indp_name=indp_name,
-            anzsic_division_code=div_map[indp_name],
-            total_employed=total,
-            occupations=occupations,
-        ))
+        profiles.append(
+            SubdivisionOccupationProfile(
+                indp_name=indp_name,
+                anzsic_division_code=div_map[indp_name],
+                total_employed=total,
+                occupations=occupations,
+            )
+        )
 
     # Sort by total employed descending for most impactful subdivisions first
     profiles.sort(key=lambda p: p.total_employed, reverse=True)
@@ -183,9 +202,7 @@ async def composite_sector_analysis(
         examples=["62,54,51"],
     ),
     region: str = Query("US", pattern="^(US|AU|us|au)$", description="US (NAICS) or AU (ANZSIC)"),
-    company: str | None = Query(
-        None, description="Company name for context"
-    ),
+    company: str | None = Query(None, description="Company name for context"),
     db: AsyncSession = Depends(get_db),
 ) -> CompositeSectorResponse:
     """Blend multiple sectors into a composite impact profile.
@@ -205,11 +222,13 @@ async def composite_sector_analysis(
 
     # Validate all codes exist and get sector names
     validate_r = await db.execute(
-        text("""
+        text(
+            """
             SELECT DISTINCT naics_code, naics_title
             FROM industry_occupation_profiles
             WHERE naics_code = ANY(:codes) AND region = :region
-        """),
+        """
+        ),
         {"codes": code_list, "region": region},
     )
     found = {row[0]: row[1] for row in validate_r.fetchall()}
@@ -223,7 +242,8 @@ async def composite_sector_analysis(
     # Aggregate occupations across selected sectors
     # De-duplicate by SOC, SUM headcount, employment-weighted scores
     r = await db.execute(
-        text("""
+        text(
+            """
             SELECT
                 p.onet_soc,
                 p.occupation_title,
@@ -254,7 +274,8 @@ async def composite_sector_analysis(
             WHERE p.naics_code = ANY(:codes) AND p.region = :region
             GROUP BY p.onet_soc, p.occupation_title
             ORDER BY SUM(p.headcount) DESC NULLS LAST
-        """),
+        """
+        ),
         {"codes": code_list, "region": region},
     )
     rows = r.fetchall()
@@ -297,30 +318,26 @@ async def composite_sector_analysis(
             sum_hc_aei += hc * aei
             sum_hc_aei_w += hc
 
-        occupations.append(CompositeOccupation(
-            onet_soc=row[0],
-            occupation_title=row[1] or row[0],
-            total_headcount=hc,
-            sectors=row[3] or [],
-            eloundou_beta=beta,
-            ms_ai_applicability=ms,
-            aei_exposure=aei,
-            dominant_zone=zone,
-            drift_velocity=round(float(row[8]), 6) if row[8] is not None else None,
-            drift_classification=row[9],
-        ))
+        occupations.append(
+            CompositeOccupation(
+                onet_soc=row[0],
+                occupation_title=row[1] or row[0],
+                total_headcount=hc,
+                sectors=row[3] or [],
+                eloundou_beta=beta,
+                ms_ai_applicability=ms,
+                aei_exposure=aei,
+                dominant_zone=zone,
+                drift_velocity=round(float(row[8]), 6) if row[8] is not None else None,
+                drift_classification=row[9],
+            )
+        )
 
     # Aggregate Census occupation mix + subdivisions for AU sectors
-    occupation_mix = (
-        await _load_au_occupation_mix(db, code_list) if region == "AU" else None
-    )
-    subdivisions = (
-        await _load_au_subdivisions(db, code_list) if region == "AU" else None
-    )
+    occupation_mix = await _load_au_occupation_mix(db, code_list) if region == "AU" else None
+    subdivisions = await _load_au_subdivisions(db, code_list) if region == "AU" else None
     subdivision_occupation_mix = (
-        await _load_subdivision_occupation_mix(db, code_list)
-        if region == "AU"
-        else None
+        await _load_subdivision_occupation_mix(db, code_list) if region == "AU" else None
     )
 
     return CompositeSectorResponse(
@@ -329,15 +346,9 @@ async def composite_sector_analysis(
         company_name=company,
         total_employment=total_employment,
         occupation_count=len(occupations),
-        weighted_eloundou_beta=(
-            round(sum_hc_beta / sum_hc_beta_w, 4) if sum_hc_beta_w else None
-        ),
-        weighted_ms_applicability=(
-            round(sum_hc_ms / sum_hc_ms_w, 4) if sum_hc_ms_w else None
-        ),
-        weighted_aei_exposure=(
-            round(sum_hc_aei / sum_hc_aei_w, 4) if sum_hc_aei_w else None
-        ),
+        weighted_eloundou_beta=(round(sum_hc_beta / sum_hc_beta_w, 4) if sum_hc_beta_w else None),
+        weighted_ms_applicability=(round(sum_hc_ms / sum_hc_ms_w, 4) if sum_hc_ms_w else None),
+        weighted_aei_exposure=(round(sum_hc_aei / sum_hc_aei_w, 4) if sum_hc_aei_w else None),
         workers_e0=workers_e0,
         workers_e1=workers_e1,
         workers_e2=workers_e2,

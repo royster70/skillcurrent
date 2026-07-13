@@ -50,9 +50,7 @@ async def test_tracked_transformation_success(session: AsyncSession):
     # Query the transformation_log to verify
     row = (
         await session.execute(
-            select(TransformationLog).where(
-                TransformationLog.name == "test_transform_success"
-            )
+            select(TransformationLog).where(TransformationLog.name == "test_transform_success")
         )
     ).scalar_one()
 
@@ -73,9 +71,7 @@ async def test_tracked_transformation_failure(session: AsyncSession):
     # Query the transformation_log — should show failure
     row = (
         await session.execute(
-            select(TransformationLog).where(
-                TransformationLog.name == "test_transform_failure"
-            )
+            select(TransformationLog).where(TransformationLog.name == "test_transform_failure")
         )
     ).scalar_one()
 
@@ -88,16 +84,12 @@ async def test_tracked_transformation_failure(session: AsyncSession):
 
 async def test_tracked_transformation_captures_parameters(session: AsyncSession):
     """kwargs are stored in the parameters JSONB column."""
-    result = await _dummy_transform_with_params(
-        session, onet_version="28.1", release_year=2024
-    )
+    result = await _dummy_transform_with_params(session, onet_version="28.1", release_year=2024)
     assert result == 7
 
     row = (
         await session.execute(
-            select(TransformationLog).where(
-                TransformationLog.name == "test_transform_params"
-            )
+            select(TransformationLog).where(TransformationLog.name == "test_transform_params")
         )
     ).scalar_one()
 

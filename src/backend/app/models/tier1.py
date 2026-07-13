@@ -78,9 +78,7 @@ class OEWSEmployment(Base):
     __tablename__ = "oews_employment"
 
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
-    onet_soc: Mapped[str] = mapped_column(
-        Text, nullable=False
-    )
+    onet_soc: Mapped[str] = mapped_column(Text, nullable=False)
     naics_code: Mapped[str] = mapped_column(Text, nullable=False)
     naics_title: Mapped[str | None] = mapped_column(Text)
     area_code: Mapped[str] = mapped_column(Text, nullable=False, server_default="US0000")
@@ -105,9 +103,7 @@ class IndustryOccupationProfile(Base):
     id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
     naics_code: Mapped[str] = mapped_column(Text, nullable=False)
     naics_title: Mapped[str | None] = mapped_column(Text)
-    onet_soc: Mapped[str] = mapped_column(
-        Text, nullable=False
-    )
+    onet_soc: Mapped[str] = mapped_column(Text, nullable=False)
     occupation_title: Mapped[str | None] = mapped_column(Text)
     employment_share: Mapped[float | None] = mapped_column(Float)
     headcount: Mapped[int | None] = mapped_column(Integer)
@@ -126,7 +122,9 @@ class IndustryOccupationProfile(Base):
     updated_at: Mapped[datetime] = mapped_column(server_default=func.now(), onupdate=func.now())
 
     __table_args__ = (
-        UniqueConstraint("naics_code", "onet_soc", "release_year", "region", name="uq_iop_naics_soc_year_region"),
+        UniqueConstraint(
+            "naics_code", "onet_soc", "release_year", "region", name="uq_iop_naics_soc_year_region"
+        ),
         Index("ix_industry_occupation_profiles_naics_code", "naics_code"),
         Index("ix_industry_occupation_profiles_onet_soc", "onet_soc"),
         Index("ix_industry_occupation_profiles_dominant_zone", "dominant_zone"),
@@ -171,7 +169,9 @@ class ANZSCOSOCConcordance(Base):
     onet_title: Mapped[str | None] = mapped_column(Text)
     match_method: Mapped[str] = mapped_column(Text, nullable=False)
     confidence: Mapped[float] = mapped_column(Float, nullable=False)
-    matched_variant: Mapped[str | None] = mapped_column(Text)  # which title variant produced the match
+    matched_variant: Mapped[str | None] = mapped_column(
+        Text
+    )  # which title variant produced the match
     reviewed: Mapped[bool] = mapped_column(Boolean, nullable=False, server_default="false")
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
@@ -204,8 +204,10 @@ class ABSCensusWPP(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "geography_code", "anzsic_division_abbrev",
-            "anzsco_major_group_abbrev", "census_year",
+            "geography_code",
+            "anzsic_division_abbrev",
+            "anzsco_major_group_abbrev",
+            "census_year",
             name="uq_abs_census_wpp_cell",
         ),
         Index("ix_abs_census_wpp_anzsic", "anzsic_division_code"),
@@ -235,7 +237,10 @@ class ABSCensusW13(Base):
 
     __table_args__ = (
         UniqueConstraint(
-            "geography_code", "anzsco_submajor_abbrev", "sex", "census_year",
+            "geography_code",
+            "anzsco_submajor_abbrev",
+            "sex",
+            "census_year",
             name="uq_abs_census_w13_cell",
         ),
         Index("ix_abs_census_w13_major", "anzsco_major_group"),
@@ -255,15 +260,15 @@ class ANZSICSubdivision(Base):
     anzsic_division_name: Mapped[str] = mapped_column(Text, nullable=False)
     subdivision_name: Mapped[str] = mapped_column(Text, nullable=False)
     employment: Mapped[int | None] = mapped_column(Integer)
-    release_year: Mapped[int] = mapped_column(
-        Integer, nullable=False, server_default="2025"
-    )
+    release_year: Mapped[int] = mapped_column(Integer, nullable=False, server_default="2025")
     integrity_hash: Mapped[str | None] = mapped_column(Text)
     created_at: Mapped[datetime] = mapped_column(server_default=func.now())
 
     __table_args__ = (
         UniqueConstraint(
-            "anzsic_division_code", "subdivision_name", "release_year",
+            "anzsic_division_code",
+            "subdivision_name",
+            "release_year",
             name="uq_anzsic_subdivisions_row",
         ),
         Index("ix_anzsic_subdivisions_division", "anzsic_division_code"),
