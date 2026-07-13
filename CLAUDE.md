@@ -228,8 +228,9 @@ These four rules close the gaps where `request_id` silently drops out. They are 
 Full rationale and implementation notes: `ai_working/decisions/ADR-007-performance-instrumentation.md` (Phase 3 section).
 
 ### Rule 3 & 4 — Simple algorithms, simple data structures.
-- `ruff` C90 rule enforced: `max-complexity = 10`. Functions exceeding cyclomatic complexity 10 are a lint error.
-- If a function hits the limit, decompose it — do not raise the global threshold or add `# noqa: C901` without a comment explaining why.
+- `ruff` C90 rule enforced: `max-complexity = 10` on `app/` business logic. Functions exceeding cyclomatic complexity 10 are a lint error. **Exempt**: `scripts/**` (procedural ingest/CLI parsers — per-file-ignore) and `migrations/**` (generated, `force-exclude`d from ruff entirely — black-formatted, not linted).
+- If an `app/` function hits the limit, decompose it — do not raise the global threshold or add `# noqa: C901` without a comment explaining why.
+- **The full gate (black + ruff + mypy `--strict`) is GREEN as of 2026-07** — `pre-commit run --all-files` passes clean; commits no longer need `SKIP=ruff,mypy`. black is the SOLE formatter and owns line length (`E501` ignored in ruff). mypy `ignore_missing_imports` covers the untyped/hook-absent libs (pandas, scipy, numpy, anthropic, apscheduler, …); `pydantic-settings` is in the mypy hook's `additional_dependencies`. Verify mypy against the isolated pre-commit hook env, not just the local venv — they see different dependency graphs.
 - Prefer flat data structures. If a query requires more than two JOINs to answer a simple question, the schema is wrong.
 - No clever abstractions without a demonstrated need. Demonstrate the need with a failing test or a measured bottleneck.
 

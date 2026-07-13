@@ -60,9 +60,10 @@ Lineage tracking for all derived computations (ADR-001). Populated by the `@trac
 | status | TEXT | NO | "running", "success", or "failed" |
 | error_message | TEXT | YES | Error details if failed |
 | parameters | JSONB | YES | Run parameters for reproducibility |
+| pipeline_run_id | TEXT | YES | Batch correlation key (UUID4) for a pipeline run — set by `scripts/run_pipeline.py`, tags every row from one run (ADR-007 Phase 3 Rule 2). Mutually exclusive with a request's `request_id`; indexed (`ix_transformation_log_pipeline_run_id`) |
 
 - **Primary key**: `id`
-- **Migration**: 003
+- **Migration**: 003 (column `pipeline_run_id` added in 031)
 
 ---
 
@@ -1241,3 +1242,4 @@ US-imported (`au_task.us_imported_beta`) and AU-native (`au_task.au_native_beta`
 | 028 | au_occupation_exposure.us_task_beta + divergence — US-vs-AU occupation exposure divergence (FR-9.2) |
 | 029 | drop oews_employment→onet_occupations FK — `oews_employment.onet_soc` is a 6-digit BLS SOC, joined to O*NET by prefix (not the 8-digit O*NET-SOC) |
 | 030 | drop industry_occupation_profiles→onet_occupations FK — US rows key by 6-digit SOC (same convention as 029) |
+| 031 | transformation_log.pipeline_run_id (TEXT, nullable, indexed) — batch correlation key for pipeline runs (ADR-007 Phase 3 Rule 2, FR-8.8) |
