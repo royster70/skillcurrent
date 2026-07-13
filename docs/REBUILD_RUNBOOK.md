@@ -150,6 +150,9 @@ pip install -e ".[dev]"
 # Create .env (MUST be UTF-8, not UTF-16!)
 python -c "open('.env', 'w', encoding='utf-8').write('DATABASE_URL=postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai\n')"
 
+# Optional: point the pipeline at source data outside the default location
+python -c "open('.env', 'a', encoding='utf-8').write('DATA_ROOT=C:\\\\Users\\\\royst\\\\Projects\\\\Data\n')"
+
 # Optional: add Anthropic key for LLM features
 python -c "open('.env', 'a', encoding='utf-8').write('ANTHROPIC_AUTH_TOKEN=sk-ant-...\n')"
 
@@ -174,17 +177,42 @@ python -m alembic upgrade head
 ## Phase 6 — Data Ingestion
 
 ### Option A: Full pipeline (recommended)
+
+`scripts/run_pipeline.py` is a working rebuild path (FR-8.8): each of the 21
+stages invokes the corresponding ingest script's shared `run()` entry point in
+dependency order, tagging every derived-computation row with a `pipeline_run_id`
+(ADR-007 Phase 3). Source-data locations are resolved from `settings.data_root`
+(env `DATA_ROOT`, default `C:\Users\royst\Projects\Data`) — set `DATA_ROOT` in
+`src/backend/.env` if your data lives elsewhere.
+
 ```powershell
 cd C:\Users\royst\Projects\workforce-ai-platform\src\backend
 
-# Dry run first
+# Point the orchestrator at your source data (skip if using the default path)
+# Add to src\backend\.env:  DATA_ROOT=C:\path\to\Data
+
+# Dry run first — prints the 21-stage plan without executing
 python -m scripts.run_pipeline --stages all --dry-run
 
-# Execute all 21 stages
+# Execute all 21 stages (Tier 1 core + optional AU/Census/ASX overlay)
 python -m scripts.run_pipeline --stages all
+
+# Selective runs:
+python -m scripts.run_pipeline --stages tier1        # US Tier 1 core only
+python -m scripts.run_pipeline --stages au           # AU/Census/ASX overlay only
+python -m scripts.run_pipeline --from-stage 7        # resume from stage N (0-indexed)
 ```
 
-### Option B: Manual step-by-step (if pipeline has issues)
+Notes:
+- **Idempotent**: every stage verifies an integrity hash (ADR-002) and skips or
+  replaces unchanged data, so a re-run or a `--from-stage` resume is safe.
+- **`epoch_eci` / `ingest_asx_companies` download live** from epoch.ai / asx.com.au
+  at runtime — these need network access; their row counts drift as the upstream
+  sources update.
+- The GDPval evaluation runner (Stage 5 below) is **not** part of the pipeline
+  (it needs an Anthropic API key and costs ~$30–50) — run it separately.
+
+### Option B: Manual step-by-step (fallback, or to run a single stage)
 
 **Stage 1 — O*NET (MUST be first):**
 ```powershell
@@ -218,9 +246,9 @@ python -m scripts.build_anzsco_concordance
 python -m scripts.compute_industry_profiles --region AU --year 2025
 python -m scripts.ingest_abs_census_wpp
 python -m scripts.ingest_abs_census_w13
-# Census subdivision x occupation (INDP x OCCP) — needs explicit CSV path + level
-python -m scripts.ingest_census_subdivision_occ "C:\Users\royst\Projects\Data\ABS-2021-Census\IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv" --level 2
-python -m scripts.ingest_census_subdivision_occ "C:\Users\royst\Projects\Data\ABS-2021-Census\L3_CDGK_Industry_cat.csv" --level 3
+# Census subdivision × occupation — run twice: level 2 (pivot) + level 3 (long)
+python -m scripts.ingest_census_subdivision_occ "$env:DATA_ROOT\ABS-2021-Census\IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv" --level 2
+python -m scripts.ingest_census_subdivision_occ "$env:DATA_ROOT\ABS-2021-Census\L3_CDGK_Industry_cat.csv" --level 3
 python -m scripts.ingest_anzsic_subdivisions
 python -m scripts.ingest_osca                # FR-9.1 OSCA backbone (ADR-010) — requires ingest_abs to have run first
 python -m scripts.compute_osca_employment     # ANZSCO->OSCA employment apportionment — requires ingest_osca
@@ -230,6 +258,10 @@ python -m scripts.compute_au_task_layer       # AU task layer + occupation expos
 python -m scripts.compute_us_au_divergence    # US-vs-AU occupation exposure divergence — requires compute_au_task_layer + O*NET tasks + anzsco_soc_concordance
 python -m scripts.ingest_asx_companies
 ```
+
+All ingest scripts now default their `--path`/`--file` arguments from
+`settings.data_root`, so the explicit paths above are only needed when overriding
+the default location.
 
 **Stage 5 — GDPval waterline (optional, requires API key ~$30-50):**
 ```powershell
@@ -421,8 +453,13 @@ docker start workforce-pg
 | Variable | Required | Where | Purpose |
 |----------|----------|-------|---------|
 | `DATABASE_URL` | Yes | `src/backend/.env` | PostgreSQL connection string |
+| `DATA_ROOT` | Optional | `src/backend/.env` | Root of external source data (default `C:\Users\royst\Projects\Data`). All ingest scripts + the pipeline derive dataset paths from this. |
 | `ANTHROPIC_AUTH_TOKEN` | Optional | `src/backend/.env` | Claude API for company classification + GDPval evals |
 | `PYTHONPATH` | Auto | `.claude/settings.json` | Set to `src/backend` by Claude Code |
+
+Per-dataset path overrides (e.g. `ONET_DATA_PATH`, `CENSUS_SUBDIVISION_L3_FILE`)
+are also honoured when a single dataset lives outside the standard `DATA_ROOT`
+layout — see `app/core/config.py` for the full list.
 
 ---
 

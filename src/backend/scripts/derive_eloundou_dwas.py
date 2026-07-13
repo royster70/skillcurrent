@@ -17,11 +17,17 @@ logging.basicConfig(
 )
 
 
-async def main() -> None:
+async def run() -> int:
+    """Derive Eloundou DWA-level scores. Returns rows created."""
     async with async_session() as session:
         rows = await derive_eloundou_dwa_scores(session)
         await session.commit()
-        print(f"\nEloundou DWA derivation complete: {rows:,} DWA-level scores created")
+    print(f"\nEloundou DWA derivation complete: {rows:,} DWA-level scores created")
+    return rows
+
+
+async def main() -> None:
+    await run()
 
 
 if __name__ == "__main__":

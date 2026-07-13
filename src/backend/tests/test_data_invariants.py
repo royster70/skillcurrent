@@ -211,6 +211,82 @@ async def test_aei_snapshots_automation_range(session: AsyncSession):
     ), f"{violations} AEI snapshots have automation/augmentation pct outside [0,1]"
 
 
+# ── OEWS Grain Invariants ──
+
+
+async def test_oews_soc_is_six_digit(session: AsyncSession):
+    """Every oews_employment.onet_soc is a 6-digit SOC code ('XX-XXXX'), no decimal.
+
+    BLS OEWS publishes 6-digit SOC codes, and the entire US industry-profile
+    computation (app/services/industry_profiles.py) joins on that grain by
+    equality (Microsoft/AEI) and by 6→8-digit prefix (O*NET/Eloundou).
+
+    This is the invariant the old 8-digit FK to onet_occupations violated: if an
+    ingest ever stored 8-digit codes (e.g. by appending '.00' to satisfy that
+    FK), the Microsoft/AEI equality joins would silently resolve to NULL. A
+    clean rebuild must fail here rather than ship blank exposure scores.
+    """
+    result = await session.execute(
+        text(
+            r"""
+            SELECT COUNT(*) AS bad_codes
+            FROM oews_employment
+            WHERE onet_soc !~ '^[0-9]{2}-[0-9]{4}$'
+        """
+        )
+    )
+    bad_codes = result.scalar_one()
+    assert bad_codes == 0, (
+        f"Found {bad_codes} oews_employment rows whose onet_soc is not a bare "
+        "6-digit SOC code (XX-XXXX). OEWS must stay at 6-digit grain — the "
+        "onet_occupations SOC FK was removed precisely because the grains differ."
+    )
+
+
+async def test_oews_soc_resolves_to_onet_base_occupation(session: AsyncSession):
+    """Almost every distinct OEWS SOC code maps to an O*NET base occupation.
+
+    This is the referential guarantee the (removed) 8-digit FK attempted, now
+    expressed correctly at 6-digit grain: for each 6-digit OEWS code there should
+    exist an 8-digit onet_occupations row sharing that stem ('11-1011' → '11-1011.00').
+
+    A tolerance is allowed because OEWS publishes employment at a mix of *detailed*
+    and *broad* SOC levels, while O*NET is detailed-only by design: broad/aggregate
+    codes (e.g. '13-1020' "Buyers and Purchasing Agents", which rolls up 13-1021/22/23)
+    have no O*NET row and never will. Measured against loaded data, 819/831 ≈ 98.6%
+    of distinct OEWS codes resolve; the ~12 that don't are broad aggregates. A gross
+    drop below this threshold means the SOC files are misparsed or out of sync — not
+    a handful of expected broad codes.
+    """
+    result = await session.execute(
+        text(
+            r"""
+            WITH distinct_codes AS (
+                SELECT DISTINCT onet_soc FROM oews_employment
+            )
+            SELECT
+                COUNT(*) AS total,
+                COUNT(*) FILTER (
+                    WHERE EXISTS (
+                        SELECT 1 FROM onet_occupations o
+                        WHERE o.onet_soc LIKE d.onet_soc || '.%'
+                    )
+                ) AS resolvable
+            FROM distinct_codes d
+        """
+        )
+    )
+    row = result.one()
+    if row.total == 0:
+        pytest.skip("No OEWS data loaded")
+    coverage = row.resolvable / row.total
+    assert coverage >= 0.90, (
+        f"Only {coverage:.0%} of {row.total} distinct OEWS SOC codes resolve to an "
+        "O*NET base occupation (expected ≥90%). Below this threshold indicates a "
+        "grain/parse mismatch, not just unmapped residuals."
+    )
+
+
 # ── AU Data Invariants (FR-8.9) ──
 
 

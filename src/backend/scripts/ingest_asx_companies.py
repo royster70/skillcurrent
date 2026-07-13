@@ -14,14 +14,13 @@ Usage:
 
 import asyncio
 import csv
-import io
 import sys
 from datetime import date
 from pathlib import Path
 
 import httpx
 from sqlalchemy import insert, select, text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 # Add backend to path
@@ -44,58 +43,71 @@ ASX_CSV_URL = "https://www.asx.com.au/asx/research/ASXListedCompanies.csv"
 
 GICS_TO_ANZSIC: dict[str, list[str]] = {
     # Energy & Resources
-    "Energy": ["B"],                                          # Mining (oil/gas extraction)
-    "Materials": ["B", "C"],                                  # Mining + Manufacturing
-    "Utilities": ["D"],                                       # Electricity, Gas, Water
-
+    "Energy": ["B"],  # Mining (oil/gas extraction)
+    "Materials": ["B", "C"],  # Mining + Manufacturing
+    "Utilities": ["D"],  # Electricity, Gas, Water
     # Industrials
-    "Capital Goods": ["C", "E"],                              # Manufacturing + Construction
-    "Commercial & Professional Services": ["N"],              # Administrative Services
-    "Transportation": ["I"],                                  # Transport, Postal
-
+    "Capital Goods": ["C", "E"],  # Manufacturing + Construction
+    "Commercial & Professional Services": ["N"],  # Administrative Services
+    "Transportation": ["I"],  # Transport, Postal
     # Consumer
-    "Automobiles & Components": ["C"],                        # Manufacturing
-    "Consumer Durables & Apparel": ["C"],                     # Manufacturing
-    "Consumer Services": ["H"],                               # Accommodation & Food Services
-    "Consumer Discretionary Distribution & Retail": ["G"],    # Retail Trade
-    "Consumer Staples Distribution & Retail": ["G"],          # Retail Trade
-    "Food": ["C"],                                            # Manufacturing (food processing)
-    "Food, Beverage & Tobacco": ["C"],                        # Manufacturing
-    "Household & Personal Products": ["C"],                   # Manufacturing
-
+    "Automobiles & Components": ["C"],  # Manufacturing
+    "Consumer Durables & Apparel": ["C"],  # Manufacturing
+    "Consumer Services": ["H"],  # Accommodation & Food Services
+    "Consumer Discretionary Distribution & Retail": ["G"],  # Retail Trade
+    "Consumer Staples Distribution & Retail": ["G"],  # Retail Trade
+    "Food": ["C"],  # Manufacturing (food processing)
+    "Food, Beverage & Tobacco": ["C"],  # Manufacturing
+    "Household & Personal Products": ["C"],  # Manufacturing
     # Financials
-    "Banks": ["K"],                                           # Financial & Insurance
-    "Financial Services": ["K"],                              # Financial & Insurance
-    "Insurance": ["K"],                                       # Financial & Insurance
-
+    "Banks": ["K"],  # Financial & Insurance
+    "Financial Services": ["K"],  # Financial & Insurance
+    "Insurance": ["K"],  # Financial & Insurance
     # Real Estate
-    "Equity Real Estate Investment Trusts (REITs)": ["L"],    # Rental, Hiring, Real Estate
-    "Real Estate Management & Development": ["L"],            # Rental, Hiring, Real Estate
-
+    "Equity Real Estate Investment Trusts (REITs)": ["L"],  # Rental, Hiring, Real Estate
+    "Real Estate Management & Development": ["L"],  # Rental, Hiring, Real Estate
     # Technology & Comms
-    "Software & Services": ["J"],                             # Information Media & Telecom
-    "Technology Hardware & Equipment": ["C", "J"],            # Manufacturing + Info
-    "Semiconductors & Semiconductor Equipment": ["C"],        # Manufacturing
-    "Telecommunication Services": ["J"],                      # Information Media & Telecom
-    "Media & Entertainment": ["J", "R"],                      # Info Media + Arts/Recreation
-
+    "Software & Services": ["J"],  # Information Media & Telecom
+    "Technology Hardware & Equipment": ["C", "J"],  # Manufacturing + Info
+    "Semiconductors & Semiconductor Equipment": ["C"],  # Manufacturing
+    "Telecommunication Services": ["J"],  # Information Media & Telecom
+    "Media & Entertainment": ["J", "R"],  # Info Media + Arts/Recreation
     # Health Care
-    "Health Care Equipment & Services": ["Q"],                # Health Care
-    "Pharmaceuticals": ["C", "Q"],                            # Manufacturing + Health
+    "Health Care Equipment & Services": ["Q"],  # Health Care
+    "Pharmaceuticals": ["C", "Q"],  # Manufacturing + Health
     "Pharmaceuticals, Biotechnology & Life Sciences": ["C", "Q"],
 }
 
 # Reverse mapping: ANZSIC → NAICS (from industry_crosswalk table, queried at runtime)
 # Fallback hardcoded for offline use
 ANZSIC_TO_NAICS_FALLBACK: dict[str, list[str]] = {
-    "A": ["11"], "B": ["21"], "C": ["31-33"], "D": ["22"], "E": ["23"],
-    "F": ["42"], "G": ["44-45"], "H": ["72"], "I": ["48-49"], "J": ["51"],
-    "K": ["52"], "L": ["53"], "M": ["54"], "N": ["56"], "O": ["99"],
-    "P": ["61"], "Q": ["62"], "R": ["71"], "S": ["81"],
+    "A": ["11"],
+    "B": ["21"],
+    "C": ["31-33"],
+    "D": ["22"],
+    "E": ["23"],
+    "F": ["42"],
+    "G": ["44-45"],
+    "H": ["72"],
+    "I": ["48-49"],
+    "J": ["51"],
+    "K": ["52"],
+    "L": ["53"],
+    "M": ["54"],
+    "N": ["56"],
+    "O": ["99"],
+    "P": ["61"],
+    "Q": ["62"],
+    "R": ["71"],
+    "S": ["81"],
 }
 
 
-async def main() -> None:
+async def run() -> int:
+    """Download + ingest ASX listed companies. Returns companies loaded.
+
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
     engine = create_async_engine(settings.database_url)
     async_session = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
 
@@ -143,13 +155,15 @@ async def main() -> None:
             naics_codes.extend(ANZSIC_TO_NAICS_FALLBACK.get(ac, []))
         naics_codes = list(dict.fromkeys(naics_codes))  # deduplicate preserving order
 
-        companies.append({
-            "company_name": name,
-            "asx_code": asx_code,
-            "gics_group": gics if gics not in ("Not Applic", "Class Pend", "") else None,
-            "anzsic_codes": anzsic_codes or ["Z"],  # Z = unclassified
-            "naics_codes": naics_codes or [],
-        })
+        companies.append(
+            {
+                "company_name": name,
+                "asx_code": asx_code,
+                "gics_group": gics if gics not in ("Not Applic", "Class Pend", "") else None,
+                "anzsic_codes": anzsic_codes or ["Z"],  # Z = unclassified
+                "naics_codes": naics_codes or [],
+            }
+        )
 
     if skipped_gics:
         print(f"  Warning: Unknown GICS groups (no ANZSIC mapping): {skipped_gics}")
@@ -158,7 +172,9 @@ async def main() -> None:
 
     # Create table and insert
     async with engine.begin() as conn:
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS asx_company_sectors (
                 id SERIAL PRIMARY KEY,
                 company_name TEXT NOT NULL,
@@ -168,19 +184,27 @@ async def main() -> None:
                 naics_codes TEXT[] DEFAULT '{}',
                 ingested_at TIMESTAMPTZ DEFAULT NOW()
             )
-        """))
+        """
+            )
+        )
 
         # Create pg_trgm index for fuzzy search
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE INDEX IF NOT EXISTS idx_asx_company_name_trgm
             ON asx_company_sectors USING gin (company_name gin_trgm_ops)
-        """))
+        """
+            )
+        )
 
         # Clear and reload
         await conn.execute(text("DELETE FROM asx_company_sectors"))
 
         for c in companies:
-            await conn.execute(text("""
+            await conn.execute(
+                text(
+                    """
                 INSERT INTO asx_company_sectors (company_name, asx_code, gics_group, anzsic_codes, naics_codes)
                 VALUES (:name, :code, :gics, :anzsic, :naics)
                 ON CONFLICT (asx_code) DO UPDATE SET
@@ -189,17 +213,22 @@ async def main() -> None:
                     anzsic_codes = EXCLUDED.anzsic_codes,
                     naics_codes = EXCLUDED.naics_codes,
                     ingested_at = NOW()
-            """), {
-                "name": c["company_name"],
-                "code": c["asx_code"],
-                "gics": c["gics_group"],
-                "anzsic": c["anzsic_codes"],
-                "naics": c["naics_codes"],
-            })
+            """
+                ),
+                {
+                    "name": c["company_name"],
+                    "code": c["asx_code"],
+                    "gics": c["gics_group"],
+                    "anzsic": c["anzsic_codes"],
+                    "naics": c["naics_codes"],
+                },
+            )
 
     # Also create the LLM classification cache table
     async with engine.begin() as conn:
-        await conn.execute(text("""
+        await conn.execute(
+            text(
+                """
             CREATE TABLE IF NOT EXISTS company_classifications (
                 id SERIAL PRIMARY KEY,
                 company_name_lower TEXT NOT NULL,
@@ -211,7 +240,9 @@ async def main() -> None:
                 classified_at TIMESTAMPTZ DEFAULT NOW(),
                 UNIQUE (company_name_lower, region)
             )
-        """))
+        """
+            )
+        )
 
     # Register dataset version (ADR-002)
     async with async_session() as session:
@@ -230,6 +261,7 @@ async def main() -> None:
                     f"new hash: {integrity_hash[:16]}...). Updating hash."
                 )
                 from sqlalchemy import update
+
                 await session.execute(
                     update(DatasetVersion)
                     .where(DatasetVersion.id == existing_row.id)
@@ -265,7 +297,10 @@ async def main() -> None:
                     records_added=len(companies),
                     records_removed=0,
                     records_changed=0,
-                    delta_detail={"type": "initial_load", "tables": {"asx_company_sectors": len(companies)}},
+                    delta_detail={
+                        "type": "initial_load",
+                        "tables": {"asx_company_sectors": len(companies)},
+                    },
                 )
             )
 
@@ -278,7 +313,15 @@ async def main() -> None:
     print(f"\nDone: {len(companies)} companies loaded")
     print(f"  Classified (GICS mapped): {classified}")
     print(f"  Unclassified: {len(companies) - classified}")
-    print(f"  Unique GICS groups: {len(set(c['gics_group'] for c in companies if c['gics_group']))}")
+    print(
+        f"  Unique GICS groups: {len(set(c['gics_group'] for c in companies if c['gics_group']))}"
+    )
+
+    return len(companies)
+
+
+async def main() -> None:
+    await run()
 
 
 if __name__ == "__main__":

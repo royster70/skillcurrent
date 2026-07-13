@@ -51,7 +51,7 @@ From `src/backend/`:
 alembic upgrade head
 ```
 
-This applies all migrations in order (currently 030), creating all tables documented in `docs/DATA_DICTIONARY.md`.
+This applies all migrations in order (currently 031), creating all tables documented in `docs/DATA_DICTIONARY.md`. Migration 031 adds `pipeline_run_id` to `transformation_log` (ADR-007 Phase 3, FR-8.8), chaining onto the FR-9 head (`030`).
 
 > **Note (migrations 029/030):** `oews_employment.onet_soc` and
 > `industry_occupation_profiles.onet_soc` hold a **6-digit BLS SOC** (e.g.
@@ -60,7 +60,20 @@ This applies all migrations in order (currently 030), creating all tables docume
 > never match; the US profile compute prefix-joins O*NET (`onet_soc LIKE
 > ow.onet_soc || '%'`), and Microsoft/AEI join at 6-digit exact. If a clean
 > rebuild ever fails at `ingest_oews` with a FK violation, confirm migrations
-> 029/030 are applied.
+> 029/030 are applied. Guarded by the OEWS-grain invariants in
+> `tests/test_data_invariants.py`.
+
+### Recommended: run the orchestrator instead of the manual steps below
+
+`scripts/run_pipeline.py` (FR-8.8) executes every stage in this runbook in
+dependency order, resolving source paths from `settings.data_root` (env
+`DATA_ROOT`). The manual per-dataset commands below remain valid for running a
+single stage or debugging.
+
+```bash
+python -m scripts.run_pipeline --stages all --dry-run   # preview the 21-stage plan
+python -m scripts.run_pipeline --stages all             # full rebuild
+```
 
 ---
 
@@ -727,6 +740,31 @@ SELECT ROUND(SUM(apportioned_employment)::numeric) FROM abs_employment_osca;
 -- Should equal the de-duplicated ANZSCO base: 9,612,166
 ```
 
+#### 4.12j Census Subdivision × Occupation (FR-8.9)
+
+**Source**: ABS Census 2021 TableBuilder INDP × OCCP exports (CC-BY 4.0). Two
+granularities coexist in `abs_census_subdivision_occ`, discriminated by
+`indp_level` (migrations 021/022):
+
+- **Level 2** (2-digit INDP pivot, all 19 divisions → 838 rows):
+  `IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv`
+- **Level 3** (3-digit INDP long format, C/D/G/K divisions):
+  `L3_CDGK_Industry_cat.csv`
+
+Both live under `DATA_ROOT\ABS-2021-Census`. The pipeline runs this stage twice
+(level 2 then level 3); manually:
+
+```bash
+python -m scripts.ingest_census_subdivision_occ "<DATA_ROOT>\ABS-2021-Census\IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv" --level 2
+python -m scripts.ingest_census_subdivision_occ "<DATA_ROOT>\ABS-2021-Census\L3_CDGK_Industry_cat.csv" --level 3
+```
+
+Verify:
+```sql
+SELECT indp_level, count(*) FROM abs_census_subdivision_occ GROUP BY 1 ORDER BY 1;
+-- level 2: 838 rows (subdivision); level 3: C/D/G/K group rows
+```
+
 ### 4.13 ASX Company Sectors (FR-8.5 Company Lookup)
 
 **Source**: https://www.asx.com.au/asx/research/ASXListedCompanies.csv — free public CSV, no API key required, updated regularly by ASX.
@@ -920,6 +958,9 @@ python -m scripts.compute_industry_profiles --region AU --year 2025
 python -m scripts.ingest_abs_census_wpp    # abs_census_wpp: 180 rows (W12A)
 python -m scripts.ingest_abs_census_w13    # abs_census_w13: 159 rows (W13)
 python -m scripts.ingest_anzsic_subdivisions  # anzsic_subdivisions: 214 rows
+# Census subdivision × occupation (level 2 pivot + level 3 long)
+python -m scripts.ingest_census_subdivision_occ "$DATA_ROOT/ABS-2021-Census/IndustyxOccupationxEmployment-table_2026-03-29_13-17-55.csv" --level 2
+python -m scripts.ingest_census_subdivision_occ "$DATA_ROOT/ABS-2021-Census/L3_CDGK_Industry_cat.csv" --level 3
 
 # Step 6c: OSCA backbone + employment apportionment (FR-9.1, ADR-010)
 # ingest_osca must run before compute_osca_employment; both depend on Step 6's ingest_abs

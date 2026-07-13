@@ -85,13 +85,15 @@ def parse_table3(xlsx_path: Path) -> list[dict]:
             except (ValueError, TypeError):
                 employment = None
 
-        rows.append({
-            "anzsic_division_code": div_code,
-            "anzsic_division_name": current_div_name,
-            "subdivision_name": sub_cell,
-            "employment": employment,
-            "release_year": 2025,
-        })
+        rows.append(
+            {
+                "anzsic_division_code": div_code,
+                "anzsic_division_name": current_div_name,
+                "subdivision_name": sub_cell,
+                "employment": employment,
+                "release_year": 2025,
+            }
+        )
 
     wb.close()
     return rows
@@ -151,15 +153,14 @@ async def ingest(xlsx_path: Path, dry_run: bool = False) -> int:
                     )
                     return existing_count
 
-                logger.info(
-                    "Source file changed — replacing %d existing rows", existing_count
-                )
+                logger.info("Source file changed — replacing %d existing rows", existing_count)
                 await session.execute(
                     text("DELETE FROM anzsic_subdivisions WHERE release_year = 2025")
                 )
 
             await session.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO anzsic_subdivisions (
                         anzsic_division_code, anzsic_division_name,
                         subdivision_name, employment, release_year, integrity_hash
@@ -167,7 +168,8 @@ async def ingest(xlsx_path: Path, dry_run: bool = False) -> int:
                         :anzsic_division_code, :anzsic_division_name,
                         :subdivision_name, :employment, :release_year, :integrity_hash
                     )
-                """),
+                """
+                ),
                 rows,
             )
             await session.commit()
@@ -185,22 +187,24 @@ async def ingest(xlsx_path: Path, dry_run: bool = False) -> int:
     return len(rows)
 
 
-async def main() -> None:
-    default_path = (
-        Path(__file__).resolve().parents[4]
-        / "Data"
-        / "ABS"
-        / "industry_data_-_november_2025_revised.xlsx"
-    )
+async def run(file: str | Path | None = None, dry_run: bool = False) -> int:
+    """Ingest ANZSIC subdivisions. Returns row count.
 
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
+    xlsx_path = Path(file) if file else Path(settings.anzsic_industry_data_file)
+    return await ingest(xlsx_path, dry_run=dry_run)
+
+
+async def main() -> None:
     parser = argparse.ArgumentParser(
         description="Ingest ANZSIC subdivisions from JSA Industry Data Table 3"
     )
-    parser.add_argument("--file", type=Path, default=default_path)
+    parser.add_argument("--file", type=Path, default=None)
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()
 
-    count = await ingest(args.file, dry_run=args.dry_run)
+    count = await run(args.file, dry_run=args.dry_run)
     logger.info("Done — %d rows processed", count)
 
 

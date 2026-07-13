@@ -280,6 +280,32 @@ async def ingest(
     return counts
 
 
+async def run(all_models: bool = False, data_version: str | None = None) -> int:
+    """Download + ingest Epoch ECI benchmarks. Returns rows loaded.
+
+    Shared entry point for the CLI and the pipeline orchestrator. Idempotent:
+    if this version is already ingested unchanged, logs and returns the existing
+    ``gptval_benchmarks`` row count instead of raising, so a rebuild is resumable.
+    """
+    engine = create_async_engine(settings.database_url)
+    AsyncSess = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
+    try:
+        async with AsyncSess() as session:
+            try:
+                counts = await ingest(session, all_models=all_models, data_version=data_version)
+                total = sum(counts.values())
+            except ValueError as exc:
+                if "already ingested" not in str(exc):
+                    raise
+                logger.info("Epoch ECI already ingested — skipping (%s)", exc)
+                existing = await session.execute(text("SELECT COUNT(*) FROM gptval_benchmarks"))
+                total = int(existing.scalar() or 0)
+        print(f"\nEpoch ECI: {total:,} rows in gptval_benchmarks")
+        return total
+    finally:
+        await engine.dispose()
+
+
 async def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest Epoch AI ECI benchmark data")
     parser.add_argument("--data-version", help="Version tag (default: today's date)")
@@ -289,13 +315,7 @@ async def main() -> None:
         help="Ingest all model groups, not just platform-curated subset",
     )
     args = parser.parse_args()
-
-    engine = create_async_engine(settings.database_url)
-    async_session_maker = sessionmaker(engine, class_=AsyncSession, expire_on_commit=False)
-    async with async_session_maker() as session:
-        counts = await ingest(session, all_models=args.all_models, data_version=args.data_version)
-        print(f"\nLoaded: {counts}")
-    await engine.dispose()
+    await run(all_models=args.all_models, data_version=args.data_version)
 
 
 if __name__ == "__main__":
