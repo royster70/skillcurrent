@@ -22,7 +22,7 @@ from pathlib import Path
 import pandas as pd
 from sentence_transformers import SentenceTransformer
 from sqlalchemy import text
-from sqlalchemy.ext.asyncio import create_async_engine, AsyncSession
+from sqlalchemy.ext.asyncio import AsyncSession, create_async_engine
 from sqlalchemy.orm import sessionmaker
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
@@ -32,9 +32,12 @@ from app.services.embedding_service import MODEL_NAME  # noqa: E402
 logging.basicConfig(level=logging.INFO, format="%(asctime)s %(levelname)s %(message)s")
 logger = logging.getLogger(__name__)
 
-DATA_DIR = Path("C:/Users/royst/Projects/Data/ANZSCO")
+DATA_DIR = Path(settings.anzsco_data_path)
 STRUCTURE_FILE = DATA_DIR / "anzsco 2022 structure 062023.xlsx"
-TITLES_FILE = DATA_DIR / "anzsco 2022 index of principal titles, alternative titles and specialisations 062023.xlsx"
+TITLES_FILE = (
+    DATA_DIR
+    / "anzsco 2022 index of principal titles, alternative titles and specialisations 062023.xlsx"
+)
 
 # Confidence thresholds
 AUTO_ACCEPT = 0.85
@@ -67,7 +70,9 @@ def load_anzsco_titles() -> dict[str, list[str]]:
     df2 = pd.read_excel(TITLES_FILE, sheet_name="Table 1", header=None, skiprows=5)
     df2.columns = ["code", "description", "category"]
     # Filter out header row and non-numeric codes
-    df2 = df2[df2["code"].apply(lambda x: str(x).replace(".", "").isdigit() if pd.notna(x) else False)]
+    df2 = df2[
+        df2["code"].apply(lambda x: str(x).replace(".", "").isdigit() if pd.notna(x) else False)
+    ]
     df2["code"] = df2["code"].astype(int).astype(str)
 
     alt_count = 0
@@ -106,7 +111,9 @@ async def match_anzsco_to_onet(
     for title, embedding in zip(title_variants, embeddings):
         embedding_str = f"[{','.join(str(x) for x in embedding)}]"
 
-        r = await session.execute(text("""
+        r = await session.execute(
+            text(
+                """
             SELECT te.onet_soc, o.title,
                    1 - (te.embedding <=> CAST(:embedding AS vector)) AS similarity
             FROM onet_title_embeddings te
@@ -114,7 +121,10 @@ async def match_anzsco_to_onet(
             WHERE te.embedding IS NOT NULL
             ORDER BY te.embedding <=> CAST(:embedding AS vector)
             LIMIT 1
-        """), {"embedding": embedding_str})
+        """
+            ),
+            {"embedding": embedding_str},
+        )
 
         row = r.fetchone()
         if row and float(row[2]) > best_similarity:
@@ -129,7 +139,11 @@ async def match_anzsco_to_onet(
     return best_match
 
 
-async def main() -> None:
+async def run() -> int:
+    """Build the ANZSCO→SOC concordance via semantic matching. Returns rows inserted.
+
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
     # Load ANZSCO titles
     titles_by_code = load_anzsco_titles()
 
@@ -150,7 +164,9 @@ async def main() -> None:
         principal_titles: dict[str, str] = {}
         df = pd.read_excel(STRUCTURE_FILE, sheet_name="Table 6", header=None, skiprows=5)
         df.columns = ["code", "title"]
-        df = df[df["code"].apply(lambda x: str(x).replace(".", "").isdigit() if pd.notna(x) else False)]
+        df = df[
+            df["code"].apply(lambda x: str(x).replace(".", "").isdigit() if pd.notna(x) else False)
+        ]
         df["code"] = df["code"].astype(int).astype(str)
         for _, row in df.iterrows():
             code_4 = row["code"][:4]
@@ -179,7 +195,9 @@ async def main() -> None:
                 else:
                     low_confidence += 1
 
-                await session.execute(text("""
+                await session.execute(
+                    text(
+                        """
                     INSERT INTO anzsco_soc_concordance
                         (anzsco_code, anzsco_title, onet_soc, onet_title,
                          match_method, confidence, matched_variant, reviewed)
@@ -190,15 +208,18 @@ async def main() -> None:
                         confidence = EXCLUDED.confidence,
                         matched_variant = EXCLUDED.matched_variant,
                         reviewed = EXCLUDED.reviewed
-                """), {
-                    "anzsco_code": anzsco_code,
-                    "anzsco_title": principal_titles.get(anzsco_code, variants[0]),
-                    "onet_soc": match["onet_soc"],
-                    "onet_title": match["onet_title"],
-                    "confidence": confidence,
-                    "matched_variant": match["matched_variant"],
-                    "reviewed": reviewed,
-                })
+                """
+                    ),
+                    {
+                        "anzsco_code": anzsco_code,
+                        "anzsco_title": principal_titles.get(anzsco_code, variants[0]),
+                        "onet_soc": match["onet_soc"],
+                        "onet_title": match["onet_title"],
+                        "confidence": confidence,
+                        "matched_variant": match["matched_variant"],
+                        "reviewed": reviewed,
+                    },
+                )
                 inserted += 1
 
             if i % 50 == 0:
@@ -216,13 +237,18 @@ async def main() -> None:
         logger.info("Inserted: %d rows", inserted)
 
         # Show some low-confidence matches for review
-        r = await session.execute(text("""
+        r = await session.execute(
+            text(
+                """
             SELECT anzsco_code, anzsco_title, onet_soc, onet_title, confidence, matched_variant
             FROM anzsco_soc_concordance
             WHERE confidence < :threshold
             ORDER BY confidence ASC
             LIMIT 20
-        """), {"threshold": NEEDS_REVIEW})
+        """
+            ),
+            {"threshold": NEEDS_REVIEW},
+        )
 
         low_matches = r.fetchall()
         if low_matches:
@@ -231,10 +257,20 @@ async def main() -> None:
             for row in low_matches:
                 logger.info(
                     "  ANZSCO %s (%s) → SOC %s (%s) [%.3f via '%s']",
-                    row[0], row[1], row[2], row[3], row[4], row[5],
+                    row[0],
+                    row[1],
+                    row[2],
+                    row[3],
+                    row[4],
+                    row[5],
                 )
 
     await engine.dispose()
+    return inserted
+
+
+async def main() -> None:
+    await run()
 
 
 if __name__ == "__main__":

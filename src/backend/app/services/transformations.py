@@ -14,6 +14,7 @@ from typing import Any
 from sqlalchemy import insert, update
 from sqlalchemy.ext.asyncio import AsyncSession
 
+from app.core.correlation import pipeline_run_id_var
 from app.models.infrastructure import TransformationLog
 
 
@@ -48,7 +49,10 @@ def tracked_transformation(
     def decorator(func: Callable[..., Any]) -> Callable[..., Any]:
         @functools.wraps(func)
         async def wrapper(session: AsyncSession, *args: Any, **kwargs: Any) -> int:
-            # Insert log entry at start
+            # Insert log entry at start. Tag the batch correlation key so a
+            # full rebuild's derived stages are traceable as one unit (ADR-007
+            # Phase 3, Rule 2). Empty string → NULL (ad-hoc CLI run).
+            pipeline_run_id = pipeline_run_id_var.get("") or None
             result = await session.execute(
                 insert(TransformationLog)
                 .values(
@@ -58,6 +62,7 @@ def tracked_transformation(
                     started_at=datetime.utcnow(),
                     status="running",
                     parameters=kwargs if kwargs else None,
+                    pipeline_run_id=pipeline_run_id,
                 )
                 .returning(TransformationLog.id)
             )

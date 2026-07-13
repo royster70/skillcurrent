@@ -17,13 +17,20 @@ logging.basicConfig(
 )
 
 
-async def main() -> None:
+async def run() -> int:
+    """Embed all O*NET sample + alternate titles. Returns total embeddings."""
     async with async_session() as session:
         counts = await embed_all_titles(session)
-        print(f"\nEmbedding complete:")
-        for source, count in counts.items():
-            print(f"  {source}: {count:,}")
-        print(f"  TOTAL: {sum(counts.values()):,}")
+    total = sum(counts.values())
+    print("\nEmbedding complete:")
+    for source, count in counts.items():
+        print(f"  {source}: {count:,}")
+    print(f"  TOTAL: {total:,}")
+    return total
+
+
+async def main() -> None:
+    await run()
 
 
 if __name__ == "__main__":

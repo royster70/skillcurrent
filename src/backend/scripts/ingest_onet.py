@@ -21,20 +21,29 @@ logging.basicConfig(
 )
 
 
-async def main(data_path: str, version: str) -> None:
+async def run(data_path: str | None = None, version: str | None = None) -> int:
+    """Ingest O*NET reference data. Returns total rows loaded.
+
+    Shared entry point for both the CLI and the pipeline orchestrator.
+    """
+    data_path = data_path or settings.onet_data_path
+    version = version or settings.onet_version
     async with async_session() as session:
-        try:
-            counts = await ingest_onet(session, data_path, version)
-            print(f"\nO*NET {version} ingestion complete:")
-            for table, count in counts.items():
-                print(f"  {table}: {count:,} rows")
-            print(f"  TOTAL: {sum(counts.values()):,} rows")
-        except ValueError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
-        except FileNotFoundError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
+        counts = await ingest_onet(session, data_path, version)
+    total = sum(counts.values())
+    print(f"\nO*NET {version} ingestion complete:")
+    for table, count in counts.items():
+        print(f"  {table}: {count:,} rows")
+    print(f"  TOTAL: {total:,} rows")
+    return total
+
+
+async def main(data_path: str, version: str) -> None:
+    try:
+        await run(data_path, version)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":

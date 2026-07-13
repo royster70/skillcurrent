@@ -77,3 +77,6 @@ class TransformationLog(Base):
     status: Mapped[str] = mapped_column(Text, nullable=False, server_default="running")
     error_message: Mapped[str | None] = mapped_column(Text)
     parameters: Mapped[dict[str, Any] | None] = mapped_column(JSONB)
+    # Batch correlation key (ADR-007 Phase 3, Rule 2). NULL for ad-hoc CLI runs
+    # outside the orchestrator; set to the run's UUID4 when driven by run_pipeline.
+    pipeline_run_id: Mapped[str | None] = mapped_column(Text)

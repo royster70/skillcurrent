@@ -249,9 +249,7 @@ def parse_long_format_csv(path: Path) -> list[dict]:
             if base_name in DIVISION_ANCHORS:
                 current_division = DIVISION_ANCHORS[base_name]
                 seen_anchors.add(base_name)
-                log.info(
-                    f"Division anchor: '{base_name}' → {current_division}"
-                )
+                log.info(f"Division anchor: '{base_name}' → {current_division}")
             # Skip all nfd rows (division + subdivision residuals)
             continue
 
@@ -260,14 +258,16 @@ def parse_long_format_csv(path: Path) -> list[dict]:
             orphaned.append(indp_name)
             continue
 
-        rows.append({
-            "indp_name": indp_name,
-            "anzsic_division_code": current_division,
-            "anzsco_major_group": mg,
-            "anzsco_major_group_name": occp_name,
-            "employed_count": count,
-            "is_nfd": False,
-        })
+        rows.append(
+            {
+                "indp_name": indp_name,
+                "anzsic_division_code": current_division,
+                "anzsco_major_group": mg,
+                "anzsco_major_group_name": occp_name,
+                "employed_count": count,
+                "is_nfd": False,
+            }
+        )
 
     # Fail loud on silent data loss.
     # If any group row was dropped because no division anchor preceded it,
@@ -369,20 +369,22 @@ def parse_tablebuilder_csv(path: Path) -> list[dict]:
                 count = 0
 
             if count > 0:
-                rows.append({
-                    "indp_name": parts[0].strip(),
-                    "anzsic_division_code": div_code,
-                    "anzsco_major_group": mg_idx + 1,
-                    "anzsco_major_group_name": ANZSCO_NAMES[mg_idx],
-                    "employed_count": count,
-                    "is_nfd": is_nfd,
-                })
+                rows.append(
+                    {
+                        "indp_name": parts[0].strip(),
+                        "anzsic_division_code": div_code,
+                        "anzsco_major_group": mg_idx + 1,
+                        "anzsco_major_group_name": ANZSCO_NAMES[mg_idx],
+                        "employed_count": count,
+                        "is_nfd": is_nfd,
+                    }
+                )
 
     return rows
 
 
-async def ingest(path: Path, level: int = 2) -> None:
-    """Parse CSV and insert into abs_census_subdivision_occ.
+async def ingest(path: Path, level: int = 2) -> int:
+    """Parse CSV and insert into abs_census_subdivision_occ. Returns rows loaded.
 
     Args:
         path: Path to the Census TableBuilder CSV export.
@@ -390,8 +392,11 @@ async def ingest(path: Path, level: int = 2) -> None:
             2 = ANZSIC Subdivision (pivot format, all 19 divisions)
             3 = ANZSIC Group (long format, C/D/G/K divisions)
     """
-    from app.utils.hashing import compute_file_hash
     from app.core.config import settings
+    from app.utils.hashing import compute_file_hash
+
+    if not path.exists():
+        raise FileNotFoundError(f"Census subdivision CSV not found: {path}")
 
     if level == 3:
         rows = parse_long_format_csv(path)
@@ -417,21 +422,24 @@ async def ingest(path: Path, level: int = 2) -> None:
         row = existing.fetchone()
         if row and row[0] == file_hash:
             log.info(f"Level-{level} data already loaded — skipping")
-            return
+            existing_count = await session.execute(
+                text("SELECT COUNT(*) FROM abs_census_subdivision_occ " "WHERE indp_level = :lvl"),
+                {"lvl": level},
+            )
+            await engine.dispose()
+            return int(existing_count.scalar() or 0)
 
         # Clear only rows at this level (preserve other levels)
         await session.execute(
-            text(
-                "DELETE FROM abs_census_subdivision_occ "
-                "WHERE indp_level = :lvl"
-            ),
+            text("DELETE FROM abs_census_subdivision_occ " "WHERE indp_level = :lvl"),
             {"lvl": level},
         )
 
         # Batch insert
         for r in rows:
             await session.execute(
-                text("""
+                text(
+                    """
                     INSERT INTO abs_census_subdivision_occ
                         (indp_name, anzsic_division_code, anzsco_major_group,
                          anzsco_major_group_name, employed_count, census_year,
@@ -440,7 +448,8 @@ async def ingest(path: Path, level: int = 2) -> None:
                         :indp_name, :div, :mg, :mg_name,
                         :count, 2021, :hash, :lvl
                     )
-                """),
+                """
+                ),
                 {
                     "indp_name": r["indp_name"],
                     "div": r["anzsic_division_code"],
@@ -453,47 +462,62 @@ async def ingest(path: Path, level: int = 2) -> None:
             )
 
         await session.commit()
-        log.info(
-            f"Inserted {len(rows)} level-{level} rows "
-            "into abs_census_subdivision_occ"
-        )
+        log.info(f"Inserted {len(rows)} level-{level} rows " "into abs_census_subdivision_occ")
 
         # Summary by division for this level
         summary = await session.execute(
-            text("""
+            text(
+                """
                 SELECT anzsic_division_code, count(*),
                        sum(employed_count)
                 FROM abs_census_subdivision_occ
                 WHERE indp_level = :lvl
                 GROUP BY anzsic_division_code
                 ORDER BY anzsic_division_code
-            """),
+            """
+            ),
             {"lvl": level},
         )
         for div, cnt, emp in summary.fetchall():
             log.info(f"  {div}: {cnt} cells, {emp:,} employed")
 
         # Grand total across all levels
-        total = await session.execute(
-            text("SELECT count(*) FROM abs_census_subdivision_occ")
-        )
+        total = await session.execute(text("SELECT count(*) FROM abs_census_subdivision_occ"))
         log.info(f"Total rows (all levels): {total.scalar()}")
 
     await engine.dispose()
+    return len(rows)
+
+
+async def run(file: str | Path | None = None, level: int = 2) -> int:
+    """Ingest one Census subdivision×occupation level. Returns rows loaded.
+
+    Shared entry point for the CLI and the pipeline orchestrator. When ``file``
+    is omitted the path is resolved from settings for the given level
+    (level 2 → 2-digit pivot export; level 3 → 3-digit long-format export).
+    """
+    from app.core.config import settings
+
+    if file:
+        path = Path(file)
+    elif level == 3:
+        path = Path(settings.census_subdivision_l3_file)
+    else:
+        path = Path(settings.census_subdivision_l2_file)
+    return await ingest(path, level=level)
 
 
 if __name__ == "__main__":
     if len(sys.argv) < 2:
         print(
-            "Usage: python -m scripts.ingest_census_subdivision_occ "
-            "<path-to-csv> [--level 2|3]"
+            "Usage: python -m scripts.ingest_census_subdivision_occ " "<path-to-csv> [--level 2|3]"
         )
         sys.exit(1)
 
-    level = 2
+    _level = 2
     if "--level" in sys.argv:
-        idx = sys.argv.index("--level")
-        if idx + 1 < len(sys.argv):
-            level = int(sys.argv[idx + 1])
+        _idx = sys.argv.index("--level")
+        if _idx + 1 < len(sys.argv):
+            _level = int(sys.argv[_idx + 1])
 
-    asyncio.run(ingest(Path(sys.argv[1]), level=level))
+    asyncio.run(ingest(Path(sys.argv[1]), level=_level))

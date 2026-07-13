@@ -1,8 +1,20 @@
-"""
-Pipeline orchestrator for Tier 1 data refresh (FR-8.8).
+"""Pipeline orchestrator for Tier 1 (+ optional AU) data refresh (FR-8.8).
 
-Encodes the full ingestion dependency DAG from INGESTION_RUNBOOK.md.
-Each stage checks DatasetVersion for current data before running.
+Encodes the full ingestion dependency DAG from INGESTION_RUNBOOK.md and drives a
+real rebuild: every stage invokes the corresponding script's shared ``run()``
+entry point (the same callable the CLI uses). This is the recommended rebuild
+path — see docs/REBUILD_RUNBOOK.md Option A.
+
+Correlation (ADR-007 Phase 3, Rule 2): each run generates a UUID4
+``pipeline_run_id`` and binds it to a ContextVar before executing stages. Every
+``transformation_log`` row written by a derived stage (drift, DWA derivation,
+industry profiles) is tagged with it, so a full rebuild is traceable as one unit.
+Because stages are awaited sequentially in a single asyncio task, the ContextVar
+propagates without re-binding.
+
+Integrity (ADR-002): hashing and hash-verification on re-ingest live inside each
+script's ``run()``; the orchestrator inherits them for free by calling those
+entry points rather than re-implementing ingestion.
 
 Usage:
     python -m scripts.run_pipeline [--stages all|tier1|au] [--dry-run] [--from-stage N]
@@ -10,12 +22,17 @@ Usage:
 
 import argparse
 import asyncio
+import importlib
 import json
 import logging
 import sys
+import uuid
+from collections.abc import Awaitable, Callable
 from dataclasses import dataclass, field
-from datetime import datetime, UTC
-from typing import Callable
+from datetime import UTC, datetime
+from functools import partial
+
+from app.core.correlation import pipeline_run_id_var
 
 logger = logging.getLogger(__name__)
 
@@ -23,163 +40,276 @@ logger = logging.getLogger(__name__)
 @dataclass
 class PipelineStage:
     name: str
-    fn: Callable
+    fn: Callable[[], Awaitable[int]]
     depends_on: list[str] = field(default_factory=list)
     optional: bool = False
     description: str = ""
 
 
-async def run_pipeline(stages: str = "all", dry_run: bool = False, from_stage: int = 0) -> dict:
-    """Run the Tier 1 data refresh pipeline.
+async def _call(module: str, **kwargs) -> int:
+    """Import ``scripts.<module>`` lazily and invoke its ``run(**kwargs)``.
 
-    Returns a summary dict with stage results.
+    Lazy import keeps module load light (heavy deps like sentence-transformers
+    are only imported when their stage actually runs).
     """
+    mod = importlib.import_module(f"scripts.{module}")
+    return await mod.run(**kwargs)
+
+
+async def _stage_census_subdivision_occ() -> int:
+    """Census subdivision×occupation runs twice: level 2 pivot + level 3 long.
+
+    Both granularities coexist in ``abs_census_subdivision_occ`` discriminated by
+    ``indp_level`` (see migrations 021/022). Returns combined rows loaded.
+    """
+    mod = importlib.import_module("scripts.ingest_census_subdivision_occ")
+    total = await mod.run(level=2)
+    total += await mod.run(level=3)
+    return total
+
+
+async def run_pipeline(stages: str = "all", dry_run: bool = False, from_stage: int = 0) -> dict:
+    """Run the Tier 1 (+ optional AU) data refresh pipeline.
+
+    Returns a summary dict with per-stage results and the batch correlation key.
+    """
+    run_id = str(uuid.uuid4())
     results: dict = {
         "started_at": datetime.now(UTC).isoformat(),
+        "pipeline_run_id": run_id,
         "dry_run": dry_run,
         "stages": [],
         "overall_status": "success",
     }
 
-    # Define the pipeline DAG
-    # Import service functions (lazy imports to avoid loading at module level)
     pipeline = _build_pipeline_dag()
 
     stage_list = [s for i, s in enumerate(pipeline) if i >= from_stage]
     if stages == "tier1":
         stage_list = [s for s in stage_list if not s.optional]
+    elif stages == "au":
+        # AU/Census/ASX track only (assumes the Tier 1 base is already loaded).
+        stage_list = [s for s in stage_list if s.optional]
 
-    for stage in stage_list:
-        stage_result: dict = {
-            "name": stage.name,
-            "description": stage.description,
-            "status": "skipped" if dry_run else "pending",
-            "rows_affected": 0,
-            "duration_ms": 0,
-            "error": None,
-        }
-
-        if dry_run:
-            logger.info("[DRY RUN] Would run stage: %s", stage.name)
+    # Bind the batch correlation key for the whole run (ADR-007 Phase 3, Rule 2).
+    # ContextVar survives `await`, so every stage — and every transformation it
+    # triggers — sees this id without re-binding.
+    token = pipeline_run_id_var.set(run_id)
+    try:
+        for stage in stage_list:
+            stage_result = await _run_stage(stage, dry_run)
             results["stages"].append(stage_result)
-            continue
-
-        start = datetime.now(UTC)
-        abort = False
-        try:
-            logger.info("Running stage: %s", stage.name)
-            # Each stage function is responsible for its own DB session and idempotency
-            rows = await stage.fn()
-            stage_result["status"] = "success"
-            stage_result["rows_affected"] = rows or 0
-        except Exception as e:
-            stage_result["status"] = "failed"
-            stage_result["error"] = str(e)
-            results["overall_status"] = "failed"
-            logger.error("Stage %s failed: %s", stage.name, e)
-            if not stage.optional:
-                abort = True
-        finally:
-            elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
-            stage_result["duration_ms"] = round(elapsed, 1)
-
-        results["stages"].append(stage_result)
-        if abort:
-            break  # Abort on non-optional failure
+            if stage_result["status"] == "failed":
+                results["overall_status"] = "failed"
+                if not stage.optional:
+                    break  # Abort on non-optional failure
+    finally:
+        pipeline_run_id_var.reset(token)
 
     results["completed_at"] = datetime.now(UTC).isoformat()
     return results
 
 
+async def _run_stage(stage: PipelineStage, dry_run: bool) -> dict:
+    """Execute a single stage and return its result dict."""
+    stage_result: dict = {
+        "name": stage.name,
+        "description": stage.description,
+        "status": "skipped" if dry_run else "pending",
+        "rows_affected": 0,
+        "duration_ms": 0,
+        "error": None,
+    }
+
+    if dry_run:
+        logger.info("[DRY RUN] Would run stage: %s", stage.name)
+        return stage_result
+
+    start = datetime.now(UTC)
+    try:
+        logger.info("Running stage: %s", stage.name)
+        rows = await stage.fn()
+        stage_result["status"] = "success"
+        stage_result["rows_affected"] = rows or 0
+    except Exception as e:  # noqa: BLE001 — record and surface any stage failure
+        stage_result["status"] = "failed"
+        stage_result["error"] = str(e)
+        logger.error("Stage %s failed: %s", stage.name, e)
+    finally:
+        elapsed = (datetime.now(UTC) - start).total_seconds() * 1000
+        stage_result["duration_ms"] = round(elapsed, 1)
+
+    return stage_result
+
+
 def _build_pipeline_dag() -> list[PipelineStage]:
-    """Build the pipeline stage list in dependency order."""
-    # Import here to keep module load lightweight
+    """Build the pipeline stage list in dependency order.
+
+    Non-optional stages form the Tier 1 core (US industry intelligence). Optional
+    stages are the AU/Census/ASX overlay — a failure there does not abort the run.
+    """
     return [
-        PipelineStage("onet", _noop, description="O*NET 28.1 reference data"),
-        PipelineStage("eloundou", _noop, depends_on=["onet"], description="Eloundou exposure scores"),
-        PipelineStage("microsoft_ai", _noop, depends_on=["onet"], description="Microsoft AI applicability"),
-        PipelineStage("aei_labor", _noop, depends_on=[], description="AEI labor market data"),
-        PipelineStage("aei_temporal", _noop, depends_on=[], description="AEI temporal snapshots"),
-        PipelineStage("oews", _noop, depends_on=[], description="BLS OEWS employment"),
-        PipelineStage("gdpval", _noop, depends_on=[], description="OpenAI GDPval benchmarks"),
-        PipelineStage("epoch_eci", _noop, depends_on=[], description="Epoch AI ECI capability benchmarks"),
+        # ── Tier 1 core (US) ──
+        PipelineStage(
+            "onet", partial(_call, "ingest_onet"), description="O*NET 28.1 reference data"
+        ),
+        PipelineStage(
+            "eloundou",
+            partial(_call, "ingest_eloundou"),
+            depends_on=["onet"],
+            description="Eloundou exposure scores",
+        ),
+        PipelineStage(
+            "microsoft_ai",
+            partial(_call, "ingest_microsoft_ai"),
+            depends_on=["onet"],
+            description="Microsoft AI applicability",
+        ),
+        PipelineStage(
+            "aei_labor", partial(_call, "ingest_aei"), description="AEI labor market data"
+        ),
+        PipelineStage(
+            "aei_temporal",
+            partial(_call, "ingest_aei_temporal"),
+            description="AEI temporal snapshots",
+        ),
+        PipelineStage("oews", partial(_call, "ingest_oews"), description="BLS OEWS employment"),
+        PipelineStage(
+            "gdpval", partial(_call, "ingest_gdpval"), description="OpenAI GDPval benchmarks"
+        ),
+        PipelineStage(
+            "epoch_eci",
+            partial(_call, "ingest_epoch_eci"),
+            description="Epoch AI ECI capability benchmarks",
+        ),
         PipelineStage(
             "derive_eloundou_dwas",
-            _noop,
+            partial(_call, "derive_eloundou_dwas"),
             depends_on=["eloundou", "onet"],
             description="Derived DWA scores",
         ),
         PipelineStage(
             "compute_drift",
-            _noop,
+            partial(_call, "compute_drift"),
             depends_on=["aei_temporal"],
             description="Task drift velocity",
         ),
         PipelineStage(
             "embed_titles",
-            _noop,
+            partial(_call, "embed_titles"),
             depends_on=["onet"],
             description="O*NET title embeddings",
         ),
         PipelineStage(
             "compute_profiles_us",
-            _noop,
+            partial(_call, "compute_industry_profiles", release_year=2024, region="US"),
             depends_on=["oews", "eloundou", "microsoft_ai", "aei_labor", "compute_drift"],
             description="US industry profiles",
         ),
+        # ── AU / Census / ASX overlay (optional) ──
         PipelineStage(
             "ingest_crosswalk",
-            _noop,
-            depends_on=[],
+            partial(_call, "ingest_crosswalk"),
             optional=True,
             description="NAICS↔ANZSIC crosswalk",
         ),
         PipelineStage(
             "ingest_abs",
-            _noop,
-            depends_on=[],
+            partial(_call, "ingest_abs"),
             optional=True,
             description="ABS AU employment",
         ),
         PipelineStage(
             "build_anzsco_concordance",
-            _noop,
+            partial(_call, "build_anzsco_concordance"),
             depends_on=["embed_titles", "ingest_abs"],
             optional=True,
             description="ANZSCO→SOC mapping",
         ),
         PipelineStage(
             "compute_profiles_au",
-            _noop,
+            partial(_call, "compute_industry_profiles", release_year=2025, region="AU"),
             depends_on=[
                 "ingest_abs",
                 "build_anzsco_concordance",
                 "ingest_crosswalk",
-                "eloundou",        # exposure scores (same as US profiles)
-                "microsoft_ai",    # AI applicability scores
-                "aei_labor",       # AEI job exposure
-                "compute_drift",   # drift velocity
+                "eloundou",  # exposure scores (same as US profiles)
+                "microsoft_ai",  # AI applicability scores
+                "aei_labor",  # AEI job exposure
+                "compute_drift",  # drift velocity
             ],
             optional=True,
             description="AU industry profiles",
         ),
         PipelineStage(
             "ingest_census_wpp",
-            _noop,
-            depends_on=[],
+            partial(_call, "ingest_abs_census_wpp"),
             optional=True,
-            description="ABS Census 2021 WPP (W12A + W13)",
+            description="ABS Census 2021 WPP W12A (industry × occupation)",
+        ),
+        PipelineStage(
+            "ingest_census_w13",
+            partial(_call, "ingest_abs_census_w13"),
+            optional=True,
+            description="ABS Census 2021 WPP W13 (occupation × sex)",
+        ),
+        PipelineStage(
+            "ingest_census_subdivision_occ",
+            _stage_census_subdivision_occ,
+            optional=True,
+            description="ABS Census subdivision × occupation (level 2 + level 3)",
         ),
         PipelineStage(
             "ingest_anzsic_subdivisions",
-            _noop,
-            depends_on=[],
+            partial(_call, "ingest_anzsic_subdivisions"),
             optional=True,
             description="ANZSIC subdivisions (JSA Industry Data Table 3)",
         ),
+        # ── FR-9 AU-native task layer (OSCA backbone → ASC/DWA-pivot → divergence) ──
+        PipelineStage(
+            "ingest_osca",
+            partial(_call, "ingest_osca"),
+            depends_on=["ingest_abs"],
+            optional=True,
+            description="OSCA 2024 backbone (FR-9.1; backfills abs_employment.osca_code)",
+        ),
+        PipelineStage(
+            "compute_osca_employment",
+            partial(_call, "compute_osca_employment"),
+            depends_on=["ingest_osca", "ingest_abs"],
+            optional=True,
+            description="ANZSCO→OSCA employment apportionment (FR-9.1, ADR-010)",
+        ),
+        PipelineStage(
+            "ingest_asc",
+            partial(_call, "ingest_asc"),
+            optional=True,
+            description="Australian Skills Classification v3.0 (FR-9.2, ADR-011)",
+        ),
+        PipelineStage(
+            "build_dwa_asc_bridge",
+            partial(_call, "build_dwa_asc_bridge"),
+            depends_on=["ingest_asc", "onet"],
+            optional=True,
+            description="Semantic DWA↔ASC bridge (FR-9.2, ADR-011 L2)",
+        ),
+        PipelineStage(
+            "compute_au_task_layer",
+            partial(_call, "compute_au_task_layer"),
+            depends_on=["build_dwa_asc_bridge", "derive_eloundou_dwas", "ingest_osca"],
+            optional=True,
+            description="AU task layer + occupation exposure rollup (FR-9.2)",
+        ),
+        PipelineStage(
+            "compute_us_au_divergence",
+            partial(_call, "compute_us_au_divergence"),
+            depends_on=["compute_au_task_layer", "build_anzsco_concordance"],
+            optional=True,
+            description="US-vs-AU occupation exposure divergence (FR-9.2)",
+        ),
         PipelineStage(
             "ingest_asx_companies",
-            _noop,
+            partial(_call, "ingest_asx_companies"),
             depends_on=["ingest_crosswalk", "ingest_anzsic_subdivisions"],
             optional=True,
             description="ASX companies (GICS→ANZSIC via crosswalk, classify uses subdivisions)",
@@ -187,18 +317,18 @@ def _build_pipeline_dag() -> list[PipelineStage]:
     ]
 
 
-async def _noop() -> int:
-    """Placeholder — each stage will call its actual service function when data is available."""
-    return 0
-
-
 if __name__ == "__main__":
+    logging.basicConfig(
+        level=logging.INFO,
+        format="%(asctime)s %(levelname)-5s %(name)s — %(message)s",
+        datefmt="%H:%M:%S",
+    )
     parser = argparse.ArgumentParser(description="Run Tier 1 data refresh pipeline")
     parser.add_argument("--stages", choices=["all", "tier1", "au"], default="all")
-    parser.add_argument("--dry-run", action="store_true", help="Show what would run without executing")
     parser.add_argument(
-        "--from-stage", type=int, default=0, help="Start from stage N (0-indexed)"
+        "--dry-run", action="store_true", help="Show what would run without executing"
     )
+    parser.add_argument("--from-stage", type=int, default=0, help="Start from stage N (0-indexed)")
     args = parser.parse_args()
 
     results = asyncio.run(run_pipeline(args.stages, args.dry_run, args.from_stage))

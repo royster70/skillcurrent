@@ -20,15 +20,24 @@ logging.basicConfig(
 )
 
 
-async def main() -> None:
+async def run() -> int:
+    """Build the semantic DWA↔ASC bridge. Returns match count.
+
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
     async with async_session() as session:
         stats = await build_dwa_asc_bridge(session)
-        print("\nDWA<->ASC bridge built:")
-        print(f"  matches:        {stats['matches']:,}")
-        print(f"  ASC tasks matched: {stats['tasks_matched']:,} / {stats['tasks_total']:,}")
-        print(f"  DWAs used:      {stats['dwas_used']:,}")
-        cov = 100 * stats["tasks_matched"] / stats["tasks_total"] if stats["tasks_total"] else 0
-        print(f"  task coverage:  {cov:.1f}%")
+    print("\nDWA<->ASC bridge built:")
+    print(f"  matches:        {stats['matches']:,}")
+    print(f"  ASC tasks matched: {stats['tasks_matched']:,} / {stats['tasks_total']:,}")
+    print(f"  DWAs used:      {stats['dwas_used']:,}")
+    cov = 100 * stats["tasks_matched"] / stats["tasks_total"] if stats["tasks_total"] else 0
+    print(f"  task coverage:  {cov:.1f}%")
+    return int(stats["matches"])
+
+
+async def main() -> None:
+    await run()
 
 
 if __name__ == "__main__":

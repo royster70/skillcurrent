@@ -19,15 +19,23 @@ logging.basicConfig(
 )
 
 
-async def main(platform: str) -> None:
+async def run(platform: str = "claude_ai") -> int:
+    """Compute task drift velocity + classification. Returns tasks processed."""
     async with async_session() as session:
         rows = await compute_task_drift(session, platform=platform)
         await session.commit()
-        print(f"\nDrift calculation complete: {rows:,} tasks processed")
+    print(f"\nDrift calculation complete: {rows:,} tasks processed")
+    return rows
+
+
+async def main(platform: str) -> None:
+    await run(platform)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Compute task drift velocity")
-    parser.add_argument("--platform", default="claude_ai", help="Platform filter (default: claude_ai)")
+    parser.add_argument(
+        "--platform", default="claude_ai", help="Platform filter (default: claude_ai)"
+    )
     args = parser.parse_args()
     asyncio.run(main(args.platform))

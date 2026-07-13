@@ -10,6 +10,7 @@ import asyncio
 import logging
 import sys
 
+from app.core.config import settings
 from app.db.session import async_session
 from app.services.microsoft_ai_ingestion import ingest_microsoft_ai
 
@@ -19,29 +20,34 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-DEFAULT_PATH = r"C:\Users\royst\Projects\Data\microsoft-working-with-ai"
+
+async def run(data_path: str | None = None) -> int:
+    """Ingest the Microsoft AI applicability dataset. Returns total rows loaded."""
+    data_path = data_path or settings.microsoft_ai_data_path
+    async with async_session() as session:
+        counts = await ingest_microsoft_ai(session, data_path)
+    total = sum(counts.values())
+    print("\nMicrosoft AI dataset ingestion complete:")
+    for table, count in counts.items():
+        print(f"  {table}: {count:,} rows")
+    print(f"  TOTAL: {total:,} rows")
+    return total
 
 
 async def main(data_path: str) -> None:
-    async with async_session() as session:
-        try:
-            counts = await ingest_microsoft_ai(session, data_path)
-            print(f"\nMicrosoft AI dataset ingestion complete:")
-            for table, count in counts.items():
-                print(f"  {table}: {count:,} rows")
-            print(f"  TOTAL: {sum(counts.values()):,} rows")
-        except ValueError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
-        except FileNotFoundError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
+    try:
+        await run(data_path)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
-    parser = argparse.ArgumentParser(
-        description="Ingest Microsoft 'Working with AI' dataset"
+    parser = argparse.ArgumentParser(description="Ingest Microsoft 'Working with AI' dataset")
+    parser.add_argument(
+        "--path",
+        default=settings.microsoft_ai_data_path,
+        help=f"Data directory (default: {settings.microsoft_ai_data_path})",
     )
-    parser.add_argument("--path", default=DEFAULT_PATH, help=f"Data directory (default: {DEFAULT_PATH})")
     args = parser.parse_args()
     asyncio.run(main(args.path))

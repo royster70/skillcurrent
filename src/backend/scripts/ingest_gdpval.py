@@ -10,6 +10,7 @@ import asyncio
 import logging
 import sys
 
+from app.core.config import settings
 from app.db.session import async_session
 from app.services.gdpval_ingestion import ingest_gdpval
 
@@ -19,30 +20,33 @@ logging.basicConfig(
     datefmt="%H:%M:%S",
 )
 
-DEFAULT_PATH = r"C:\Users\royst\Projects\Data\GDPval"
+
+async def run(data_path: str | None = None) -> int:
+    """Ingest GDPval tasks + rubric items. Returns total rows loaded."""
+    data_path = data_path or settings.gdpval_data_path
+    async with async_session() as session:
+        counts = await ingest_gdpval(session, data_path)
+    total = counts["task_count"] + counts["rubric_item_count"]
+    print("\nGDPval ingestion complete:")
+    print(f"  Tasks:        {counts['task_count']:,}")
+    print(f"  Rubric items: {counts['rubric_item_count']:,}")
+    return total
 
 
 async def main(data_path: str) -> None:
-    async with async_session() as session:
-        try:
-            counts = await ingest_gdpval(session, data_path)
-            print(f"\nGDPval ingestion complete:")
-            print(f"  Tasks:        {counts['task_count']:,}")
-            print(f"  Rubric items: {counts['rubric_item_count']:,}")
-        except ValueError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
-        except FileNotFoundError as e:
-            print(f"ERROR: {e}", file=sys.stderr)
-            sys.exit(1)
+    try:
+        await run(data_path)
+    except (ValueError, FileNotFoundError) as e:
+        print(f"ERROR: {e}", file=sys.stderr)
+        sys.exit(1)
 
 
 if __name__ == "__main__":
     parser = argparse.ArgumentParser(description="Ingest GDPval benchmark tasks")
     parser.add_argument(
         "--path",
-        default=DEFAULT_PATH,
-        help=f"GDPval directory (default: {DEFAULT_PATH})",
+        default=settings.gdpval_data_path,
+        help=f"GDPval directory (default: {settings.gdpval_data_path})",
     )
     args = parser.parse_args()
     asyncio.run(main(args.path))

@@ -133,9 +133,7 @@ def parse_w12a(csv_path: Path) -> list[dict]:
 
                 # ABS applies random adjustment — tiny negatives are possible; clamp to 0
                 try:
-                    employed_count: int | None = (
-                        max(0, int(raw_value)) if raw_value else None
-                    )
+                    employed_count: int | None = max(0, int(raw_value)) if raw_value else None
                 except (ValueError, TypeError):
                     employed_count = None
 
@@ -206,12 +204,8 @@ async def ingest(csv_path: Path, dry_run: bool = False) -> int:
                     )
                     return existing_count
 
-                logger.info(
-                    "Source file changed — replacing %d existing rows", existing_count
-                )
-                await session.execute(
-                    text("DELETE FROM abs_census_wpp WHERE census_year = 2021")
-                )
+                logger.info("Source file changed — replacing %d existing rows", existing_count)
+                await session.execute(text("DELETE FROM abs_census_wpp WHERE census_year = 2021"))
 
             await session.execute(
                 text(
@@ -246,22 +240,22 @@ async def ingest(csv_path: Path, dry_run: bool = False) -> int:
     return len(rows)
 
 
-async def main() -> None:
-    default_path = (
-        Path(__file__).resolve().parents[4]
-        / "Data"
-        / "ABS-2021-Census"
-        / "2021 Census WPP All Geographies for AUS"
-        / "AUS"
-        / "2021Census_W12A_AUS_POW_AUS.csv"
-    )
+async def run(file: str | Path | None = None, dry_run: bool = False) -> int:
+    """Ingest ABS Census 2021 W12A. Returns row count.
 
+    Shared entry point for the CLI and the pipeline orchestrator.
+    """
+    csv_path = Path(file) if file else Path(settings.census_w12a_file)
+    return await ingest(csv_path, dry_run=dry_run)
+
+
+async def main() -> None:
     parser = argparse.ArgumentParser(description="Ingest ABS 2021 Census WPP W12A")
     parser.add_argument(
         "--file",
         type=Path,
-        default=default_path,
-        help="Path to 2021Census_W12A_AUS_POW_AUS.csv",
+        default=None,
+        help="Path to 2021Census_W12A_AUS_POW_AUS.csv (default: from settings)",
     )
     parser.add_argument(
         "--dry-run",
@@ -270,7 +264,7 @@ async def main() -> None:
     )
     args = parser.parse_args()
 
-    count = await ingest(args.file, dry_run=args.dry_run)
+    count = await run(args.file, dry_run=args.dry_run)
     logger.info("Done — %d rows processed", count)
 
 
