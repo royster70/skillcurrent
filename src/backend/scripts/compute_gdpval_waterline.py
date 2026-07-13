@@ -42,6 +42,7 @@ Requires: Anthropic API credentials loaded from src/backend/.env
 
 import argparse
 import asyncio
+import csv
 import logging
 import os
 import sys
@@ -89,6 +90,21 @@ ERA_PRICING: dict[str, tuple[float, float]] = {
 
 JUDGE_MODEL = "claude-haiku-4-5-20251001"
 JUDGE_PRICING = (0.25, 1.25)
+
+# Durable, committed source of truth for this paid output — see the directory's
+# README. Results are exported here so a rebuild re-runs the free ingest
+# (scripts/ingest_gdpval_evaluations.py), never this paid computation again.
+DATASET_DIR = Path(__file__).resolve().parent.parent / "data" / "gdpval_evaluations"
+EXPORT_COLUMNS = [
+    "task_id",
+    "model_era",
+    "model_name",
+    "evaluation_date",
+    "total_score",
+    "max_possible_score",
+    "completion_pct",
+    "notes",
+]
 
 TASK_SYSTEM_PROMPT = """\
 You are a highly capable assistant completing a professional knowledge task.
@@ -342,7 +358,44 @@ async def run_evaluations(
             print(f"{row[0]:<25} {row[1]:>6} {str(row[2]) + '%':>15}")
         print("\nNote: text-evaluation proxy. Use GET /api/v1/gdpval/waterline for velocity.\n")
 
+    # Persist this paid output to the committed CSV dataset (source of truth).
+    await _export_eras_to_csv(session_factory, eras)
+
     await engine.dispose()
+
+
+async def _export_eras_to_csv(session_factory: sessionmaker, eras: list[str]) -> None:
+    """Write one <era>.csv into the committed dataset dir per evaluated era.
+
+    This is the durability half of the design: the DB is ephemeral (a rebuild
+    wiped this table once), so the paid results are mirrored to git-committed
+    files that ``ingest_gdpval_evaluations.py`` reloads for free. COMMIT them.
+    """
+    DATASET_DIR.mkdir(parents=True, exist_ok=True)
+    async with session_factory() as session:
+        for era in eras:
+            result = await session.execute(
+                text(
+                    "SELECT task_id, model_era, model_name, evaluation_date, "
+                    "total_score, max_possible_score, completion_pct, notes "
+                    "FROM gdpval_evaluations WHERE model_era = :era ORDER BY task_id"
+                ),
+                {"era": era},
+            )
+            rows = result.fetchall()
+            if not rows:
+                continue
+            out_path = DATASET_DIR / f"{era}.csv"
+            with out_path.open("w", encoding="utf-8", newline="") as fh:
+                writer = csv.writer(fh)
+                writer.writerow(EXPORT_COLUMNS)
+                for row in rows:
+                    writer.writerow(list(row))
+            logger.info(
+                "Exported %d rows -> data/gdpval_evaluations/%s (commit it)",
+                len(rows),
+                out_path.name,
+            )
 
 
 def main() -> None:
