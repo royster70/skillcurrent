@@ -9,7 +9,6 @@ the composite sector analysis endpoint.
 
 import json
 import logging
-import os
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, Query

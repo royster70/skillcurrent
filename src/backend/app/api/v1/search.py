@@ -9,7 +9,7 @@ Semantic search understands meaning: "DevOps Engineer" matches
 "Software Developers" even without shared words.
 """
 
-from fastapi import APIRouter, Body, Depends, Query
+from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession

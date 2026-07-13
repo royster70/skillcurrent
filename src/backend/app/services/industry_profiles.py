@@ -13,7 +13,6 @@ This is a tracked transformation (ADR-001).
 """
 
 import logging
-from datetime import date
 
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
@@ -93,7 +92,7 @@ async def compute_industry_profiles(
     # Compute profiles via SQL join
     # OEWS uses 6-digit SOC codes; Eloundou uses 8-digit; Microsoft/AEI use 6-digit
     # For Eloundou, we take the first matching 8-digit score (most specific)
-    result = await session.execute(
+    await session.execute(
         text(
             """
         INSERT INTO industry_occupation_profiles (
@@ -214,7 +213,7 @@ async def _compute_au_profiles(
     """
     logger.info("Computing AU profiles from ABS employment data...")
 
-    result = await session.execute(
+    await session.execute(
         text(
             """
         INSERT INTO industry_occupation_profiles (

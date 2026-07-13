@@ -56,6 +56,9 @@ playwright-report/
 # Local dev server runtime (scripts/dev.sh|ps1 — pid files + logs)
 .dev/
 
+# Backend runtime logs (pipeline/ingest/rebuild output — never committed)
+src/backend/logs/
+
 # OS
 .DS_Store
 Thumbs.db

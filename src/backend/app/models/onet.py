@@ -4,9 +4,7 @@ The OnetOccupation model (SOC codes + titles) is in tier1.py (migration 001).
 These models cover the detailed content tables loaded from the 9 O*NET files.
 """
 
-from datetime import date, datetime
-
-from sqlalchemy import Date, Float, ForeignKey, Index, Integer, Text, func
+from sqlalchemy import Float, ForeignKey, Index, Integer, Text
 from sqlalchemy.orm import Mapped, mapped_column
 
 from app.db.base import Base

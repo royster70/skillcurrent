@@ -142,9 +142,9 @@ async def ingest_oews(
             try:
                 if value is pd.NA or (isinstance(value, float) and np.isnan(value)):
                     row[key] = None
-                elif isinstance(value, (np.integer,)):
+                elif isinstance(value, np.integer):
                     row[key] = int(value)
-                elif isinstance(value, (np.floating,)):
+                elif isinstance(value, np.floating):
                     row[key] = float(value)
             except (TypeError, ValueError):
                 pass

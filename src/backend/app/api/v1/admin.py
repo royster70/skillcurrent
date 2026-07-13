@@ -1,6 +1,6 @@
 """Admin endpoints — health check and operational metrics (ADR-007)."""
 
-from datetime import datetime, timezone
+from datetime import UTC, datetime
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
@@ -16,7 +16,7 @@ async def health() -> dict:
     """Basic health check."""
     return {
         "status": "healthy",
-        "timestamp": datetime.now(timezone.utc).isoformat(),
+        "timestamp": datetime.now(UTC).isoformat(),
     }
 
 
