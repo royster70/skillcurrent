@@ -65,18 +65,25 @@ async def get_task_matrix(
     - drift signals from AEI temporal analysis
     """
     # Resolve SOC code
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT onet_soc, title FROM onet_occupations
         WHERE onet_soc = :soc OR onet_soc LIKE :prefix || '%'
         ORDER BY onet_soc LIMIT 1
-    """), {"soc": soc_code, "prefix": soc_code})
+    """
+        ),
+        {"soc": soc_code, "prefix": soc_code},
+    )
     occ = r.fetchone()
     if not occ:
         raise HTTPException(status_code=404, detail=f"Occupation {soc_code} not found")
 
     onet_soc = occ[0]
 
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT
             ts.task_id,
             ts.task,
@@ -106,10 +113,15 @@ async def get_task_matrix(
         LEFT JOIN aei_task_penetration atp ON LOWER(atp.task) = LOWER(ts.task)
         WHERE ts.onet_soc = :soc
         ORDER BY tr.data_value DESC NULLS LAST
-    """), {"soc": onet_soc})
+    """
+        ),
+        {"soc": onet_soc},
+    )
 
     # Fetch AEI temporal snapshots for all tasks in this occupation
-    era_r = await db.execute(text("""
+    era_r = await db.execute(
+        text(
+            """
         SELECT LOWER(task_text), model_era, task_pct, automation_pct, augmentation_pct
         FROM aei_task_snapshots
         WHERE platform = 'claude_ai' AND task_pct IS NOT NULL
@@ -117,7 +129,10 @@ async def get_task_matrix(
               SELECT LOWER(task) FROM onet_task_statements WHERE onet_soc = :soc
           )
         ORDER BY snapshot_date
-    """), {"soc": onet_soc})
+    """
+        ),
+        {"soc": onet_soc},
+    )
 
     # Build era lookup: task_text -> [{model_era, task_pct}]
     era_data: dict[str, list[EraSnapshot]] = {}
@@ -131,13 +146,15 @@ async def get_task_matrix(
         all_eras.add(era)
         if task_lower not in era_data:
             era_data[task_lower] = []
-        era_data[task_lower].append(EraSnapshot(
-            model_era=era,
-            task_pct=round(pct, 4),
-            automation_potential=round(min(pct / 5.0, 1.0), 3),  # normalise: 5% -> 1.0
-            automation_pct=auto_pct,
-            augmentation_pct=aug_pct,
-        ))
+        era_data[task_lower].append(
+            EraSnapshot(
+                model_era=era,
+                task_pct=round(pct, 4),
+                automation_potential=round(min(pct / 5.0, 1.0), 3),  # normalise: 5% -> 1.0
+                automation_pct=auto_pct,
+                augmentation_pct=aug_pct,
+            )
+        )
 
     tasks = []
     quadrant_counts = {"insulated": 0, "augmented": 0, "disrupted": 0, "routine": 0}
@@ -170,27 +187,30 @@ async def get_task_matrix(
         task_lower = row[1].lower() if row[1] else ""
         snapshots = era_data.get(task_lower, [])
 
-        tasks.append(TaskMatrixPoint(
-            task_id=row[0],
-            task_text=row[1],
-            importance=round(importance, 2) if importance else None,
-            automation_potential=round(auto_potential, 3) if auto_potential else None,
-            eloundou_dwa_beta=round(dwa_beta, 4) if dwa_beta else None,
-            drift_velocity=round(float(row[4]), 6) if row[4] else None,
-            drift_classification=row[5],
-            aei_penetration=round(float(row[6]), 4) if row[6] else None,
-            quadrant=quadrant,
-            era_snapshots=snapshots,
-        ))
+        tasks.append(
+            TaskMatrixPoint(
+                task_id=row[0],
+                task_text=row[1],
+                importance=round(importance, 2) if importance else None,
+                automation_potential=round(auto_potential, 3) if auto_potential else None,
+                eloundou_dwa_beta=round(dwa_beta, 4) if dwa_beta else None,
+                drift_velocity=round(float(row[4]), 6) if row[4] else None,
+                drift_classification=row[5],
+                aei_penetration=round(float(row[6]), 4) if row[6] else None,
+                quadrant=quadrant,
+                era_snapshots=snapshots,
+            )
+        )
 
-    available_eras = sorted(all_eras, key=lambda e: {
-        "sonnet-3.5": 1, "sonnet-3.7": 2, "sonnet-4": 3, "sonnet-4.5": 4
-    }.get(e, 99))
+    available_eras = sorted(
+        all_eras,
+        key=lambda e: {"sonnet-3.5": 1, "sonnet-3.7": 2, "sonnet-4": 3, "sonnet-4.5": 4}.get(e, 99),
+    )
 
     # GDPval benchmark count for this occupation
-    gdpval_r = await db.execute(text(
-        "SELECT COUNT(*) FROM gdpval_tasks WHERE onet_soc = :soc"
-    ), {"soc": onet_soc})
+    gdpval_r = await db.execute(
+        text("SELECT COUNT(*) FROM gdpval_tasks WHERE onet_soc = :soc"), {"soc": onet_soc}
+    )
     gdpval_count = gdpval_r.scalar() or 0
 
     return TaskMatrixResponse(

@@ -29,6 +29,7 @@ async def client():
 
     # Override the dependency
     from app.db.session import get_db
+
     app.dependency_overrides[get_db] = get_test_db
 
     transport = ASGITransport(app=app)
@@ -243,7 +244,9 @@ class TestHierarchy:
         r = await client.get("/api/v1/occupations/hierarchy")
         assert r.status_code == 200
         data = r.json()
-        assert data["total_major_groups"] >= 20  # filtered: no military (55) or residual-only groups
+        assert (
+            data["total_major_groups"] >= 20
+        )  # filtered: no military (55) or residual-only groups
         assert data["total_occupations"] > 900  # 923 with tasks (93 residual/military filtered)
         assert len(data["hierarchy"]) >= 20
 
@@ -263,10 +266,7 @@ class TestHierarchy:
     async def test_hierarchy_has_scores(self, client):
         """Major groups should have aggregate Eloundou Beta."""
         r = await client.get("/api/v1/occupations/hierarchy")
-        groups_with_beta = [
-            g for g in r.json()["hierarchy"]
-            if g["avg_eloundou_beta"] is not None
-        ]
+        groups_with_beta = [g for g in r.json()["hierarchy"] if g["avg_eloundou_beta"] is not None]
         assert len(groups_with_beta) > 15  # most groups should have scores
 
 
@@ -283,7 +283,14 @@ class TestDrift:
         assert data["departing"] > 0
         assert data["enduring"] > 0
         assert data["below_threshold"] >= 0
-        assert data["departing"] + data["enduring"] + data["below_threshold"] + data["emerging"] + data["unclassified"] == data["total_tasks"]
+        assert (
+            data["departing"]
+            + data["enduring"]
+            + data["below_threshold"]
+            + data["emerging"]
+            + data["unclassified"]
+            == data["total_tasks"]
+        )
 
     @pytest.mark.asyncio
     async def test_departing_tasks(self, client):
@@ -371,7 +378,9 @@ class TestSectorPriorities:
     @pytest.mark.asyncio
     async def test_priorities_have_location_quotient(self, client):
         r = await client.get("/api/v1/sectors/54/priorities")
-        roles_with_lq = [r for r in r.json()["priority_roles"] if r["location_quotient"] is not None]
+        roles_with_lq = [
+            r for r in r.json()["priority_roles"] if r["location_quotient"] is not None
+        ]
         assert len(roles_with_lq) > 0
 
     @pytest.mark.asyncio
@@ -472,9 +481,7 @@ class TestTaskMatrix:
         """automation_pct and augmentation_pct can be null."""
         r = await client.get("/api/v1/occupations/15-1252.00/matrix")
         data = r.json()
-        all_snaps = [
-            s for t in data["tasks"] for s in t["era_snapshots"]
-        ]
+        all_snaps = [s for t in data["tasks"] for s in t["era_snapshots"]]
         # At least some snapshots should exist; null is valid
         for snap in all_snaps:
             auto = snap["automation_pct"]
@@ -490,13 +497,13 @@ class TestTaskMatrix:
         for task in data["tasks"]:
             for snap in task["era_snapshots"]:
                 if snap["automation_pct"] is not None:
-                    assert 0 <= snap["automation_pct"] <= 1, (
-                        f"automation_pct {snap['automation_pct']} out of range"
-                    )
+                    assert (
+                        0 <= snap["automation_pct"] <= 1
+                    ), f"automation_pct {snap['automation_pct']} out of range"
                 if snap["augmentation_pct"] is not None:
-                    assert 0 <= snap["augmentation_pct"] <= 1, (
-                        f"augmentation_pct {snap['augmentation_pct']} out of range"
-                    )
+                    assert (
+                        0 <= snap["augmentation_pct"] <= 1
+                    ), f"augmentation_pct {snap['augmentation_pct']} out of range"
 
     @pytest.mark.asyncio
     async def test_matrix_available_eras_sorted(self, client):
@@ -516,9 +523,9 @@ class TestTaskMatrix:
         data = r.json()
         for task in data["tasks"]:
             for snap in task["era_snapshots"]:
-                assert snap["automation_potential"] <= 1.0, (
-                    f"automation_potential {snap['automation_potential']} > 1.0"
-                )
+                assert (
+                    snap["automation_potential"] <= 1.0
+                ), f"automation_potential {snap['automation_potential']} > 1.0"
 
 
 # ── Composite Sector ──
@@ -876,7 +883,6 @@ class TestCompanySearch:
         assert r.status_code == 200
 
 
-
 # ── Company Classification ──
 
 
@@ -884,23 +890,22 @@ class TestCompanyClassify:
     @pytest.mark.asyncio
     async def test_classify_no_api_key_returns_503(self, client):
         """Classification without Anthropic credential returns 503."""
-        r = await client.post("/api/v1/companies/classify",
-                              json={"name": "Jemena", "region": "AU"})
+        r = await client.post("/api/v1/companies/classify", json={"name": "Jemena", "region": "AU"})
         # Will be 503 since ANTHROPIC_API_KEY is not set in test environment
         assert r.status_code in (503, 200)
 
     @pytest.mark.asyncio
     async def test_classify_invalid_region(self, client):
         """Classification with invalid region returns 400."""
-        r = await client.post("/api/v1/companies/classify",
-                              json={"name": "Test Corp", "region": "XX"})
+        r = await client.post(
+            "/api/v1/companies/classify", json={"name": "Test Corp", "region": "XX"}
+        )
         assert r.status_code == 400
 
     @pytest.mark.asyncio
     async def test_classify_missing_name_returns_422(self, client):
         """POST classify without name field returns 422 validation error."""
-        r = await client.post("/api/v1/companies/classify",
-                              json={"region": "AU"})
+        r = await client.post("/api/v1/companies/classify", json={"region": "AU"})
         assert r.status_code == 422
 
     @pytest.mark.asyncio
@@ -912,8 +917,9 @@ class TestCompanyClassify:
     @pytest.mark.asyncio
     async def test_classify_valid_request_schema(self, client):
         """Valid classify request returns 503 (no key) or 200 with correct schema."""
-        r = await client.post("/api/v1/companies/classify",
-                              json={"name": "BHP Group", "region": "AU"})
+        r = await client.post(
+            "/api/v1/companies/classify", json={"name": "BHP Group", "region": "AU"}
+        )
         assert r.status_code in (503, 200)
         if r.status_code == 200:
             data = r.json()
@@ -935,18 +941,23 @@ class TestCompanyClassify:
 
         # Insert a cached classification row
         async with session_factory() as session:
-            await session.execute(text("""
+            await session.execute(
+                text(
+                    """
                 INSERT INTO company_classifications
                     (company_name_lower, region, sector_codes, sector_names, confidence)
                 VALUES
                     ('test cached corp', 'AU', '{B}', '{Mining}', 0.95)
                 ON CONFLICT (company_name_lower, region) DO NOTHING
-            """))
+            """
+                )
+            )
             await session.commit()
 
         try:
-            r = await client.post("/api/v1/companies/classify",
-                                  json={"name": "Test Cached Corp", "region": "AU"})
+            r = await client.post(
+                "/api/v1/companies/classify", json={"name": "Test Cached Corp", "region": "AU"}
+            )
             assert r.status_code == 200
             data = r.json()
             assert data["source"] == "cached"
@@ -955,25 +966,31 @@ class TestCompanyClassify:
         finally:
             # Clean up
             async with session_factory() as session:
-                await session.execute(text("""
+                await session.execute(
+                    text(
+                        """
                     DELETE FROM company_classifications
                     WHERE company_name_lower = 'test cached corp' AND region = 'AU'
-                """))
+                """
+                    )
+                )
                 await session.commit()
             await engine.dispose()
 
     @pytest.mark.asyncio
     async def test_classify_region_case_insensitive(self, client):
         """Lowercase region is accepted (not 400)."""
-        r = await client.post("/api/v1/companies/classify",
-                              json={"name": "Test Corp", "region": "au"})
+        r = await client.post(
+            "/api/v1/companies/classify", json={"name": "Test Corp", "region": "au"}
+        )
         assert r.status_code != 400
 
     @pytest.mark.asyncio
     async def test_classify_us_region_accepted(self, client):
         """US region is a valid classification region."""
-        r = await client.post("/api/v1/companies/classify",
-                              json={"name": "Test Corp", "region": "US"})
+        r = await client.post(
+            "/api/v1/companies/classify", json={"name": "Test Corp", "region": "US"}
+        )
         assert r.status_code != 400
 
 
@@ -984,8 +1001,9 @@ class TestSemanticSearch:
     @pytest.mark.asyncio
     async def test_semantic_search_by_title(self, client):
         """Semantic search finds relevant occupations."""
-        r = await client.post("/api/v1/search/semantic",
-            json={"query": "DevOps Engineer", "limit": 5})
+        r = await client.post(
+            "/api/v1/search/semantic", json={"query": "DevOps Engineer", "limit": 5}
+        )
         assert r.status_code == 200
         data = r.json()
         assert data["total"] > 0
@@ -996,19 +1014,22 @@ class TestSemanticSearch:
     @pytest.mark.asyncio
     async def test_semantic_search_with_description(self, client):
         """Adding a description should return results."""
-        r = await client.post("/api/v1/search/semantic",
+        r = await client.post(
+            "/api/v1/search/semantic",
             json={
                 "query": "Data Analyst",
                 "description": "Analyze large datasets, build dashboards, write SQL queries",
                 "limit": 5,
-            })
+            },
+        )
         assert r.status_code == 200
         assert r.json()["total"] > 0
 
     @pytest.mark.asyncio
     async def test_semantic_search_has_scores(self, client):
-        r = await client.post("/api/v1/search/semantic",
-            json={"query": "Registered Nurse", "limit": 3})
+        r = await client.post(
+            "/api/v1/search/semantic", json={"query": "Registered Nurse", "limit": 3}
+        )
         data = r.json()
         if data["total"] > 0:
             result = data["results"][0]
@@ -1019,8 +1040,9 @@ class TestSemanticSearch:
     @pytest.mark.asyncio
     async def test_semantic_search_similarity_order(self, client):
         """Results should be sorted by similarity descending."""
-        r = await client.post("/api/v1/search/semantic",
-            json={"query": "Software Developer", "limit": 10})
+        r = await client.post(
+            "/api/v1/search/semantic", json={"query": "Software Developer", "limit": 10}
+        )
         sims = [res["similarity"] for res in r.json()["results"] if res["similarity"]]
         assert sims == sorted(sims, reverse=True)
 

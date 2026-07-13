@@ -180,7 +180,9 @@ async def _link_abs_employment(session: AsyncSession) -> int:
     step (docs/domain-model.md decision point). We never guess a single OSCA
     code for a one-to-many correspondence.
     """
-    result = await session.execute(text("""
+    result = await session.execute(
+        text(
+            """
             UPDATE abs_employment ae
             SET osca_code = m.osca_code
             FROM (
@@ -191,7 +193,9 @@ async def _link_abs_employment(session: AsyncSession) -> int:
             ) m
             WHERE ae.anzsco_code = m.anzsco_code
               AND length(ae.anzsco_code) = 6
-            """))
+            """
+        )
+    )
     return result.rowcount or 0  # type: ignore[attr-defined]
 
 

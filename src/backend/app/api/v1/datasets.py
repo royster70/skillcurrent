@@ -13,11 +13,15 @@ router = APIRouter(prefix="/datasets", tags=["datasets"])
 @router.get("", response_model=DatasetVersionsResponse)
 async def list_datasets(db: AsyncSession = Depends(get_db)) -> DatasetVersionsResponse:
     """List all loaded dataset versions with row counts."""
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT dataset_name, version_key, row_count,
                ingested_at::TEXT, source_url
         FROM dataset_versions ORDER BY id
-    """))
+    """
+        )
+    )
     datasets = [
         DatasetVersionResponse(
             dataset_name=row[0],

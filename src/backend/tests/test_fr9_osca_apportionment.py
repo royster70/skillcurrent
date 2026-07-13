@@ -35,9 +35,9 @@ async def test_reconciliation_totals(session: AsyncSession):
         session, "SELECT sum(apportioned_employment) FROM abs_employment_osca"
     )
     base = await _count(session, _BASE_SQL)
-    assert abs(apportioned - base) < 1.0, (
-        f"apportioned {apportioned} != base {base} (diff {apportioned - base})"
-    )
+    assert (
+        abs(apportioned - base) < 1.0
+    ), f"apportioned {apportioned} != base {base} (diff {apportioned - base})"
 
 
 async def test_per_source_reconciliation(session: AsyncSession):
@@ -101,6 +101,4 @@ async def test_coverage_lifted(session: AsyncSession):
         session, "SELECT sum(apportioned_employment) FROM abs_employment_osca"
     )
     base = await _count(session, _BASE_SQL)
-    assert base > 0 and apportioned / base >= 0.99, (
-        f"coverage {apportioned / base:.1%} below 99%"
-    )
+    assert base > 0 and apportioned / base >= 0.99, f"coverage {apportioned / base:.1%} below 99%"

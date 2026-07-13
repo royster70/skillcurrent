@@ -63,7 +63,9 @@ async def get_sector_priorities(
     region = region.upper()
     # Use industry_occupation_profiles for national totals — works for both regions
     # since profiles already contain headcount per (sector, soc, region)
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         WITH sector_total AS (
             SELECT SUM(headcount) AS total_emp
             FROM industry_occupation_profiles
@@ -126,7 +128,10 @@ async def get_sector_priorities(
         )
         SELECT * FROM sector_roles
         ORDER BY impact_score DESC NULLS LAST
-    """), {"naics_code": naics_code, "region": region})
+    """
+        ),
+        {"naics_code": naics_code, "region": region},
+    )
 
     rows = r.fetchall()
     if not rows:

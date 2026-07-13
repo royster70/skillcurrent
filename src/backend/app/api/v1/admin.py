@@ -30,7 +30,8 @@ async def metrics(db: AsyncSession = Depends(get_db)) -> dict:
     # Check if the table exists (graceful degradation if migration not run)
     try:
         summary = await db.execute(
-            text("""
+            text(
+                """
                 SELECT
                     COUNT(*) AS request_count,
                     COALESCE(AVG(duration_ms), 0) AS avg_duration_ms,
@@ -38,19 +39,22 @@ async def metrics(db: AsyncSession = Depends(get_db)) -> dict:
                     COALESCE(MIN(duration_ms), 0) AS min_duration_ms
                 FROM api_request_log
                 WHERE timestamp >= NOW() - INTERVAL '1 hour'
-            """)
+            """
+            )
         )
         row = summary.mappings().first()
 
         slowest = await db.execute(
-            text("""
+            text(
+                """
                 SELECT path, method, AVG(duration_ms) AS avg_duration_ms, COUNT(*) AS hits
                 FROM api_request_log
                 WHERE timestamp >= NOW() - INTERVAL '1 hour'
                 GROUP BY path, method
                 ORDER BY avg_duration_ms DESC
                 LIMIT 5
-            """)
+            """
+            )
         )
         slowest_rows = [dict(r) for r in slowest.mappings().all()]
 
@@ -79,7 +83,8 @@ async def slow_queries(db: AsyncSession = Depends(get_db), limit: int = 10) -> d
     """Top slowest queries from pg_stat_statements. Requires pg_stat_statements extension."""
     try:
         result = await db.execute(
-            text("""
+            text(
+                """
                 SELECT
                     query,
                     calls,
@@ -92,7 +97,8 @@ async def slow_queries(db: AsyncSession = Depends(get_db), limit: int = 10) -> d
                 WHERE query NOT LIKE '%pg_stat_statements%'
                 ORDER BY mean_exec_time DESC
                 LIMIT :limit
-            """),
+            """
+            ),
             {"limit": limit},
         )
         rows = result.mappings().all()

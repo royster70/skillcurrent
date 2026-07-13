@@ -54,7 +54,9 @@ async def get_soc_hierarchy(
 
     Returns a tree: major group → occupations with Eloundou Beta and employment.
     """
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT
             o.onet_soc, o.title,
             SUBSTRING(o.onet_soc, 1, 2) AS major_code,
@@ -71,7 +73,9 @@ async def get_soc_hierarchy(
             SELECT 1 FROM onet_task_statements ts WHERE ts.onet_soc = o.onet_soc
         )
         ORDER BY o.onet_soc
-    """))
+    """
+        )
+    )
 
     # Build hierarchy
     major_groups: dict[str, SocHierarchyNode] = {}
@@ -92,13 +96,15 @@ async def get_soc_hierarchy(
             )
 
         group = major_groups[major_code]
-        group.children.append(SocHierarchyNode(
-            code=soc_code,
-            title=title,
-            level="detailed",
-            avg_eloundou_beta=round(beta, 4) if beta else None,
-            total_employment=emp,
-        ))
+        group.children.append(
+            SocHierarchyNode(
+                code=soc_code,
+                title=title,
+                level="detailed",
+                avg_eloundou_beta=round(beta, 4) if beta else None,
+                total_employment=emp,
+            )
+        )
         group.occupation_count += 1
 
     # Compute group-level aggregates
@@ -189,9 +195,7 @@ async def list_occupations(
         for row in r.fetchall()
     ]
 
-    return OccupationsResponse(
-        occupations=occupations, total=total, page=page, page_size=page_size
-    )
+    return OccupationsResponse(occupations=occupations, total=total, page=page, page_size=page_size)
 
 
 @router.get("/{soc_code}", response_model=OccupationDetail)
@@ -201,12 +205,17 @@ async def get_occupation(
 ) -> OccupationDetail:
     """Get detailed view of a single occupation with three-tier scores."""
     # Try 8-digit first, then 6-digit prefix
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT o.onet_soc, o.title, o.description
         FROM onet_occupations o
         WHERE o.onet_soc = :soc_code OR o.onet_soc LIKE :soc_prefix || '%'
         ORDER BY o.onet_soc LIMIT 1
-    """), {"soc_code": soc_code, "soc_prefix": soc_code})
+    """
+        ),
+        {"soc_code": soc_code, "soc_prefix": soc_code},
+    )
 
     occ = r.fetchone()
     if not occ:
@@ -216,37 +225,59 @@ async def get_occupation(
     soc_6 = onet_soc[:7]
 
     # Eloundou scores
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT dv_beta_derived, human_beta_derived
         FROM eloundou_occ_scores WHERE onet_soc = :soc
-    """), {"soc": onet_soc})
+    """
+        ),
+        {"soc": onet_soc},
+    )
     eloundou = r.fetchone()
 
     # Microsoft score
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT ai_applicability_score
         FROM ms_ai_applicability_scores WHERE soc_code = :soc
-    """), {"soc": soc_6})
+    """
+        ),
+        {"soc": soc_6},
+    )
     ms = r.fetchone()
 
     # AEI exposure
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT observed_exposure
         FROM aei_job_exposure WHERE occ_code = :soc
-    """), {"soc": soc_6})
+    """
+        ),
+        {"soc": soc_6},
+    )
     aei = r.fetchone()
 
     # Employment by sector
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT naics_code, naics_title, headcount, employment_share
         FROM industry_occupation_profiles
         WHERE onet_soc = :soc AND headcount IS NOT NULL
         ORDER BY headcount DESC LIMIT 10
-    """), {"soc": soc_6})
+    """
+        ),
+        {"soc": soc_6},
+    )
     sectors = [
         OccupationSectorProfile(
-            naics_code=row[0], naics_title=row[1],
-            headcount=row[2], employment_share=round(row[3], 4) if row[3] else None,
+            naics_code=row[0],
+            naics_title=row[1],
+            headcount=row[2],
+            employment_share=round(row[3], 4) if row[3] else None,
         )
         for row in r.fetchall()
     ]
@@ -261,7 +292,9 @@ async def get_occupation(
         zone = "E2" if beta >= 0.85 else ("E1" if beta >= 0.40 else "E0")
 
     # Drift (aggregate from task_drift_metrics via AEI task matching)
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT AVG(velocity), MODE() WITHIN GROUP (ORDER BY classification)
         FROM task_drift_metrics tdm
         WHERE velocity IS NOT NULL
@@ -270,11 +303,16 @@ async def get_occupation(
               WHERE ats.task_text = tdm.task_text
                 AND ats.onet_soc_codes @> ARRAY[:soc]
           )
-    """), {"soc": soc_6})
+    """
+        ),
+        {"soc": soc_6},
+    )
     drift_row = r.fetchone()
 
     # Percentile context for score cards (storytelling)
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         WITH e_ranked AS (
             SELECT onet_soc,
                    PERCENT_RANK() OVER (ORDER BY dv_beta_derived) AS pct,
@@ -317,11 +355,16 @@ async def get_occupation(
         CROSS JOIN m_med mm
         CROSS JOIN a_med am
         LIMIT 1
-    """), {"onet_soc": onet_soc, "soc_6": soc_6})
+    """
+        ),
+        {"onet_soc": onet_soc, "soc_6": soc_6},
+    )
     pct_row = r.fetchone()
 
     # AEI temporal trend — occupation-level aggregation across model eras
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT ats.model_era, AVG(ats.task_pct) AS avg_task_pct, COUNT(*) AS task_count
         FROM aei_task_snapshots ats
         WHERE ats.platform = 'claude_ai'
@@ -331,7 +374,10 @@ async def get_occupation(
           )
         GROUP BY ats.model_era, ats.snapshot_date
         ORDER BY ats.snapshot_date
-    """), {"onet_soc": onet_soc})
+    """
+        ),
+        {"onet_soc": onet_soc},
+    )
     era_rows = r.fetchall()
     aei_era_snapshots = [
         OccupationEraSnapshot(
@@ -343,9 +389,14 @@ async def get_occupation(
     ]
 
     # GDPval benchmark availability
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT COUNT(*) FROM gdpval_tasks WHERE onet_soc = :soc
-    """), {"soc": onet_soc})
+    """
+        ),
+        {"soc": onet_soc},
+    )
     gdpval_count = r.scalar() or 0
 
     return OccupationDetail(
@@ -386,11 +437,16 @@ async def get_occupation_tasks(
 ) -> OccupationTasksResponse:
     """Get tasks for an occupation with drift velocity and classification."""
     # Resolve SOC code
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT onet_soc, title FROM onet_occupations
         WHERE onet_soc = :soc OR onet_soc LIKE :prefix || '%'
         ORDER BY onet_soc LIMIT 1
-    """), {"soc": soc_code, "prefix": soc_code})
+    """
+        ),
+        {"soc": soc_code, "prefix": soc_code},
+    )
     occ = r.fetchone()
     if not occ:
         raise HTTPException(status_code=404, detail=f"Occupation {soc_code} not found")
@@ -398,14 +454,19 @@ async def get_occupation_tasks(
     onet_soc = occ[0]
 
     # Get tasks with drift data
-    r = await db.execute(text("""
+    r = await db.execute(
+        text(
+            """
         SELECT ts.task, tdm.latest_task_pct, tdm.velocity,
                tdm.r_squared, tdm.classification, tdm.snapshot_count
         FROM onet_task_statements ts
         LEFT JOIN task_drift_metrics tdm ON LOWER(tdm.task_text) = LOWER(ts.task)
         WHERE ts.onet_soc = :soc
         ORDER BY COALESCE(tdm.latest_task_pct, 0) DESC
-    """), {"soc": onet_soc})
+    """
+        ),
+        {"soc": onet_soc},
+    )
 
     tasks = [
         TaskWithDrift(

@@ -44,7 +44,6 @@ def _clean_numpy_types(rows: list[dict]) -> list[dict]:
     return rows
 
 
-
 async def ingest_eloundou(
     session: AsyncSession,
     data_path: str,
@@ -94,16 +93,18 @@ async def ingest_eloundou(
     logger.info("Read %d occupation scores", len(df))
 
     # Rename columns to match our schema
-    df = df.rename(columns={
-        "O*NET-SOC Code": "onet_soc",
-        "Title": "title",
-        "dv_rating_alpha": "dv_e1_alpha",
-        "dv_rating_beta": "dv_e2_beta",
-        "dv_rating_gamma": "dv_e0_gamma",
-        "human_rating_alpha": "human_e1_alpha",
-        "human_rating_beta": "human_e2_beta",
-        "human_rating_gamma": "human_e0_gamma",
-    })
+    df = df.rename(
+        columns={
+            "O*NET-SOC Code": "onet_soc",
+            "Title": "title",
+            "dv_rating_alpha": "dv_e1_alpha",
+            "dv_rating_beta": "dv_e2_beta",
+            "dv_rating_gamma": "dv_e0_gamma",
+            "human_rating_alpha": "human_e1_alpha",
+            "human_rating_beta": "human_e2_beta",
+            "human_rating_gamma": "human_e0_gamma",
+        }
+    )
 
     # Compute derived Beta = E1 + 0.5*E2 for both rater types
     df["dv_beta_derived"] = df["dv_e1_alpha"] + 0.5 * df["dv_e2_beta"]
@@ -115,7 +116,9 @@ async def ingest_eloundou(
 
     # Validate E0 >= max(E1, E2) invariant
     dv_violations = df[df["dv_e0_gamma"] < df[["dv_e1_alpha", "dv_e2_beta"]].max(axis=1)]
-    human_violations = df[df["human_e0_gamma"] < df[["human_e1_alpha", "human_e2_beta"]].max(axis=1)]
+    human_violations = df[
+        df["human_e0_gamma"] < df[["human_e1_alpha", "human_e2_beta"]].max(axis=1)
+    ]
     if len(dv_violations) > 0:
         logger.warning("E0 >= max(E1,E2) violated in %d GPT-4 rows", len(dv_violations))
     if len(human_violations) > 0:
