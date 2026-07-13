@@ -13,6 +13,7 @@ Paper: Eloundou, Manning, Mishkin, Rock (2024). Science 384:1306-1308.
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -28,7 +29,7 @@ DATASET_NAME = "eloundou"
 DATASET_VERSION = "2024_science"
 
 
-def _clean_numpy_types(rows: list[dict]) -> list[dict]:
+def _clean_numpy_types(rows: list[dict[str, Any]]) -> list[dict[str, Any]]:
     """Convert numpy scalar types to native Python types for SQLAlchemy compatibility."""
     for row in rows:
         for key, value in row.items():

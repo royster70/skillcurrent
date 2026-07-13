@@ -27,7 +27,7 @@ import logging
 from pathlib import Path
 from typing import Any
 
-import openpyxl  # type: ignore[import-untyped]
+import openpyxl
 from sqlalchemy import delete, insert, text
 from sqlalchemy.ext.asyncio import AsyncSession
 

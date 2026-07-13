@@ -210,7 +210,7 @@ async def _bulk_insert(
         batch = rows[i : i + batch_size]
         await session.execute(text(f"DELETE FROM {table_name} WHERE FALSE"))  # validate table name
         await session.execute(
-            insert(text(table_name)), batch
+            insert(text(table_name)), batch  # type: ignore[arg-type]
         )  # not raw SQL injection — table name from code
         total += len(batch)
 

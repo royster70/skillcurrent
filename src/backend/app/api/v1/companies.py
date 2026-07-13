@@ -9,6 +9,7 @@ the composite sector analysis endpoint.
 
 import json
 import logging
+from typing import Any
 
 import anthropic
 from fastapi import APIRouter, Depends, HTTPException, Query
@@ -148,7 +149,8 @@ Return ONLY valid JSON in this exact format (no markdown, no explanation):
 
 def _get_anthropic_client() -> anthropic.Anthropic:
     """Create Anthropic client using token from settings (.env file)."""
-    return anthropic.Anthropic(**{"api" + "_key": settings.anthropic_auth_token})
+    kwargs: dict[str, Any] = {"api" + "_key": settings.anthropic_auth_token}
+    return anthropic.Anthropic(**kwargs)
 
 
 # -- Helpers --
@@ -344,7 +346,7 @@ async def _classify_sectors_via_llm(
     req: ClassifyRequest,
     region: str,
     sectors_ref: dict[str, str],
-) -> list[dict]:
+) -> list[dict[str, Any]]:
     """Call Haiku to classify a company into sectors; returns raw suggestion dicts."""
     if not settings.anthropic_auth_token:
         raise HTTPException(
@@ -382,7 +384,8 @@ async def _classify_sectors_via_llm(
         if raw_text.startswith("```"):
             raw_text = raw_text.split("\n", 1)[-1].rsplit("```", 1)[0].strip()
         parsed = json.loads(raw_text)
-        return parsed.get("sectors", [])
+        suggestions: list[dict[str, Any]] = parsed.get("sectors", [])
+        return suggestions
     except json.JSONDecodeError:
         logger.warning(f"LLM returned non-JSON for '{req.name}': {raw_text[:200]}")
         raise HTTPException(status_code=502, detail="AI classification returned invalid format")

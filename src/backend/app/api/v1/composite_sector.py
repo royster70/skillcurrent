@@ -5,6 +5,8 @@ Returns de-duplicated occupations across selected sectors with combined
 headcount and employment-weighted exposure scores.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, HTTPException, Query
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -129,7 +131,7 @@ async def _load_subdivision_occupation_mix(
     # Group by subdivision (indp_name)
     from collections import defaultdict
 
-    grouped: dict[str, list[tuple]] = defaultdict(list)
+    grouped: dict[str, list[tuple[Any, ...]]] = defaultdict(list)
     div_map: dict[str, str] = {}
     for indp_name, div_code, mg, mg_name, count in rows:
         grouped[indp_name].append((mg, mg_name, count))

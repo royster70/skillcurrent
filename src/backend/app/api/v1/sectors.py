@@ -98,15 +98,16 @@ async def list_sectors(
             )
         )
         # Group by division code and compute shares
-        mix_by_div: dict[str, list[OccupationMixEntry]] = {}
-        div_totals: dict[str, int] = {}
+        mix_raw: dict[str, list[tuple[int | None, str, int]]] = {}
+        mix_totals: dict[str, int] = {}
         for row in mix_r.fetchall():
             div_code = row[0]
             count = row[3] or 0
-            div_totals[div_code] = div_totals.get(div_code, 0) + count
-            mix_by_div.setdefault(div_code, []).append((row[1], row[2], count))
-        for div_code, entries in mix_by_div.items():
-            total = div_totals.get(div_code, 0)
+            mix_totals[div_code] = mix_totals.get(div_code, 0) + count
+            mix_raw.setdefault(div_code, []).append((row[1], row[2], count))
+        mix_by_div: dict[str, list[OccupationMixEntry]] = {}
+        for div_code, mix_entries in mix_raw.items():
+            total = mix_totals.get(div_code, 0)
             mix_by_div[div_code] = [
                 OccupationMixEntry(
                     anzsco_major_group=e[0],
@@ -114,7 +115,7 @@ async def list_sectors(
                     employed_count=e[2],
                     share_pct=round(e[2] / total * 100, 1) if total > 0 else 0,
                 )
-                for e in entries
+                for e in mix_entries
             ]
         for sector in sectors:
             sector.occupation_mix = mix_by_div.get(sector.naics_code)
@@ -132,23 +133,23 @@ async def list_sectors(
             )
         )
         subs_by_div: dict[str, list[tuple[str, int]]] = {}
-        div_totals: dict[str, int] = {}
+        subs_totals: dict[str, int] = {}
         for row in subs_r.fetchall():
             div_code = row[0]
             emp = row[2] or 0
             subs_by_div.setdefault(div_code, []).append((row[1], emp))
-            div_totals[div_code] = div_totals.get(div_code, 0) + emp
+            subs_totals[div_code] = subs_totals.get(div_code, 0) + emp
         for sector in sectors:
-            entries = subs_by_div.get(sector.naics_code, [])
-            if entries:
-                total = div_totals.get(sector.naics_code, 0)
+            sub_entries = subs_by_div.get(sector.naics_code, [])
+            if sub_entries:
+                total = subs_totals.get(sector.naics_code, 0)
                 sector.subdivisions = [
                     SubdivisionEntry(
                         subdivision_name=name,
                         employment=emp,
                         share_pct=round(emp / total * 100, 1) if total > 0 else 0,
                     )
-                    for name, emp in entries
+                    for name, emp in sub_entries
                 ]
 
     return SectorsResponse(sectors=sectors, total_sectors=len(sectors), region=region)

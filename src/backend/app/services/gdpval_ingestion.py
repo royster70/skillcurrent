@@ -13,6 +13,7 @@ Source: https://huggingface.co/datasets/openai/gdpval
 import json
 import logging
 from pathlib import Path
+from typing import Any
 
 import pandas as pd
 from sqlalchemy import insert, select, text
@@ -75,16 +76,17 @@ SOC_MAPPING: dict[str, str] = {
 }
 
 
-def _parse_rubric(rubric_raw: str | list) -> list[dict]:
+def _parse_rubric(rubric_raw: str | list[Any]) -> list[dict[str, Any]]:
     """Parse rubric_json from parquet (may be string or list)."""
     if isinstance(rubric_raw, str):
-        return json.loads(rubric_raw)
+        parsed: list[dict[str, Any]] = json.loads(rubric_raw)
+        return parsed
     if isinstance(rubric_raw, list):
         return rubric_raw
     return []
 
 
-def _count_files(file_field: str | list | None) -> int:
+def _count_files(file_field: str | list[Any] | None) -> int:
     """Count files from a parquet list field."""
     if file_field is None:
         return 0

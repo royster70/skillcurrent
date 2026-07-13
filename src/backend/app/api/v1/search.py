@@ -9,6 +9,8 @@ Semantic search understands meaning: "DevOps Engineer" matches
 "Software Developers" even without shared words.
 """
 
+from typing import Any
+
 from fastapi import APIRouter, Depends, Query
 from pydantic import BaseModel
 from sqlalchemy import text
@@ -198,7 +200,7 @@ async def semantic_search(
         return SearchResponse(query=body.query, results=[], total=0)
 
     # Deduplicate by SOC code, keeping best match
-    seen: dict[str, dict] = {}
+    seen: dict[str, dict[str, Any]] = {}
     for m in matches:
         soc = m["soc_code"]
         if soc not in seen or m["similarity"] > seen[soc]["similarity"]:

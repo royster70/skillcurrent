@@ -9,6 +9,7 @@ Data: May 2024 Occupational Employment and Wage Statistics
 
 import logging
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -32,7 +33,7 @@ def _clean_numeric(series: pd.Series, target_type: str = "int") -> pd.Series:
     return cleaned
 
 
-def _normalize_numpy_types(rows: list[dict]) -> None:
+def _normalize_numpy_types(rows: list[dict[str, Any]]) -> None:
     """In-place: convert numpy/pandas scalar types to plain Python for the DB driver."""
     for row in rows:
         for key, value in row.items():

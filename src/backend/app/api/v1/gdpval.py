@@ -58,7 +58,7 @@ async def gdpval_summary(db: AsyncSession = Depends(get_db)) -> GDPvalSummaryRes
     """
         )
     )
-    row = stats.fetchone()
+    row = stats.one()
 
     sectors = await db.execute(text("SELECT DISTINCT sector FROM gdpval_tasks ORDER BY sector"))
 

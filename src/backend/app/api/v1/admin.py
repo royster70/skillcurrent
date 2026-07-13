@@ -1,6 +1,7 @@
 """Admin endpoints — health check and operational metrics (ADR-007)."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/admin", tags=["admin"])
 
 
 @router.get("/health")
-async def health() -> dict:
+async def health() -> dict[str, Any]:
     """Basic health check."""
     return {
         "status": "healthy",
@@ -21,7 +22,7 @@ async def health() -> dict:
 
 
 @router.get("/metrics")
-async def metrics(db: AsyncSession = Depends(get_db)) -> dict:
+async def metrics(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Recent request performance metrics from api_request_log.
 
     Returns aggregate stats for the last 1 hour: average duration,
@@ -42,7 +43,7 @@ async def metrics(db: AsyncSession = Depends(get_db)) -> dict:
             """
             )
         )
-        row = summary.mappings().first()
+        row = summary.mappings().one()
 
         slowest = await db.execute(
             text(
@@ -79,7 +80,7 @@ async def metrics(db: AsyncSession = Depends(get_db)) -> dict:
 
 
 @router.get("/slow-queries")
-async def slow_queries(db: AsyncSession = Depends(get_db), limit: int = 10) -> dict:
+async def slow_queries(db: AsyncSession = Depends(get_db), limit: int = 10) -> dict[str, Any]:
     """Top slowest queries from pg_stat_statements. Requires pg_stat_statements extension."""
     try:
         result = await db.execute(

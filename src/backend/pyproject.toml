@@ -87,6 +87,11 @@ module = [
     "pyreadr.*",
     "pyarrow.*",
     "openpyxl.*",
+    "pandas.*",
+    "scipy.*",
+    "apscheduler.*",
+    "numpy.*",
+    "anthropic.*",
 ]
 ignore_missing_imports = true
 

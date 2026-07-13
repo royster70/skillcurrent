@@ -1,6 +1,7 @@
 """Pipeline status and control endpoints (FR-8.8)."""
 
 from datetime import UTC, datetime
+from typing import Any
 
 from fastapi import APIRouter, Depends
 from sqlalchemy import text
@@ -12,7 +13,7 @@ router = APIRouter(prefix="/admin/pipeline", tags=["admin", "pipeline"])
 
 
 @router.get("/status")
-async def pipeline_status(db: AsyncSession = Depends(get_db)):
+async def pipeline_status(db: AsyncSession = Depends(get_db)) -> dict[str, Any]:
     """Return pipeline health: last run per stage from transformation_log."""
     result = await db.execute(
         text(
@@ -54,7 +55,7 @@ async def pipeline_status(db: AsyncSession = Depends(get_db)):
 
 
 @router.get("/dag")
-async def pipeline_dag():
+async def pipeline_dag() -> dict[str, Any]:
     """Return the pipeline dependency DAG.
 
     Derived from the single source of truth

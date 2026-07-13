@@ -17,6 +17,7 @@ import logging
 from dataclasses import dataclass
 from datetime import date
 from pathlib import Path
+from typing import Any
 
 import numpy as np
 import pandas as pd
@@ -85,8 +86,8 @@ API_RELEASES = [
 ]
 
 
-def _df_to_rows(df: pd.DataFrame) -> list[dict]:
-    rows = df.to_dict("records")
+def _df_to_rows(df: pd.DataFrame) -> list[dict[str, Any]]:
+    rows: list[dict[str, Any]] = df.to_dict("records")
     for row in rows:
         for key, value in row.items():
             try:
