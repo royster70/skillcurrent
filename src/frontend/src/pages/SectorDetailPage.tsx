@@ -3,7 +3,7 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, CLASSIFICATION_COLORS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, MOVEMENT_COLORS, MOVEMENT_LABELS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
@@ -176,7 +176,7 @@ export function SectorDetailPage() {
         <div style={{ flex: 1, background: t.surface, borderRadius: 12, border: "1.5px solid #E4E4E7", padding: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Priority Roles — Impact Score</div>
           <div style={{ fontSize: 12, color: t.inkMuted, marginBottom: 16 }}>
-            Composite of AI exposure, headcount, concentration, and drift · Label shows score · headcount
+            Composite of AI exposure, headcount, concentration, and tide movement · Label shows score · headcount
           </div>
           <ResponsiveContainer width="100%" height={350}>
             <BarChart data={impactBars} layout="vertical" margin={{ right: 80 }}>
@@ -263,7 +263,7 @@ export function SectorDetailPage() {
               <th style={{ ...th, textAlign: "right", width: 70 }}>Eloundou</th>
               <th style={{ ...th, textAlign: "right", width: 60 }}>MS AI</th>
               <th style={{ ...th, textAlign: "center", width: 50 }}>Zone</th>
-              <th style={{ ...th, textAlign: "center", width: 60 }}>Drift</th>
+              <th style={{ ...th, textAlign: "center", width: 60 }}>Tide</th>
               <th style={{ ...th, textAlign: "right", width: 60 }}>Impact</th>
               <th style={{ ...th, width: 200 }}>Risk Factors</th>
             </tr>
@@ -309,11 +309,11 @@ function generateNarrative(data: {
     );
   }
 
-  // Drift summary
-  const departing = all.filter((r) => r.drift_classification === "departing");
-  if (departing.length > 0) {
+  // Tide summary \u2014 usage language per the honesty rule (\u00a79), never "capability".
+  const rising = all.filter((r) => r.drift_classification === "departing");
+  if (rising.length > 0) {
     sentences.push(
-      `${departing.length} role${departing.length > 1 ? "s" : ""} show${departing.length === 1 ? "s" : ""} departing drift \u2014 AI capability for their tasks is growing across model generations.`
+      `${rising.length} role${rising.length > 1 ? "s are" : " is"} rising with the tide \u2014 AI usage of their tasks is growing across model generations.`
     );
   }
 
@@ -322,7 +322,7 @@ function generateNarrative(data: {
 
 function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate>; hasGdpval?: boolean }) {
   const zoneColor = r.dominant_zone ? ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] : t.inkMuted;
-  const driftColor = r.drift_classification ? CLASSIFICATION_COLORS[r.drift_classification as keyof typeof CLASSIFICATION_COLORS] : t.inkMuted;
+  const tideColor = r.drift_classification ? MOVEMENT_COLORS[r.drift_classification as keyof typeof MOVEMENT_COLORS] : t.inkMuted;
 
   return (
     <tr style={{ borderTop: "1px solid #E4E4E7", cursor: "pointer" }}
@@ -363,7 +363,10 @@ function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigat
       </td>
       <td style={{ ...td, textAlign: "center" }}>
         {r.drift_classification && (
-          <span style={{ fontSize: 11, fontWeight: 500, color: driftColor }}>
+          <span
+            title={MOVEMENT_LABELS[r.drift_classification as keyof typeof MOVEMENT_LABELS] ?? r.drift_classification}
+            style={{ fontSize: 11, fontWeight: 500, color: tideColor }}
+          >
             {r.drift_classification === "departing" ? "\u2191" : r.drift_classification === "enduring" ? "\u2192" : "\u26A0"}
           </span>
         )}

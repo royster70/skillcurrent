@@ -4,8 +4,9 @@
  * brand brief (src/frontend/design/skillcurrent-brand-brief.md §7) — do NOT mix
  * old and new. Light is the default; dark is first-class.
  *
- * Panel palettes (GDPVAL_COLORS / AEI_COLORS) and CLASSIFICATION_COLORS are kept
- * as-is for now; each is re-skinned when its panel/page is redesigned (§10).
+ * Panel palettes (GDPVAL_COLORS / AEI_COLORS) are kept as-is for now; each is
+ * re-skinned when its panel is redesigned (§10). The old CLASSIFICATION_* pair
+ * became MOVEMENT_LABELS/MOVEMENT_COLORS with the Rising Tide redesign.
  */
 
 // ── Theme surfaces (light + dark). Brass is the single instrument accent. ──
@@ -86,12 +87,25 @@ export const TYPE = {
 export const BETA_SCALE = { min: 0, max: 1.5, median: 0.27 } as const;
 export const ZONE_THRESHOLDS = { E2: 0.85, E1: 0.4 } as const; // E2 ≥ 0.85; E1 0.40–0.85; E0 < 0.40
 
-// ── Legacy palettes retained until each is redesigned (see header note). ──
-export const CLASSIFICATION_COLORS = {
-  departing: "#DC2626",
-  enduring: "#2563EB",
-  emerging: "#8B5CF6",
-  below_threshold: "#F97316",
+// ── Movement (tide) vocabulary — how AI *usage* is trending per task. ──
+// Keys are the API's drift_classification values (data contract, unchanged);
+// labels/colours are the user-facing "Rising Tide" system. Colour-by-role:
+// rising MOVES → the `current` hue; holding = still ink; at-the-waterline =
+// the alert; surfacing = brass (a new mark on the chart); uncharted = muted.
+export const MOVEMENT_LABELS = {
+  departing: "Rising",
+  enduring: "Holding fast",
+  emerging: "Surfacing",
+  below_threshold: "At the waterline",
+  unclassified: "Uncharted",
+} as const;
+
+export const MOVEMENT_COLORS = {
+  departing: THEME.light.current,
+  enduring: THEME.light.ink,
+  emerging: THEME.light.brass,
+  below_threshold: ZONE_COLORS.alert,
+  unclassified: THEME.light.inkMuted,
 } as const;
 
 export const GDPVAL_COLORS = {
@@ -113,11 +127,4 @@ export const AEI_COLORS = {
   growing: "#DC2626", // red — growing trend indicator
   stable: "#A1A1AA", // grey — stable trend
   declining: "#E4E4E7", // light grey — declining trend
-} as const;
-
-export const CLASSIFICATION_LABELS = {
-  departing: "Departing",
-  enduring: "Enduring",
-  emerging: "Emerging",
-  below_threshold: "Below Threshold",
 } as const;

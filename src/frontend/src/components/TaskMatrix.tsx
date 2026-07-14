@@ -273,7 +273,12 @@ function TaskRow({ row, showCurrent, highlighted, dimmed }: { row: Row; showCurr
           <CurrentGlyph trend={row.trend} active />
         )}
         {row.drift === "departing" && (
-          <span style={{ fontSize: 9, fontFamily: TYPE.mono, color: t.inkMuted, whiteSpace: "nowrap" }}>departing</span>
+          <span
+            title="AI usage of this task is rising across model eras"
+            style={{ fontSize: 9, fontFamily: TYPE.mono, color: t.current, whiteSpace: "nowrap" }}
+          >
+            rising
+          </span>
         )}
       </div>
       <BetaTrack beta={row.beta} zone={row.zone} importance={row.importance} highlighted={highlighted} />

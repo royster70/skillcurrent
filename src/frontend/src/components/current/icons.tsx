@@ -67,12 +67,13 @@ export function IconOccupations(props: IconProps) {
   );
 }
 
-/** Drift Analysis — a heading line breaking away, arrow forward. */
-export function IconDrift(props: IconProps) {
+/** Rising Tide — a wave swelling below a rising, forward-pointing trend. */
+export function IconTide(props: IconProps) {
   return (
     <svg {...base(props)}>
-      <path d="M3 14l4.5-4 3.5 3 6-6.5" />
-      <path d="M13.5 6h3.5v3.5" />
+      <path d="M3 16c2.5 0 2.5-2 5-2s2.5 2 5 2 2.5-2 5-2" />
+      <path d="M6 11l5-5 3 3 4-4" />
+      <path d="M14.5 5H18v3.5" />
     </svg>
   );
 }

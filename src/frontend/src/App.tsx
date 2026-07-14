@@ -1,4 +1,4 @@
-import { BrowserRouter, Routes, Route } from "react-router-dom";
+import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { Layout } from "./components/Layout";
 import { LandingPage } from "./pages/LandingPage";
 import { MethodologyPage } from "./pages/MethodologyPage";
@@ -8,7 +8,7 @@ import { SectorsPage } from "./pages/SectorsPage";
 import { SectorDetailPage } from "./pages/SectorDetailPage";
 import { CompositeSectorPage } from "./pages/CompositeSectorPage";
 import { OccupationsPage } from "./pages/OccupationsPage";
-import { DriftPage } from "./pages/DriftPage";
+import { TidePage } from "./pages/TidePage";
 import { SearchPage } from "./pages/SearchPage";
 
 function App() {
@@ -25,7 +25,9 @@ function App() {
           <Route path="/sectors/composite" element={<CompositeSectorPage />} />
           <Route path="/sectors/:code" element={<SectorDetailPage />} />
           <Route path="/occupations" element={<OccupationsPage />} />
-          <Route path="/drift" element={<DriftPage />} />
+          <Route path="/tide" element={<TidePage />} />
+          {/* Old name — keep deep links working */}
+          <Route path="/drift" element={<Navigate to="/tide" replace />} />
         </Route>
       </Routes>
     </BrowserRouter>

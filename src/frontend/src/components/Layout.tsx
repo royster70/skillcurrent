@@ -9,7 +9,7 @@ import {
   IconSectors,
   IconSearch,
   IconOccupations,
-  IconDrift,
+  IconTide,
   IconAnchor,
   IconSources,
   IconTerminal,
@@ -28,7 +28,7 @@ const NAV_GROUPS = [
       { to: "/sectors", label: "Sectors", Icon: IconSectors },
       { to: "/search", label: "Role Search", Icon: IconSearch },
       { to: "/occupations", label: "Occupations", Icon: IconOccupations },
-      { to: "/drift", label: "Drift Analysis", Icon: IconDrift },
+      { to: "/tide", label: "Rising Tide", Icon: IconTide },
     ],
   },
   {
