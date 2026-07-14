@@ -8,7 +8,8 @@ const t = THEME.light;
 const BRASS_TINT = "rgba(156, 100, 20, 0.10)"; // brass #9c6414 @ 10%
 
 const navItems = [
-  { to: "/", label: "Sectors", icon: "📊" },
+  { to: "/", label: "Waterline", icon: "🌊" },
+  { to: "/sectors", label: "Sectors", icon: "📊" },
   { to: "/search", label: "Role Search", icon: "🔍" },
   { to: "/occupations", label: "Occupations", icon: "👥" },
   { to: "/drift", label: "Drift Analysis", icon: "📈" },

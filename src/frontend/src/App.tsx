@@ -1,5 +1,8 @@
 import { BrowserRouter, Routes, Route } from "react-router-dom";
 import { Layout } from "./components/Layout";
+import { LandingPage } from "./pages/LandingPage";
+import { MethodologyPage } from "./pages/MethodologyPage";
+import { SourcesPage } from "./pages/SourcesPage";
 import { SectorsPage } from "./pages/SectorsPage";
 import { SectorDetailPage } from "./pages/SectorDetailPage";
 import { CompositeSectorPage } from "./pages/CompositeSectorPage";
@@ -12,8 +15,11 @@ function App() {
     <BrowserRouter>
       <Routes>
         <Route element={<Layout />}>
-          <Route path="/" element={<SectorsPage />} />
+          <Route path="/" element={<LandingPage />} />
+          <Route path="/methodology" element={<MethodologyPage />} />
+          <Route path="/sources" element={<SourcesPage />} />
           <Route path="/search" element={<SearchPage />} />
+          <Route path="/sectors" element={<SectorsPage />} />
           <Route path="/sectors/composite" element={<CompositeSectorPage />} />
           <Route path="/sectors/:code" element={<SectorDetailPage />} />
           <Route path="/occupations" element={<OccupationsPage />} />
