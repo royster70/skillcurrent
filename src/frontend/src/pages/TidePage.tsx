@@ -165,45 +165,136 @@ function ApproachRow({ task, domain, shown, index, showPace }: {
   );
 }
 
+/** Rows + the one brass flip line, on a shared domain. Reused flat and per
+ * family group (so every flip line sits at the same x). */
+function RowsBlock({ rows, domain, shown, showPace, startIndex = 0 }: {
+  rows: DriftTask[]; domain: number; shown: boolean; showPace: boolean; startIndex?: number;
+}) {
+  const linePct = (FLIP_THRESHOLD / domain) * 100;
+  return (
+    <div style={{ position: "relative" }}>
+      <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+        {rows.map((task, i) => (
+          <ApproachRow key={task.task_text} task={task} domain={domain} shown={shown} index={startIndex + i} showPace={showPace} />
+        ))}
+      </div>
+      <div
+        title={`Tasks flip zones at ${fmtUsage(FLIP_THRESHOLD)} usage`}
+        style={{ position: "absolute", top: -4, bottom: -4, left: `${linePct}%`, width: 0, borderLeft: `2px solid ${theme.brass}`, opacity: 0.85, pointerEvents: "none" }}
+      />
+    </div>
+  );
+}
+
+/** Group the view's tasks by job family (a task appears under each family it
+ * touches), sorted by rising-task load. Representative until the backend join. */
+function groupByFamily(tasks: DriftTask[]): [string, DriftTask[]][] {
+  const map = new Map<string, DriftTask[]>();
+  for (const task of tasks) {
+    for (const fam of task.families?.length ? task.families : ["Unassigned"]) {
+      if (!map.has(fam)) map.set(fam, []);
+      map.get(fam)!.push(task);
+    }
+  }
+  return [...map.entries()].sort((a, b) => b[1].length - a[1].length);
+}
+
 function TideList({ tasks, title, blurb, showPace, alertTint, filterKey }: {
   tasks: DriftTask[]; title: string; blurb: string; showPace: boolean; alertTint?: boolean; filterKey: string;
 }) {
   const { ref, shown } = useReveal(0.15);
+  const [grouped, setGrouped] = useState(false);
+  const [collapsed, setCollapsed] = useState<Set<string>>(new Set());
   const domain = Math.max(0.6, ...tasks.map((t) => usageOf(t) + Math.max(0, paceOf(t)) * 1.2));
-  const linePct = (FLIP_THRESHOLD / domain) * 100;
+  const families = groupByFamily(tasks);
+  const toggleFam = (f: string) =>
+    setCollapsed((prev) => {
+      const next = new Set(prev);
+      next.has(f) ? next.delete(f) : next.add(f);
+      return next;
+    });
+
+  const modeBtn = (on: boolean, label: string, onClick: () => void) => (
+    <button
+      onClick={onClick}
+      aria-pressed={on}
+      style={{
+        padding: "4px 10px", fontSize: 11, border: "none", cursor: "pointer",
+        fontFamily: "inherit", fontWeight: on ? 600 : 400,
+        background: on ? theme.brass : theme.surface, color: on ? "#fff" : theme.inkMuted,
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div ref={ref} style={{
       background: theme.surface, borderRadius: 12, padding: 20,
       border: `1.5px solid ${alertTint ? `${ZONE_COLORS.alert}50` : theme.line}`,
       transition: `border-color ${DUR.hover}ms ${EASE}`,
     }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 10, flexWrap: "wrap" }}>
         <div>
           <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600, color: alertTint ? ZONE_COLORS.alert : theme.ink }}>{title}</div>
-          <div style={{ fontSize: 12.5, color: theme.inkMuted, marginTop: 2, maxWidth: 520, lineHeight: 1.4 }}>{blurb}</div>
+          <div style={{ fontSize: 12.5, color: theme.inkMuted, marginTop: 2, maxWidth: 460, lineHeight: 1.4 }}>{blurb}</div>
         </div>
-        <span style={{ fontFamily: TYPE.mono, fontSize: 10.5, color: theme.brass, whiteSpace: "nowrap" }}>
-          ─ the line · {fmtUsage(FLIP_THRESHOLD)} usage
-        </span>
+        <div style={{ display: "flex", flexDirection: "column", alignItems: "flex-end", gap: 5, flexShrink: 0 }}>
+          <div style={{ display: "flex", borderRadius: 8, border: `1px solid ${theme.line}`, overflow: "hidden" }}>
+            {modeBtn(!grouped, "By pace", () => setGrouped(false))}
+            {modeBtn(grouped, "By job family", () => setGrouped(true))}
+          </div>
+          <span style={{ fontFamily: TYPE.mono, fontSize: 10, color: theme.brass, whiteSpace: "nowrap" }}>
+            ─ the line · {fmtUsage(FLIP_THRESHOLD)} usage
+          </span>
+        </div>
       </div>
 
-      {/* Rows share one axis; the brass flip line runs through all of them.
-          Keyed by filter so switching plays the gentle fade-rise. */}
-      <div key={filterKey} style={{ position: "relative", marginTop: 16, animation: `sc-fade-rise ${DUR.bearing}ms ${EASE}` }}>
-        <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
-          {tasks.length === 0 && (
-            <div style={{ fontSize: 12.5, color: theme.inkMuted, fontStyle: "italic" }}>No tasks in this view yet.</div>
-          )}
-          {tasks.map((task, i) => (
-            <ApproachRow key={task.task_text} task={task} domain={domain} shown={shown} index={i} showPace={showPace} />
-          ))}
-        </div>
-        <div
-          title={`Tasks flip zones at ${fmtUsage(FLIP_THRESHOLD)} usage`}
-          style={{ position: "absolute", top: -4, bottom: -4, left: `${linePct}%`, width: 0, borderLeft: `2px solid ${theme.brass}`, opacity: 0.85, pointerEvents: "none" }}
-        />
+      {/* Keyed by filter+mode so switching either plays the gentle fade-rise. */}
+      <div key={`${filterKey}-${grouped ? "g" : "f"}`} style={{ marginTop: 16, animation: `sc-fade-rise ${DUR.bearing}ms ${EASE}` }}>
+        {tasks.length === 0 && (
+          <div style={{ fontSize: 12.5, color: theme.inkMuted, fontStyle: "italic" }}>No tasks in this view yet.</div>
+        )}
+
+        {tasks.length > 0 && !grouped && (
+          <RowsBlock rows={tasks} domain={domain} shown={shown} showPace={showPace} />
+        )}
+
+        {tasks.length > 0 && grouped && (
+          <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+            {families.map(([fam, famTasks], fi) => {
+              const open = !collapsed.has(fam);
+              const avgPace = famTasks.reduce((s, t) => s + Math.max(0, paceOf(t)), 0) / famTasks.length;
+              return (
+                <div key={fam} style={{ borderTop: fi > 0 ? `1px solid ${theme.line}` : "none", paddingTop: fi > 0 ? 12 : 0 }}>
+                  <button
+                    onClick={() => toggleFam(fam)}
+                    aria-expanded={open}
+                    style={{
+                      width: "100%", display: "flex", alignItems: "baseline", gap: 8, padding: "4px 0",
+                      background: "none", border: "none", cursor: "pointer", textAlign: "left", fontFamily: "inherit",
+                    }}
+                  >
+                    <span style={{ fontSize: 10, color: theme.inkMuted, width: 10, flexShrink: 0 }}>{open ? "▾" : "▸"}</span>
+                    <span style={{ fontFamily: TYPE.display, fontSize: 14.5, fontWeight: 600, color: theme.ink }}>{fam}</span>
+                    <span style={{ fontFamily: TYPE.mono, fontSize: 11, color: theme.inkMuted }}>· {famTasks.length} task{famTasks.length === 1 ? "" : "s"}</span>
+                    {showPace && avgPace > 0 && (
+                      <span style={{ fontFamily: TYPE.mono, fontSize: 11, color: theme.current, marginLeft: "auto" }}>avg {fmtPace(avgPace)}</span>
+                    )}
+                  </button>
+                  {open && (
+                    <div style={{ marginTop: 10, marginBottom: 6 }}>
+                      <RowsBlock rows={famTasks} domain={domain} shown={shown} showPace={showPace} startIndex={fi * 3} />
+                    </div>
+                  )}
+                </div>
+              );
+            })}
+          </div>
+        )}
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: TYPE.mono, fontSize: 9.5, color: theme.inkMuted, marginTop: 8 }}>
+
+      <div style={{ display: "flex", justifyContent: "space-between", fontFamily: TYPE.mono, fontSize: 9.5, color: theme.inkMuted, marginTop: 10 }}>
         <span>0%</span>
         <span>usage share of AI conversations →</span>
         <span>{fmtUsage(domain)}</span>

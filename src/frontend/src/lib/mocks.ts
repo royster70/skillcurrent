@@ -145,40 +145,42 @@ const driftSummary = {
 
 // Rich enough to preview the Rising Tide page: varied usage levels and paces
 // (fractions 0–1; velocity = usage-share change per model era).
+// `families` = SOC major-group display names the task appears in (representative;
+// the real backend join is a follow-on). Many-to-many — Office & Admin recurs.
 const driftDeparting = {
   tasks: [
-    { task_text: "Draft routine correspondence and standard reports", velocity: 0.021, r_squared: 0.91, latest_task_pct: 0.42, peak_task_pct: 0.44, classification: "departing", snapshot_count: 4 },
-    { task_text: "Summarise long documents into key points", velocity: 0.018, r_squared: 0.88, latest_task_pct: 0.38, peak_task_pct: 0.39, classification: "departing", snapshot_count: 4 },
-    { task_text: "Write boilerplate code from specifications", velocity: 0.024, r_squared: 0.94, latest_task_pct: 0.35, peak_task_pct: 0.35, classification: "departing", snapshot_count: 4 },
-    { task_text: "Translate documents between languages", velocity: 0.016, r_squared: 0.86, latest_task_pct: 0.31, peak_task_pct: 0.32, classification: "departing", snapshot_count: 4 },
-    { task_text: "Prepare meeting minutes and action summaries", velocity: 0.013, r_squared: 0.79, latest_task_pct: 0.27, peak_task_pct: 0.27, classification: "departing", snapshot_count: 4 },
-    { task_text: "Compile data into standard report formats", velocity: 0.011, r_squared: 0.74, latest_task_pct: 0.22, peak_task_pct: 0.23, classification: "departing", snapshot_count: 3 },
-    { task_text: "Answer routine customer enquiries in writing", velocity: 0.009, r_squared: 0.68, latest_task_pct: 0.17, peak_task_pct: 0.17, classification: "departing", snapshot_count: 4 },
-    { task_text: "Proofread and edit written material", velocity: 0.008, r_squared: 0.71, latest_task_pct: 0.14, peak_task_pct: 0.15, classification: "departing", snapshot_count: 3 },
-    { task_text: "Schedule appointments and coordinate calendars", velocity: 0.006, r_squared: 0.58, latest_task_pct: 0.09, peak_task_pct: 0.09, classification: "departing", snapshot_count: 4 },
-    { task_text: "Categorise and file digital records", velocity: 0.005, r_squared: 0.52, latest_task_pct: 0.06, peak_task_pct: 0.06, classification: "departing", snapshot_count: 3 },
+    { task_text: "Draft routine correspondence and standard reports", velocity: 0.021, r_squared: 0.91, latest_task_pct: 0.42, peak_task_pct: 0.44, classification: "departing", snapshot_count: 4, families: ["Office & Admin", "Business & Finance", "Legal"] },
+    { task_text: "Summarise long documents into key points", velocity: 0.018, r_squared: 0.88, latest_task_pct: 0.38, peak_task_pct: 0.39, classification: "departing", snapshot_count: 4, families: ["Legal", "Business & Finance", "Management"] },
+    { task_text: "Write boilerplate code from specifications", velocity: 0.024, r_squared: 0.94, latest_task_pct: 0.35, peak_task_pct: 0.35, classification: "departing", snapshot_count: 4, families: ["Computer & Mathematical"] },
+    { task_text: "Translate documents between languages", velocity: 0.016, r_squared: 0.86, latest_task_pct: 0.31, peak_task_pct: 0.32, classification: "departing", snapshot_count: 4, families: ["Media & Communications", "Office & Admin"] },
+    { task_text: "Prepare meeting minutes and action summaries", velocity: 0.013, r_squared: 0.79, latest_task_pct: 0.27, peak_task_pct: 0.27, classification: "departing", snapshot_count: 4, families: ["Office & Admin", "Management"] },
+    { task_text: "Compile data into standard report formats", velocity: 0.011, r_squared: 0.74, latest_task_pct: 0.22, peak_task_pct: 0.23, classification: "departing", snapshot_count: 3, families: ["Business & Finance", "Office & Admin"] },
+    { task_text: "Answer routine customer enquiries in writing", velocity: 0.009, r_squared: 0.68, latest_task_pct: 0.17, peak_task_pct: 0.17, classification: "departing", snapshot_count: 4, families: ["Office & Admin", "Sales"] },
+    { task_text: "Proofread and edit written material", velocity: 0.008, r_squared: 0.71, latest_task_pct: 0.14, peak_task_pct: 0.15, classification: "departing", snapshot_count: 3, families: ["Media & Communications", "Office & Admin"] },
+    { task_text: "Schedule appointments and coordinate calendars", velocity: 0.006, r_squared: 0.58, latest_task_pct: 0.09, peak_task_pct: 0.09, classification: "departing", snapshot_count: 4, families: ["Office & Admin"] },
+    { task_text: "Categorise and file digital records", velocity: 0.005, r_squared: 0.52, latest_task_pct: 0.06, peak_task_pct: 0.06, classification: "departing", snapshot_count: 3, families: ["Office & Admin"] },
   ],
   total: 10, page: 1, page_size: 15,
 };
 
 const driftBelowThreshold = {
   tasks: [
-    { task_text: "Reconcile monthly expense reports against receipts", velocity: 0.009, r_squared: 0.83, latest_task_pct: 0.46, peak_task_pct: 0.46, classification: "below_threshold", snapshot_count: 4 },
-    { task_text: "Generate first-draft marketing copy variants", velocity: 0.012, r_squared: 0.87, latest_task_pct: 0.44, peak_task_pct: 0.44, classification: "below_threshold", snapshot_count: 4 },
-    { task_text: "Produce standard client status updates", velocity: 0.007, r_squared: 0.66, latest_task_pct: 0.43, peak_task_pct: 0.45, classification: "below_threshold", snapshot_count: 4 },
-    { task_text: "Draft simple contracts from templates", velocity: 0.005, r_squared: 0.49, latest_task_pct: 0.41, peak_task_pct: 0.41, classification: "below_threshold", snapshot_count: 3 },
+    { task_text: "Reconcile monthly expense reports against receipts", velocity: 0.009, r_squared: 0.83, latest_task_pct: 0.46, peak_task_pct: 0.46, classification: "below_threshold", snapshot_count: 4, families: ["Business & Finance", "Office & Admin"] },
+    { task_text: "Generate first-draft marketing copy variants", velocity: 0.012, r_squared: 0.87, latest_task_pct: 0.44, peak_task_pct: 0.44, classification: "below_threshold", snapshot_count: 4, families: ["Media & Communications", "Sales"] },
+    { task_text: "Produce standard client status updates", velocity: 0.007, r_squared: 0.66, latest_task_pct: 0.43, peak_task_pct: 0.45, classification: "below_threshold", snapshot_count: 4, families: ["Business & Finance", "Management"] },
+    { task_text: "Draft simple contracts from templates", velocity: 0.005, r_squared: 0.49, latest_task_pct: 0.41, peak_task_pct: 0.41, classification: "below_threshold", snapshot_count: 3, families: ["Legal", "Business & Finance"] },
   ],
   total: 4, page: 1, page_size: 20,
 };
 
 const driftEnduring = {
   tasks: [
-    { task_text: "Resolve conflicts between team members", velocity: 0.0005, r_squared: 0.61, latest_task_pct: 0.08, peak_task_pct: 0.09, classification: "enduring", snapshot_count: 4 },
-    { task_text: "Conduct in-person client relationship building", velocity: 0.0002, r_squared: 0.55, latest_task_pct: 0.05, peak_task_pct: 0.05, classification: "enduring", snapshot_count: 4 },
-    { task_text: "Mentor and coach junior colleagues", velocity: -0.0003, r_squared: 0.48, latest_task_pct: 0.07, peak_task_pct: 0.08, classification: "enduring", snapshot_count: 4 },
-    { task_text: "Negotiate terms with suppliers and partners", velocity: 0.0008, r_squared: 0.42, latest_task_pct: 0.06, peak_task_pct: 0.06, classification: "enduring", snapshot_count: 4 },
-    { task_text: "Lead physical site inspections", velocity: -0.0001, r_squared: 0.39, latest_task_pct: 0.03, peak_task_pct: 0.04, classification: "enduring", snapshot_count: 3 },
-    { task_text: "Facilitate workshops and group decision-making", velocity: 0.0011, r_squared: 0.57, latest_task_pct: 0.12, peak_task_pct: 0.12, classification: "enduring", snapshot_count: 4 },
+    { task_text: "Resolve conflicts between team members", velocity: 0.0005, r_squared: 0.61, latest_task_pct: 0.08, peak_task_pct: 0.09, classification: "enduring", snapshot_count: 4, families: ["Management", "Office & Admin"] },
+    { task_text: "Conduct in-person client relationship building", velocity: 0.0002, r_squared: 0.55, latest_task_pct: 0.05, peak_task_pct: 0.05, classification: "enduring", snapshot_count: 4, families: ["Sales", "Management"] },
+    { task_text: "Mentor and coach junior colleagues", velocity: -0.0003, r_squared: 0.48, latest_task_pct: 0.07, peak_task_pct: 0.08, classification: "enduring", snapshot_count: 4, families: ["Management", "Education"] },
+    { task_text: "Negotiate terms with suppliers and partners", velocity: 0.0008, r_squared: 0.42, latest_task_pct: 0.06, peak_task_pct: 0.06, classification: "enduring", snapshot_count: 4, families: ["Business & Finance", "Management"] },
+    { task_text: "Lead physical site inspections", velocity: -0.0001, r_squared: 0.39, latest_task_pct: 0.03, peak_task_pct: 0.04, classification: "enduring", snapshot_count: 3, families: ["Construction & Trades", "Management"] },
+    { task_text: "Facilitate workshops and group decision-making", velocity: 0.0011, r_squared: 0.57, latest_task_pct: 0.12, peak_task_pct: 0.12, classification: "enduring", snapshot_count: 4, families: ["Management", "Education"] },
   ],
   total: 6, page: 1, page_size: 10,
 };

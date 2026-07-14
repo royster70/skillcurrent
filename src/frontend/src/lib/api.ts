@@ -167,6 +167,10 @@ export interface DriftTask {
   peak_task_pct: number | null;
   classification: string | null;
   snapshot_count: number | null;
+  // Job families (SOC major-group display names) this task appears in. Many-to-
+  // many. PLANNED backend field (AEI task → O*NET task → onet_soc → major group);
+  // representative in dev fixtures until the /drift join lands.
+  families?: string[] | null;
 }
 
 export interface DriftListResponse {
