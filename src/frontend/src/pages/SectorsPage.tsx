@@ -10,7 +10,7 @@ import { ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { CompanyLookup } from "../components/CompanyLookup";
 import { SectorChipSelector } from "../components/SectorChipSelector";
-import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
+import { ZoneLegend } from "../components/ZoneExplorer";
 import { RegionSelector } from "../components/RegionSelector";
 
 const t = THEME.light;
@@ -86,7 +86,7 @@ export function SectorsPage() {
       </div>
 
       {/* Zone explainer — collapsed by default */}
-      <ZoneExplainerPanel />
+      <ZoneLegend />
 
       {/* Metric cards — workers at risk */}
       <div style={{ display: "flex", gap: 16 }}>

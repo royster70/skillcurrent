@@ -5,14 +5,15 @@
  * exploration path the reader is considering. Reduced-motion aware throughout.
  */
 
-import { useState, type ReactNode, type CSSProperties } from "react";
-import { Link } from "react-router-dom";
+import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
+import { Link, useLocation } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
 import { CurrentFlow, BackgroundCurrent } from "../components/current/CurrentFlow";
+import { ZoneExplorer } from "../components/ZoneExplorer";
 import { useReveal } from "../components/current/useReveal";
-import { DUR, EASE } from "../components/current/motion";
+import { DUR, EASE, prefersReducedMotion } from "../components/current/motion";
 import { IconOccupations, IconAnchor, IconSources } from "../components/current/icons";
 import type { ComponentType, SVGProps } from "react";
 
@@ -159,6 +160,15 @@ export function LandingPage() {
   // Bearing convention (motion.ts): left option bends the current left, etc.
   const pathsBearing = hoveredPath === -1 ? 0 : (hoveredPath - 1) * 26;
 
+  // Hash deep-links (e.g. the data pages' "Learn to read the scale →") land
+  // scrolled to their section. Instant under prefers-reduced-motion.
+  const { hash } = useLocation();
+  useEffect(() => {
+    if (!hash) return;
+    const el = document.getElementById(hash.slice(1));
+    el?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+  }, [hash]);
+
   return (
     <div style={{ margin: -32, color: t.ink, fontFamily: TYPE.body }}>
       {/* ── Hero + narrative beats: ONE continuous current runs behind both,
@@ -226,7 +236,26 @@ export function LandingPage() {
         </div>
       </div>
 
-      {/* ── The live waterline chart (beat 4 lands here) ── */}
+      {/* ── READ THE SCALE: the interactive Beta instrument (design 7b) —
+          beat 4's "Read it" hands off into actually learning the scale,
+          before the measured chart. The one teaching home for Beta; data
+          pages' ZoneLegend links here. ── */}
+      <section id="read-the-scale" style={{ maxWidth: 900, margin: "0 auto", padding: "12px 32px 48px", scrollMarginTop: 24 }}>
+        <Reveal>
+          <Waypoint>READ THE SCALE</Waypoint>
+          <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px" }}>
+            The instrument: Beta
+          </h2>
+          <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 18 }}>
+            Every task gets one exposure reading — Beta, from the Eloundou 2024
+            research. Where it falls on the scale decides the zone: still dry,
+            at the line, or submerged. Drag the handle and try it.
+          </p>
+          <ZoneExplorer />
+        </Reveal>
+      </section>
+
+      {/* ── The live waterline chart ── */}
       <section style={{ maxWidth: 900, margin: "0 auto", padding: "24px 32px 60px" }}>
         <Reveal>
           <Waypoint>THE WATERLINE, TODAY</Waypoint>

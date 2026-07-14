@@ -5,7 +5,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, CLASSIFICATION_COLORS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
-import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
+import { ZoneLegend } from "../components/ZoneExplorer";
 import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
 import { InsightCallout } from "../components/InsightCallout";
@@ -143,7 +143,7 @@ export function SectorDetailPage() {
       )}
 
       {/* Zone explainer — collapsed by default */}
-      <ZoneExplainerPanel />
+      <ZoneLegend />
 
       {/* AU-only panels: Subdivision breakdown + Occupation mix + Insight */}
       {region === "AU" && code && (

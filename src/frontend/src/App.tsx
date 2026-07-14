@@ -3,6 +3,7 @@ import { Layout } from "./components/Layout";
 import { LandingPage } from "./pages/LandingPage";
 import { MethodologyPage } from "./pages/MethodologyPage";
 import { SourcesPage } from "./pages/SourcesPage";
+import { RunPage } from "./pages/RunPage";
 import { SectorsPage } from "./pages/SectorsPage";
 import { SectorDetailPage } from "./pages/SectorDetailPage";
 import { CompositeSectorPage } from "./pages/CompositeSectorPage";
@@ -18,6 +19,7 @@ function App() {
           <Route path="/" element={<LandingPage />} />
           <Route path="/methodology" element={<MethodologyPage />} />
           <Route path="/sources" element={<SourcesPage />} />
+          <Route path="/run" element={<RunPage />} />
           <Route path="/search" element={<SearchPage />} />
           <Route path="/sectors" element={<SectorsPage />} />
           <Route path="/sectors/composite" element={<CompositeSectorPage />} />

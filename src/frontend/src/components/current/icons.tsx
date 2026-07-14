@@ -110,6 +110,17 @@ export function IconTextLines(props: IconProps) {
   );
 }
 
+/** Terminal — prompt chevron + line: the "run this yourself" mark. */
+export function IconTerminal(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <rect x="3" y="4.5" width="16" height="13" rx="2" />
+      <path d="M6.5 9l2.5 2-2.5 2" />
+      <path d="M11 13.5h4" />
+    </svg>
+  );
+}
+
 /** Info — a plain circled "i", used for explainer/education toggles. */
 export function IconInfo(props: IconProps) {
   return (

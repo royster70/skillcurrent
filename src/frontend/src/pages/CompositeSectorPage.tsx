@@ -19,7 +19,7 @@ import {
 } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
-import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
+import { ZoneLegend } from "../components/ZoneExplorer";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
 import { InsightCallout } from "../components/InsightCallout";
 
@@ -199,7 +199,7 @@ function CompositeContent({
       </div>
 
       {/* Zone explainer — collapsed by default */}
-      <ZoneExplainerPanel />
+      <ZoneLegend />
 
       {/* AU-only: Subdivision breakdown by sector + Occupation mix */}
       {region === "AU" && data.subdivisions && (

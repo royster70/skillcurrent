@@ -4,16 +4,40 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { WaveUnderline } from "./current/CurrentFlow";
-import { IconWaterline, IconSectors, IconSearch, IconOccupations, IconDrift } from "./current/icons";
+import {
+  IconWaterline,
+  IconSectors,
+  IconSearch,
+  IconOccupations,
+  IconDrift,
+  IconAnchor,
+  IconSources,
+  IconTerminal,
+} from "./current/icons";
 
 const t = THEME.light;
 
-const navItems = [
-  { to: "/", label: "Waterline", Icon: IconWaterline },
-  { to: "/sectors", label: "Sectors", Icon: IconSectors },
-  { to: "/search", label: "Role Search", Icon: IconSearch },
-  { to: "/occupations", label: "Occupations", Icon: IconOccupations },
-  { to: "/drift", label: "Drift Analysis", Icon: IconDrift },
+// Two groups for the open-source audiences: EXPLORE = the data views;
+// UNDERSTAND = methodology + sources (primary destinations for researchers
+// and contributors — previously orphan pages reachable only from the landing).
+const NAV_GROUPS = [
+  {
+    label: "EXPLORE",
+    items: [
+      { to: "/", label: "Waterline", Icon: IconWaterline },
+      { to: "/sectors", label: "Sectors", Icon: IconSectors },
+      { to: "/search", label: "Role Search", Icon: IconSearch },
+      { to: "/occupations", label: "Occupations", Icon: IconOccupations },
+      { to: "/drift", label: "Drift Analysis", Icon: IconDrift },
+    ],
+  },
+  {
+    label: "UNDERSTAND",
+    items: [
+      { to: "/methodology", label: "How it works", Icon: IconAnchor },
+      { to: "/sources", label: "Data & sources", Icon: IconSources },
+    ],
+  },
 ];
 
 export function Layout() {
@@ -36,7 +60,8 @@ export function Layout() {
           padding: collapsed ? "22px 8px" : "22px 16px",
           gap: 3,
           transition: "all 0.2s ease",
-          overflow: "hidden",
+          overflowX: "hidden",
+          overflowY: "auto", // short viewports can still reach the lower nav + run strip
         }}
       >
         {/* Brand + collapse toggle */}
@@ -84,49 +109,81 @@ export function Layout() {
           </div>
         )}
 
-        {!collapsed && (
-          <div
-            style={{
-              fontSize: 10.5,
-              color: t.inkMuted,
-              fontWeight: 600,
-              letterSpacing: 1,
-              marginBottom: 6,
-            }}
-          >
-            INDUSTRY INTELLIGENCE
+        {NAV_GROUPS.map((group, gi) => (
+          <div key={group.label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
+            {!collapsed && (
+              <div
+                style={{
+                  fontSize: 10.5,
+                  color: t.inkMuted,
+                  fontWeight: 600,
+                  letterSpacing: 1,
+                  marginBottom: 6,
+                  marginTop: gi > 0 ? 18 : 0,
+                }}
+              >
+                {group.label}
+              </div>
+            )}
+            {collapsed && gi > 0 && (
+              <div style={{ borderTop: `1px solid ${t.line}`, margin: "10px 6px" }} />
+            )}
+            {group.items.map((item) => (
+              <NavLink
+                key={item.to}
+                to={item.to}
+                end={item.to === "/"}
+                title={collapsed ? item.label : undefined}
+                style={({ isActive }) => ({
+                  display: "flex",
+                  alignItems: "center",
+                  gap: 9,
+                  padding: collapsed ? "10px 0" : "8px 12px",
+                  borderRadius: 7,
+                  textDecoration: "none",
+                  fontSize: collapsed ? 19 : 14,
+                  fontWeight: isActive ? 600 : 500,
+                  backgroundColor: isActive ? BRASS_TINT : "transparent",
+                  color: isActive ? t.brass : t.inkMuted,
+                  justifyContent: collapsed ? "center" : "flex-start",
+                  transition: "all 0.15s ease",
+                })}
+              >
+                <item.Icon size={collapsed ? 19 : 17} style={{ flexShrink: 0 }} />
+                {!collapsed && item.label}
+              </NavLink>
+            ))}
           </div>
-        )}
-
-        {navItems.map((item) => (
-          <NavLink
-            key={item.to}
-            to={item.to}
-            end={item.to === "/"}
-            title={collapsed ? item.label : undefined}
-            style={({ isActive }) => ({
-              display: "flex",
-              alignItems: "center",
-              gap: 9,
-              padding: collapsed ? "10px 0" : "8px 12px",
-              borderRadius: 7,
-              textDecoration: "none",
-              fontSize: collapsed ? 19 : 14,
-              fontWeight: isActive ? 600 : 500,
-              backgroundColor: isActive ? BRASS_TINT : "transparent",
-              color: isActive ? t.brass : t.inkMuted,
-              justifyContent: collapsed ? "center" : "flex-start",
-              transition: "all 0.15s ease",
-            })}
-          >
-            <item.Icon size={collapsed ? 19 : 17} style={{ flexShrink: 0 }} />
-            {!collapsed && item.label}
-          </NavLink>
         ))}
+
+        {/* "Run this yourself" strip (design 8c) — the self-hoster entry point */}
+        <NavLink
+          to="/run"
+          title={collapsed ? "Run this yourself" : undefined}
+          style={({ isActive }) => ({
+            marginTop: "auto",
+            display: "flex",
+            alignItems: "center",
+            gap: 9,
+            padding: collapsed ? "10px 0" : "9px 12px",
+            borderRadius: 8,
+            border: `1px ${isActive ? "solid" : "dashed"} ${isActive ? t.brass : t.line}`,
+            backgroundColor: isActive ? BRASS_TINT : "transparent",
+            textDecoration: "none",
+            fontSize: 12.5,
+            fontWeight: 600,
+            color: isActive ? t.brass : t.inkMuted,
+            justifyContent: collapsed ? "center" : "flex-start",
+            transition: "all 0.15s ease",
+          })}
+        >
+          <IconTerminal size={collapsed ? 18 : 15} style={{ flexShrink: 0 }} />
+          {!collapsed && <span>Open by design — run this yourself</span>}
+        </NavLink>
 
         {/* Data vintage at bottom */}
         {!collapsed && (
-          <div style={{ marginTop: "auto", borderTop: `1px solid ${t.line}`, paddingTop: 16 }}>
+          <div style={{ borderTop: `1px solid ${t.line}`, paddingTop: 16, marginTop: 12 }}>
             <div
               style={{
                 fontSize: 10.5,
@@ -155,7 +212,7 @@ export function Layout() {
         )}
 
         {collapsed && datasets && (
-          <div style={{ marginTop: "auto", textAlign: "center" }}>
+          <div style={{ marginTop: 12, textAlign: "center" }}>
             <div
               style={{
                 fontSize: 10,
