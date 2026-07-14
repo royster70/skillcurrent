@@ -14,13 +14,13 @@
  * data is sparse (surface Uncharted as a first-class stat, don't hide it).
  */
 
-import { type ReactNode } from "react";
+import { useState, useEffect, type ReactNode } from "react";
 import { useApi } from "../hooks/useApi";
 import { api, type DriftTask } from "../lib/api";
 import { MOVEMENT_COLORS, MOVEMENT_LABELS, ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { useReveal } from "../components/current/useReveal";
-import { DUR, EASE } from "../components/current/motion";
+import { DUR, EASE, ensureMotionStyles } from "../components/current/motion";
 
 // Named `theme` (not `t`) — task-map callbacks below use `t` as their loop var.
 const theme = THEME.light;
@@ -76,27 +76,43 @@ function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }
   );
 }
 
-/** Stat tile — surface card, mono number (brief §8), quiet label. */
-function StatTile({ label, value, subtitle, color, alert }: {
+/** Stat tile — surface card, mono number (brief §8), quiet label. When given
+ * an onClick it doubles as the page's filter chip: click to focus the task
+ * list on that movement class, click again to return to all movers. */
+function StatTile({ label, value, subtitle, color, alert, active, onClick }: {
   label: string; value: string; subtitle: string; color: string; alert?: boolean;
+  active?: boolean; onClick?: () => void;
 }) {
+  const Tag = onClick ? "button" : "div";
   return (
-    <div style={{
-      flex: "1 1 160px", minWidth: 150, padding: "16px 18px", borderRadius: 12,
-      display: "flex", flexDirection: "column", gap: 4,
-      background: alert ? ZONE_BG.alert : theme.surface,
-      border: `1.5px solid ${alert ? `${ZONE_COLORS.alert}40` : theme.line}`,
-    }}>
-      <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1, color: theme.inkMuted, textTransform: "uppercase" }}>{label}</div>
+    <Tag
+      onClick={onClick}
+      aria-pressed={onClick ? active : undefined}
+      style={{
+        flex: "1 1 160px", minWidth: 150, padding: "16px 18px", borderRadius: 12,
+        display: "flex", flexDirection: "column", gap: 4, textAlign: "left",
+        background: alert ? ZONE_BG.alert : theme.surface,
+        border: `1.5px solid ${active ? theme.brass : alert ? `${ZONE_COLORS.alert}40` : theme.line}`,
+        boxShadow: active ? `0 0 0 1px ${theme.brass}` : "none",
+        cursor: onClick ? "pointer" : "default",
+        fontFamily: "inherit",
+        transition: `border-color ${DUR.hover}ms ${EASE}, box-shadow ${DUR.hover}ms ${EASE}`,
+      }}
+    >
+      <div style={{ fontSize: 10.5, fontWeight: 600, letterSpacing: 1, color: active ? theme.brass : theme.inkMuted, textTransform: "uppercase" }}>
+        {label}{onClick ? " ▾" : ""}
+      </div>
       <div style={{ fontFamily: TYPE.mono, fontSize: 30, fontWeight: 700, color, lineHeight: 1, fontVariantNumeric: "tabular-nums" }}>{value}</div>
       <div style={{ fontSize: 12, color: theme.inkMuted }}>{subtitle}</div>
-    </div>
+    </Tag>
   );
 }
 
 // ── The hero: tasks approaching the flip line, sorted by soonest-to-flip ──
 
-function ApproachRow({ task, domain, shown, index }: { task: DriftTask; domain: number; shown: boolean; index: number }) {
+function ApproachRow({ task, domain, shown, index, showPace }: {
+  task: DriftTask; domain: number; shown: boolean; index: number; showPace: boolean;
+}) {
   const u = usageOf(task);
   const v = Math.max(0, paceOf(task));
   const eta = erasToLine(task);
@@ -104,6 +120,9 @@ function ApproachRow({ task, domain, shown, index }: { task: DriftTask; domain: 
   const atLine = task.classification === "below_threshold";
   const uPct = (u / domain) * 100;
   const projPct = (Math.min(u + v, domain) / domain) * 100;
+  const fit = task.r_squared != null
+    ? `${confidenceWord(task.r_squared)} confidence · R² ${task.r_squared.toFixed(2)} across ${task.snapshot_count ?? "?"} eras`
+    : undefined;
   return (
     <div>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 4 }}>
@@ -115,10 +134,10 @@ function ApproachRow({ task, domain, shown, index }: { task: DriftTask; domain: 
             </span>
           )}
         </span>
-        <span style={{ fontFamily: TYPE.mono, fontSize: 11.5, color: theme.inkMuted, flexShrink: 0, textAlign: "right" }}>
+        <span title={fit} style={{ fontFamily: TYPE.mono, fontSize: 11.5, color: theme.inkMuted, flexShrink: 0, textAlign: "right" }}>
           <span style={{ color: theme.ink, fontWeight: 700 }}>{fmtUsage(u)}</span>
-          <span style={{ color: theme.current }}> {fmtPace(v)}</span>
-          {eta != null && eta > 0 && eta < 12 && (
+          {showPace && <span style={{ color: theme.current }}> {fmtPace(v)}</span>}
+          {showPace && eta != null && eta > 0 && eta < 12 && (
             <span style={{ display: "block", fontSize: 9.5 }}>≈{Math.max(1, Math.round(eta))} era{Math.round(eta) === 1 ? "" : "s"} to the line</span>
           )}
         </span>
@@ -132,43 +151,51 @@ function ApproachRow({ task, domain, shown, index }: { task: DriftTask; domain: 
           background: `${theme.current}55`, borderRadius: 6,
           transition: `width ${DUR.rise}ms ${EASE} ${index * 70}ms`,
         }} />
-        <div style={{
-          position: "absolute", top: 0, bottom: 0,
-          left: shown ? `${uPct}%` : "0%",
-          width: shown ? `${Math.max(projPct - uPct, 0.5)}%` : "0%",
-          background: theme.current, opacity: 0.9,
-          transition: `left ${DUR.rise}ms ${EASE} ${index * 70}ms, width ${DUR.rise}ms ${EASE} ${index * 70}ms`,
-        }} />
+        {showPace && (
+          <div style={{
+            position: "absolute", top: 0, bottom: 0,
+            left: shown ? `${uPct}%` : "0%",
+            width: shown ? `${Math.max(projPct - uPct, 0.5)}%` : "0%",
+            background: theme.current, opacity: 0.9,
+            transition: `left ${DUR.rise}ms ${EASE} ${index * 70}ms, width ${DUR.rise}ms ${EASE} ${index * 70}ms`,
+          }} />
+        )}
       </div>
     </div>
   );
 }
 
-function ApproachingTheLine({ tasks }: { tasks: DriftTask[] }) {
+function TideList({ tasks, title, blurb, showPace, alertTint, filterKey }: {
+  tasks: DriftTask[]; title: string; blurb: string; showPace: boolean; alertTint?: boolean; filterKey: string;
+}) {
   const { ref, shown } = useReveal(0.15);
-  if (tasks.length === 0) return null;
   const domain = Math.max(0.6, ...tasks.map((t) => usageOf(t) + Math.max(0, paceOf(t)) * 1.2));
   const linePct = (FLIP_THRESHOLD / domain) * 100;
   return (
-    <div ref={ref} style={{ background: theme.surface, borderRadius: 12, border: `1.5px solid ${theme.line}`, padding: 20 }}>
+    <div ref={ref} style={{
+      background: theme.surface, borderRadius: 12, padding: 20,
+      border: `1.5px solid ${alertTint ? `${ZONE_COLORS.alert}50` : theme.line}`,
+      transition: `border-color ${DUR.hover}ms ${EASE}`,
+    }}>
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, flexWrap: "wrap" }}>
         <div>
-          <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>Approaching the line</div>
-          <div style={{ fontSize: 12.5, color: theme.inkMuted, marginTop: 2, maxWidth: 520, lineHeight: 1.4 }}>
-            Each task's AI-usage share today, plus one more era at its current pace.
-            The brass line is where a task flips zones — sorted by who gets there first.
-          </div>
+          <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600, color: alertTint ? ZONE_COLORS.alert : theme.ink }}>{title}</div>
+          <div style={{ fontSize: 12.5, color: theme.inkMuted, marginTop: 2, maxWidth: 520, lineHeight: 1.4 }}>{blurb}</div>
         </div>
         <span style={{ fontFamily: TYPE.mono, fontSize: 10.5, color: theme.brass, whiteSpace: "nowrap" }}>
           ─ the line · {fmtUsage(FLIP_THRESHOLD)} usage
         </span>
       </div>
 
-      {/* Rows share one axis; the brass flip line runs through all of them */}
-      <div style={{ position: "relative", marginTop: 16 }}>
+      {/* Rows share one axis; the brass flip line runs through all of them.
+          Keyed by filter so switching plays the gentle fade-rise. */}
+      <div key={filterKey} style={{ position: "relative", marginTop: 16, animation: `sc-fade-rise ${DUR.bearing}ms ${EASE}` }}>
         <div style={{ display: "flex", flexDirection: "column", gap: 14 }}>
+          {tasks.length === 0 && (
+            <div style={{ fontSize: 12.5, color: theme.inkMuted, fontStyle: "italic" }}>No tasks in this view yet.</div>
+          )}
           {tasks.map((task, i) => (
-            <ApproachRow key={task.task_text} task={task} domain={domain} shown={shown} index={i} />
+            <ApproachRow key={task.task_text} task={task} domain={domain} shown={shown} index={i} showPace={showPace} />
           ))}
         </div>
         <div
@@ -187,11 +214,23 @@ function ApproachingTheLine({ tasks }: { tasks: DriftTask[] }) {
 
 // ── Page ──
 
+/** The view the task list is focused on: everything moving (default), or one
+ * movement class picked by clicking its stat tile. */
+type TideFilter = "movers" | "departing" | "below_threshold" | "enduring";
+
 export function TidePage() {
   const { data: summary, loading } = useApi(() => api.driftSummary(), []);
   const { data: departing } = useApi(() => api.driftDeparting(1, 15), []);
   const { data: belowThreshold } = useApi(() => api.driftBelowThreshold(), []);
   const { data: enduring } = useApi(() => api.driftEnduring(1, 10), []);
+  const [filter, setFilter] = useState<TideFilter>("movers");
+
+  useEffect(() => {
+    ensureMotionStyles(); // the list swap uses the shared sc-fade-rise keyframe
+  }, []);
+
+  // Clicking a tile focuses its class; clicking it again returns to all movers.
+  const toggle = (f: TideFilter) => setFilter((cur) => (cur === f ? "movers" : f));
 
   if (loading) {
     return (
@@ -211,24 +250,46 @@ export function TidePage() {
   const maxEras = allTasks.reduce((m, t) => Math.max(m, t.snapshot_count ?? 0), 0);
   const avgPaceRising = summary.avg_velocity_departing;
 
-  // Hero rows: at-the-waterline + rising tasks, deduped, sorted soonest-to-flip.
+  // All movers: at-the-waterline + rising tasks, deduped, sorted soonest-to-flip.
   const seen = new Set<string>();
-  const heroTasks = [...(belowThreshold?.tasks ?? []), ...(departing?.tasks ?? [])]
+  const movers = [...(belowThreshold?.tasks ?? []), ...(departing?.tasks ?? [])]
     .filter((t) => {
       if (seen.has(t.task_text) || paceOf(t) <= 0) return false;
       seen.add(t.task_text);
       return true;
     })
-    .sort((a, b) => {
-      const ea = erasToLine(a) ?? Infinity;
-      const eb = erasToLine(b) ?? Infinity;
-      return ea - eb;
-    })
+    .sort((a, b) => (erasToLine(a) ?? Infinity) - (erasToLine(b) ?? Infinity))
     .slice(0, 12);
 
-  const fastestRising = [...(departing?.tasks ?? [])]
-    .sort((a, b) => paceOf(b) - paceOf(a))
-    .slice(0, 8);
+  // One list, four lenses — the stat tiles are the navigation.
+  const VIEWS: Record<TideFilter, { tasks: DriftTask[]; title: string; blurb: string; showPace: boolean; alertTint?: boolean }> = {
+    movers: {
+      tasks: movers,
+      title: "Approaching the line",
+      blurb: "Usage today plus one more era at the current pace — sorted by who reaches the brass line first.",
+      showPace: true,
+    },
+    departing: {
+      tasks: [...(departing?.tasks ?? [])].sort((a, b) => paceOf(b) - paceOf(a)).slice(0, 12),
+      title: MOVEMENT_LABELS.departing,
+      blurb: "Sorted by pace — the fastest climbers first.",
+      showPace: true,
+    },
+    below_threshold: {
+      tasks: [...(belowThreshold?.tasks ?? [])].sort((a, b) => (erasToLine(a) ?? Infinity) - (erasToLine(b) ?? Infinity)),
+      title: MOVEMENT_LABELS.below_threshold,
+      blurb: "Just below the line with usage still rising — the first to flip. A forecast, not an alarm.",
+      showPace: true,
+      alertTint: true,
+    },
+    enduring: {
+      tasks: [...(enduring?.tasks ?? [])].sort((a, b) => usageOf(b) - usageOf(a)).slice(0, 12),
+      title: MOVEMENT_LABELS.enduring,
+      blurb: "The still water — AI usage of these tasks isn't moving era over era.",
+      showPace: false,
+    },
+  };
+  const view = VIEWS[filter];
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: TYPE.body, color: theme.ink }}>
@@ -243,14 +304,17 @@ export function TidePage() {
 
       <ZoneLegend />
 
-      {/* Stat row */}
+      {/* Stat row — the tiles ARE the navigation: click one to focus the list */}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
         <StatTile label={MOVEMENT_LABELS.departing} value={summary.departing.toLocaleString()}
-          subtitle="AI usage rising era over era" color={MOVEMENT_COLORS.departing} />
+          subtitle="AI usage rising era over era" color={MOVEMENT_COLORS.departing}
+          active={filter === "departing"} onClick={() => toggle("departing")} />
         <StatTile label={MOVEMENT_LABELS.enduring} value={summary.enduring.toLocaleString()}
-          subtitle="usage stable or declining" color={MOVEMENT_COLORS.enduring} />
+          subtitle="usage stable or declining" color={MOVEMENT_COLORS.enduring}
+          active={filter === "enduring"} onClick={() => toggle("enduring")} />
         <StatTile label={MOVEMENT_LABELS.below_threshold} value={summary.below_threshold.toLocaleString()}
-          subtitle="the next tasks to flip zones" color={MOVEMENT_COLORS.below_threshold} alert />
+          subtitle="the next tasks to flip zones" color={MOVEMENT_COLORS.below_threshold} alert
+          active={filter === "below_threshold"} onClick={() => toggle("below_threshold")} />
         {avgPaceRising != null && (
           <StatTile label="Average pace, rising" value={fmtPace(avgPaceRising)}
             subtitle="typical climb per model era" color={theme.brass} />
@@ -265,88 +329,18 @@ export function TidePage() {
         </div>
       )}
 
-      {/* Hero */}
+      {/* ONE list, four lenses — filtered by the tiles above */}
       <Reveal>
         <Waypoint>WHAT THE TIDE REACHES NEXT</Waypoint>
-        <ApproachingTheLine tasks={heroTasks} />
+        <TideList
+          filterKey={filter}
+          tasks={view.tasks}
+          title={view.title}
+          blurb={view.blurb}
+          showPace={view.showPace}
+          alertTint={view.alertTint}
+        />
       </Reveal>
-
-      {/* At the waterline strip */}
-      {belowThreshold && belowThreshold.tasks.length > 0 && (
-        <Reveal>
-          <div style={{ background: ZONE_BG.alert, borderRadius: 12, border: `1.5px solid ${ZONE_COLORS.alert}40`, padding: 20 }}>
-            <div style={{ fontFamily: TYPE.display, fontSize: 16, fontWeight: 600, color: ZONE_COLORS.alert, marginBottom: 6 }}>
-              {MOVEMENT_LABELS.below_threshold}
-            </div>
-            <p style={{ fontSize: 13, color: theme.inkMuted, margin: "0 0 14px", lineHeight: 1.5 }}>
-              These tasks sit just below the line with usage still rising — the first
-              to flip zones as the tide comes in. A forecast, not an alarm: use the
-              lead time.
-            </p>
-            <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-              {belowThreshold.tasks.map((t) => (
-                <div key={t.task_text} style={{
-                  background: theme.surface, borderRadius: 8, padding: "10px 14px",
-                  border: `1px solid ${ZONE_COLORS.alert}30`,
-                  display: "flex", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap",
-                }}>
-                  <span style={{ flex: 1, fontSize: 13, fontWeight: 500, minWidth: 180 }}>{t.task_text}</span>
-                  <span style={{ fontFamily: TYPE.mono, fontSize: 12, color: theme.inkMuted, flexShrink: 0 }}>
-                    <span style={{ color: theme.ink, fontWeight: 700 }}>{fmtUsage(usageOf(t))}</span>
-                    {" · "}
-                    <span style={{ color: theme.current }}>{fmtPace(paceOf(t))}</span>
-                    {" · "}
-                    <span title={t.r_squared != null ? `R² ${t.r_squared.toFixed(2)} across ${t.snapshot_count ?? "?"} eras` : undefined}>
-                      {confidenceWord(t.r_squared)} confidence
-                    </span>
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-      )}
-
-      {/* Two-column close: the movers | the still water */}
-      <div style={{ display: "flex", gap: 16, flexWrap: "wrap" }}>
-        <Reveal>
-          <div style={{ flex: "1 1 340px", minWidth: 300 }}>
-            <Waypoint>FASTEST RISING</Waypoint>
-            <div style={{ background: theme.surface, borderRadius: 12, border: `1.5px solid ${theme.line}`, padding: 18, display: "flex", flexDirection: "column", gap: 9 }}>
-              {fastestRising.map((t) => (
-                <div key={t.task_text} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, borderBottom: `1px solid ${theme.line}`, paddingBottom: 8 }}>
-                  <span style={{ fontSize: 12.5, lineHeight: 1.3, minWidth: 0 }}>{t.task_text}</span>
-                  <span
-                    title={t.r_squared != null ? `usage ${fmtUsage(usageOf(t))} · R² ${t.r_squared.toFixed(2)}` : undefined}
-                    style={{ fontFamily: TYPE.mono, fontSize: 12, fontWeight: 700, color: theme.current, whiteSpace: "nowrap", flexShrink: 0 }}
-                  >
-                    {fmtPace(paceOf(t))}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-        <Reveal delay={80}>
-          <div style={{ flex: "1 1 340px", minWidth: 300 }}>
-            <Waypoint>HOLDING FAST</Waypoint>
-            <div style={{ background: theme.surface, borderRadius: 12, border: `1.5px solid ${theme.line}`, padding: 18, display: "flex", flexDirection: "column", gap: 9 }}>
-              <div style={{ fontSize: 12, color: theme.inkMuted, lineHeight: 1.5, marginBottom: 2 }}>
-                The still water — tasks whose AI usage isn't moving. The calm counterpoint
-                to the movers on the left.
-              </div>
-              {(enduring?.tasks ?? []).slice(0, 8).map((t) => (
-                <div key={t.task_text} style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, borderBottom: `1px solid ${theme.line}`, paddingBottom: 8 }}>
-                  <span style={{ fontSize: 12.5, lineHeight: 1.3, minWidth: 0 }}>{t.task_text}</span>
-                  <span style={{ fontFamily: TYPE.mono, fontSize: 12, fontWeight: 600, color: theme.ink, whiteSpace: "nowrap", flexShrink: 0 }}>
-                    {fmtUsage(usageOf(t))}
-                  </span>
-                </div>
-              ))}
-            </div>
-          </div>
-        </Reveal>
-      </div>
 
       {/* Honesty footer */}
       <div style={{ fontSize: 11, color: theme.inkMuted, fontStyle: "italic", textAlign: "center" }}>
