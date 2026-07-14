@@ -29,10 +29,13 @@ are the product:
    sits *now* and where it's heading);
 3. **an electrical current** — a live, driving force.
 
-Crucially, a current is something you **read and harness**, not a flood you flee
-— that is the positive reframe. AI is the water; **human skills are the
-elevation** that keeps work above the rising line (the matrix Y-axis /
-`asc_core_competency`). The brand leads with the high ground, not the deluge.
+Crucially, a current is something you **read and navigate**, not a flood you flee
+— that is the positive reframe, and **navigation is where human agency lives.**
+SkillCurrent is the instrument you navigate the currents *with*: you can't stop
+the water, but you can read it, set a course, and reach higher ground. AI is the
+water; **human skills are the elevation** that keeps work above the rising line
+(the matrix Y-axis / `asc_core_competency`). The brand leads with the navigator
+and the high ground — never the deluge.
 
 ## 3. Audiences
 
@@ -60,9 +63,11 @@ and copy:
 
 - **Wordmark:** `SkillCurrent` — one word, camelCase, capital S + C. Never
   "Skill Current", "Skillcurrent", or "SC" in prose.
-- **Taglines** (lead + alternates):
-  - *Open intelligence for the changing world of work.* (primary)
-  - *Read the current. Choose your course.*
+- **Tagline — CONFIRMED (2026-07-14):** *Open intelligence for the changing world
+  of work.* Sentence case. "Open" carries double weight — open-source **and**
+  open/accessible. Documented alternates / sub-heads (swap freely):
+  - *Open intelligence for navigating the changing world of work.* (navigation-forward)
+  - *Read the current. Set your course.*
   - *See what's coming — and what to learn next.*
 - **Voice & tone — "Warm Instrument":**
   - Rigorous, plain, quietly confident; numbers are tabular and exact.
@@ -83,6 +88,10 @@ and copy:
 - **Rules:** clear space = cap-height around the mark; monochrome fallback
   (ink on ground) must hold; never stretch, re-hue, or add a gradient to the
   mark; favicon = the streamline glyph alone (one or two strokes).
+- **Logo status — DEFERRED (2026-07-14):** a commissioned logo comes later.
+  Until then the identity is a **typographic** wordmark (Georgia; the flow
+  flourish optional) with a simple streamline favicon. The brief stays
+  logo-agnostic — do not block any build on a final mark.
 
 ## 7. Colour — adopt the Warm Instrument palette
 
@@ -128,6 +137,9 @@ E0 < 0.40; median tick 0.27.
   is off by default (ADR-011). Until GDPval capability scores exist, scrubber
   motion is labelled **usage share** ("attention rising"), never "automation
   increasing."
+- **Navigation, not spectacle:** motion serves *wayfinding* — the era scrubber,
+  region toggle, and matrix are how a user **navigates the currents** (sets a
+  course, compares eras, finds higher ground), never an autoplaying show.
 - **Fallback:** everything has a reduced-motion / no-JS state (era filmstrip) —
   motion is enhancement, never the only way to read the data.
 
@@ -165,14 +177,16 @@ docs headers · the "Run this yourself" footer strip.
 | Motion = the data (with reduced-motion fallback) | Decorative animation |
 | "usage" vs "capability" precisely | Blur measured and modelled |
 
-## Open decisions (for Roy)
+## Resolved decisions (2026-07-14)
 
-1. **Primary tagline** — confirm "Open intelligence for the changing world of
-   work" vs an alternate.
-2. **Wordmark flourish** — streamline underscore vs wave ligature vs standalone
-   mark (or commission a real logo later; brief is logo-agnostic until then).
-3. **Whether the water stays literal** in the UI, or the visuals lean drier
-   (contours/terrain) while "Current" carries the flow in name + motion only.
+1. ✅ **Primary tagline** — *Open intelligence for the changing world of work.*
+   (sentence case; a navigation-forward variant is kept as an alternate — §5).
+2. ⏳ **Logo / wordmark** — **deferred**: commission a real logo later; a
+   typographic wordmark + streamline favicon serve in the interim (§6). The only
+   still-open item, and it blocks nothing.
+3. ✅ **Water stays literal** — keep water + motion in the UI; the metaphor is
+   **"currents you navigate"** — human agency via wayfinding (§2, §9). Not the
+   drier terrain-only route.
 
 ## Related
 - `tier1-waterline-explorer-brief.md` — the explorer design brief
