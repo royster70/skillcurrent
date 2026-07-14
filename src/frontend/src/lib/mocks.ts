@@ -166,6 +166,202 @@ const driftEnduring = {
   total: 2, page: 1, page_size: 10,
 };
 
+// ── Occupations: hierarchy + per-SOC detail/matrix (the Task Waterline) ──
+
+const MODEL_ERAS = ["GPT-3.5", "GPT-4", "Claude 3.5", "Claude 4"];
+
+// One occupation's tasks, curated to span the whole Beta scale so the waterline
+// reads at a glance: code/paperwork sinks (E2), analysis is at the surface (E1),
+// people-work stays dry (E0). `beta` is the real per-task exposure; `trend` seeds
+// the era snapshots (rising = the current moving into the task).
+interface TaskSeed {
+  text: string;
+  beta: number; // 0–1.5 exposure
+  importance: number; // 1–5 human/role value
+  trend: "rising" | "steady" | "falling";
+  drift: "departing" | "enduring" | "below_threshold" | null;
+}
+
+const SOFTWARE_DEVELOPER_TASKS: TaskSeed[] = [
+  { text: "Write, update, and maintain application code from specifications", beta: 0.94, importance: 4.6, trend: "rising", drift: "departing" },
+  { text: "Modify existing software to correct errors or improve performance", beta: 0.9, importance: 4.2, trend: "rising", drift: "departing" },
+  { text: "Generate unit tests and boilerplate scaffolding", beta: 0.88, importance: 3.1, trend: "rising", drift: "departing" },
+  { text: "Write technical documentation for programs and APIs", beta: 0.81, importance: 3.4, trend: "rising", drift: "departing" },
+  { text: "Develop and direct software validation and testing procedures", beta: 0.66, importance: 4.1, trend: "steady", drift: "enduring" },
+  { text: "Analyze user needs and translate them into software requirements", beta: 0.55, importance: 4.7, trend: "steady", drift: "enduring" },
+  { text: "Design the architecture and data model for new applications", beta: 0.5, importance: 4.9, trend: "steady", drift: "enduring" },
+  { text: "Review colleagues' code and enforce engineering standards", beta: 0.41, importance: 4.3, trend: "rising", drift: "below_threshold" },
+  { text: "Coordinate release planning with product and stakeholders", beta: 0.3, importance: 4.0, trend: "steady", drift: "enduring" },
+  { text: "Mentor junior developers and grow the team's skills", beta: 0.22, importance: 4.4, trend: "steady", drift: "enduring" },
+  { text: "Present technical trade-offs to non-technical leadership", beta: 0.17, importance: 4.2, trend: "steady", drift: "enduring" },
+];
+
+// A neutral fallback set for any occupation that isn't specifically curated —
+// still spans the scale so every occupation renders a legible waterline.
+const GENERIC_TASKS: TaskSeed[] = [
+  { text: "Compile and format routine reports and records", beta: 0.89, importance: 3.2, trend: "rising", drift: "departing" },
+  { text: "Enter and reconcile data across systems", beta: 0.83, importance: 3.0, trend: "rising", drift: "departing" },
+  { text: "Draft standard correspondence and summaries", beta: 0.72, importance: 3.3, trend: "rising", drift: "departing" },
+  { text: "Analyze information to inform recommendations", beta: 0.54, importance: 4.2, trend: "steady", drift: "enduring" },
+  { text: "Plan and schedule the sequence of work", beta: 0.43, importance: 3.9, trend: "steady", drift: "enduring" },
+  { text: "Coordinate with colleagues and external partners", beta: 0.28, importance: 4.1, trend: "steady", drift: "enduring" },
+  { text: "Resolve disputes and negotiate outcomes", beta: 0.16, importance: 4.3, trend: "steady", drift: "enduring" },
+];
+
+const CURATED_TASKS: Record<string, TaskSeed[]> = {
+  "15-1252.00": SOFTWARE_DEVELOPER_TASKS,
+};
+
+// Real titles for every occupation reachable from the hierarchy fixture, so the
+// detail header matches the sidebar even for the generic-task fallback roles.
+const OCC_TITLES: Record<string, string> = {
+  "15-1252.00": "Software Developers",
+  "15-1211.00": "Computer Systems Analysts",
+  "15-2051.00": "Data Scientists",
+  "29-1141.00": "Registered Nurses",
+  "29-1215.00": "Family Medicine Physicians",
+  "43-3031.00": "Bookkeeping & Accounting Clerks",
+  "43-4051.00": "Customer Service Representatives",
+};
+
+function eraSnapshots(seed: TaskSeed) {
+  // Latest usage rises with exposure; the trend shapes the slope across eras.
+  const latest = Math.min(seed.beta * 0.6, 0.9);
+  const slope = seed.trend === "rising" ? 0.7 : seed.trend === "falling" ? -0.4 : 0.05;
+  const auto = Math.min(seed.beta, 1);
+  return MODEL_ERAS.map((era, i) => {
+    const frac = i / (MODEL_ERAS.length - 1);
+    const start = latest * (1 - slope);
+    const pct = Math.max(0, start + (latest - start) * frac);
+    return {
+      model_era: era,
+      task_pct: Number(pct.toFixed(3)),
+      automation_potential: auto,
+      automation_pct: Number((auto * 0.6).toFixed(2)),
+      augmentation_pct: Number((auto * 0.4).toFixed(2)),
+    };
+  });
+}
+
+function quadrantOf(beta: number, importance: number): string {
+  const highExposure = beta >= 0.4;
+  const highValue = importance >= 3.5;
+  if (highValue && !highExposure) return "insulated";
+  if (highValue && highExposure) return "augmented";
+  if (!highValue && highExposure) return "disrupted";
+  return "routine";
+}
+
+function occMatrix(soc: string) {
+  const seeds = CURATED_TASKS[soc] ?? GENERIC_TASKS;
+  const tasks = seeds.map((s, i) => ({
+    task_id: i + 1,
+    task_text: s.text,
+    importance: s.importance,
+    automation_potential: Math.min(s.beta, 1),
+    eloundou_dwa_beta: s.beta,
+    drift_velocity: s.trend === "rising" ? 0.018 : s.trend === "falling" ? -0.01 : 0.001,
+    drift_classification: s.drift,
+    aei_penetration: Math.min(s.beta * 0.5, 0.9),
+    quadrant: quadrantOf(s.beta, s.importance),
+    era_snapshots: eraSnapshots(s),
+  }));
+  const quadrant_counts: Record<string, number> = { insulated: 0, augmented: 0, disrupted: 0, routine: 0 };
+  tasks.forEach((t) => { quadrant_counts[t.quadrant] += 1; });
+  return {
+    soc_code: soc,
+    occupation_title: OCC_TITLES[soc] ?? "Occupation",
+    tasks,
+    total_tasks: tasks.length,
+    quadrant_counts,
+    available_eras: MODEL_ERAS,
+    gdpval_benchmark_count: soc === "15-1252.00" ? 4 : 0,
+  };
+}
+
+function occDetail(soc: string) {
+  const isDev = soc === "15-1252.00";
+  return {
+    soc_code: soc,
+    title: OCC_TITLES[soc] ?? "Occupation",
+    description: isDev
+      ? "Research, design, and develop computer and network software or specialized utility programs."
+      : null,
+    major_group: soc.substring(0, 2) + "-0000",
+    eloundou_beta_gpt4: isDev ? 0.61 : 0.5,
+    eloundou_beta_human: isDev ? 0.58 : 0.48,
+    ms_ai_applicability: isDev ? 0.38 : 0.3,
+    aei_exposure: isDev ? 0.29 : 0.22,
+    dominant_zone: "E1",
+    total_employment: isDev ? 1_580_000 : 240_000,
+    top_sectors: [
+      { naics_code: "51", naics_title: "Information", headcount: 520_000, employment_share: 0.33 },
+      { naics_code: "54", naics_title: "Professional & Technical Services", headcount: 610_000, employment_share: 0.39 },
+      { naics_code: "52", naics_title: "Finance & Insurance", headcount: 190_000, employment_share: 0.12 },
+    ],
+    drift_velocity: 0.006,
+    drift_classification: "enduring",
+    eloundou_percentile: 72,
+    ms_ai_percentile: 64,
+    aei_percentile: 58,
+    eloundou_median: 0.27,
+    ms_ai_median: 0.19,
+    aei_median: 0.14,
+    eloundou_population: 923,
+    ms_ai_population: 785,
+    aei_population: 756,
+    aei_era_snapshots: MODEL_ERAS.map((era, i) => ({
+      model_era: era,
+      avg_task_pct: Number((0.05 + i * 0.04).toFixed(3)),
+      task_count: 11,
+    })),
+    gdpval_task_count: isDev ? 4 : 0,
+    gdpval_available: isDev,
+  };
+}
+
+const hierarchy = {
+  total_major_groups: 3,
+  total_occupations: 1016,
+  hierarchy: [
+    {
+      code: "15-0000", title: "Computer & Mathematical", level: "major",
+      occupation_count: 3, avg_eloundou_beta: 0.58, total_employment: 4_900_000,
+      children: [
+        { code: "15-1252.00", title: "Software Developers", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.61, total_employment: 1_580_000 },
+        { code: "15-1211.00", title: "Computer Systems Analysts", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.55, total_employment: 520_000 },
+        { code: "15-2051.00", title: "Data Scientists", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.6, total_employment: 200_000 },
+      ],
+    },
+    {
+      code: "29-0000", title: "Healthcare Practitioners", level: "major",
+      occupation_count: 2, avg_eloundou_beta: 0.31, total_employment: 9_200_000,
+      children: [
+        { code: "29-1141.00", title: "Registered Nurses", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.33, total_employment: 3_170_000 },
+        { code: "29-1215.00", title: "Family Medicine Physicians", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.29, total_employment: 120_000 },
+      ],
+    },
+    {
+      code: "43-0000", title: "Office & Administrative Support", level: "major",
+      occupation_count: 2, avg_eloundou_beta: 0.64, total_employment: 18_600_000,
+      children: [
+        { code: "43-3031.00", title: "Bookkeeping & Accounting Clerks", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.7, total_employment: 1_620_000 },
+        { code: "43-4051.00", title: "Customer Service Representatives", level: "detailed", children: [], occupation_count: 0, avg_eloundou_beta: 0.62, total_employment: 2_890_000 },
+      ],
+    },
+  ],
+};
+
+const gdpvalSummary = {
+  total_tasks: 220,
+  total_occupations: 44,
+  total_rubric_items: 10453,
+  sectors: ["Information", "Professional & Technical Services", "Finance & Insurance"],
+  occupations: [
+    { soc_code: "15-1252.00", title: "Software Developers", sector: "Information", task_count: 4 },
+  ],
+};
+
 // ── Router: base path → fixture. Most fixtures ignore the query string; a few
 // (region-sensitive endpoints) read it — see the special cases below. ──
 
@@ -176,6 +372,8 @@ const TABLE: Record<string, unknown> = {
   "/drift/departing": driftDeparting,
   "/drift/below-threshold": driftBelowThreshold,
   "/drift/enduring": driftEnduring,
+  "/occupations/hierarchy": hierarchy,
+  "/gdpval/summary": gdpvalSummary,
 };
 
 export function mockResponse(path: string): unknown | undefined {
@@ -189,6 +387,13 @@ export function mockResponse(path: string): unknown | undefined {
     const region = new URLSearchParams(query).get("region");
     return region === "AU" ? sectorsAU : sectorsUS;
   }
+
+  // Per-SOC occupation routes (checked before the static TABLE catches the
+  // literal /occupations/hierarchy above). Matrix must match before detail.
+  const matrixMatch = base.match(/^\/occupations\/([^/]+)\/matrix$/);
+  if (matrixMatch) return occMatrix(matrixMatch[1]);
+  const detailMatch = base.match(/^\/occupations\/([^/]+)$/);
+  if (detailMatch && detailMatch[1] !== "hierarchy") return occDetail(detailMatch[1]);
 
   return TABLE[base];
 }

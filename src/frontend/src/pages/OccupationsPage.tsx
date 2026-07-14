@@ -3,8 +3,8 @@ import { useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type GDPvalTaskDetail } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, CLASSIFICATION_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
-import { TaskMatrix, DOT_COLORS, TaskSparkline } from "../components/TaskMatrix";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { TaskWaterline } from "../components/TaskMatrix";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { GDPvalBenchmarkPanel } from "../components/GDPvalBenchmarkPanel";
 import { AEITaskDetailPanel } from "../components/AEITaskDetailPanel";
@@ -158,7 +158,6 @@ export function OccupationsPage() {
 function OccupationDetailPanel({ soc }: { soc: string }) {
   const { data: occ, loading } = useApi(() => api.occupation(soc), [soc]);
   const { data: matrixData } = useApi(() => api.taskMatrix(soc), [soc]);
-  const [highlightedTask, setHighlightedTask] = useState<number | null>(null);
   const [gdpvalExpanded, setGdpvalExpanded] = useState(false);
   const [aeiExpanded, setAeiExpanded] = useState(false);
   const [gdpvalTasks, setGdpvalTasks] = useState<GDPvalTaskDetail[] | null>(null);
@@ -260,89 +259,13 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
         />
       )}
 
-      {/* HERO: Task Positioning Matrix */}
+      {/* HERO: Task Waterline — every task on the shared exposure scale */}
       {matrixData && (
-        <TaskMatrix
+        <TaskWaterline
           data={matrixData}
-          highlightedTaskId={highlightedTask}
           gdpvalTasks={gdpvalTasks}
           onRequestGdpval={loadGdpvalTasks}
         />
-      )}
-
-      {/* Task list — interactive, highlights on matrix */}
-      {matrixData && matrixData.tasks.length > 0 && (
-        <div style={{ background: theme.surface, borderRadius: 12, border: `1.5px solid ${theme.line}`, overflow: "hidden" }}>
-          <div style={{ padding: "12px 16px", borderBottom: `1px solid ${theme.line}`, display: "flex", justifyContent: "space-between", alignItems: "center" }}>
-            <div style={{ fontSize: 14, fontWeight: 600 }}>
-              Tasks ({matrixData.total_tasks})
-            </div>
-            <div style={{ display: "flex", gap: 8 }}>
-              {Object.entries(matrixData.quadrant_counts).filter(([, v]) => v > 0).map(([q, count]) => (
-                <span key={q} style={{
-                  fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
-                  color: DOT_COLORS[q] || theme.inkMuted,
-                  backgroundColor: (DOT_COLORS[q] || theme.inkMuted) + "15",
-                }}>
-                  {q}: {count}
-                </span>
-              ))}
-            </div>
-          </div>
-          <div style={{ maxHeight: 350, overflow: "auto" }}>
-            {matrixData.tasks.map((t) => {
-              const isHighlighted = highlightedTask === t.task_id;
-              const qColor = DOT_COLORS[t.quadrant || "routine"];
-              return (
-                <div
-                  key={t.task_id}
-                  onMouseEnter={() => setHighlightedTask(t.task_id)}
-                  onMouseLeave={() => setHighlightedTask(null)}
-                  onClick={() => setHighlightedTask(isHighlighted ? null : t.task_id)}
-                  style={{
-                    padding: "8px 16px", cursor: "pointer",
-                    borderBottom: `1px solid ${theme.line}`,
-                    backgroundColor: isHighlighted ? `${qColor}10` : "transparent",
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                    transition: "background-color 0.15s",
-                  }}
-                >
-                  <div style={{ flex: 1, display: "flex", alignItems: "center", gap: 8 }}>
-                    <div style={{
-                      width: 8, height: 8, borderRadius: 4, flexShrink: 0,
-                      backgroundColor: qColor,
-                    }} />
-                    <div style={{ fontSize: 12, fontWeight: isHighlighted ? 600 : 400, lineHeight: 1.4 }}>
-                      {t.task_text}
-                    </div>
-                  </div>
-                  <div style={{ display: "flex", gap: 12, flexShrink: 0, marginLeft: 12, alignItems: "center" }}>
-                    {t.importance != null && (
-                      <span style={{ fontSize: 10, color: theme.inkMuted }}>
-                        imp: {t.importance.toFixed(1)}
-                      </span>
-                    )}
-                    {t.automation_potential != null && (
-                      <span style={{ fontSize: 10, color: theme.inkMuted }}>
-                        auto: {(t.automation_potential * 100).toFixed(0)}%
-                      </span>
-                    )}
-                    <TaskSparkline task={t} />
-                    {t.drift_classification && (
-                      <span style={{
-                        fontSize: 9, padding: "1px 6px", borderRadius: 4, fontWeight: 600,
-                        color: CLASSIFICATION_COLORS[t.drift_classification as keyof typeof CLASSIFICATION_COLORS] || theme.inkMuted,
-                        backgroundColor: (CLASSIFICATION_COLORS[t.drift_classification as keyof typeof CLASSIFICATION_COLORS] || theme.inkMuted) + "15",
-                      }}>
-                        {t.drift_classification}
-                      </span>
-                    )}
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
       )}
 
       {/* Description (if available) */}
