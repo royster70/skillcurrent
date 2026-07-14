@@ -39,16 +39,16 @@ export const BRASS_TINT = "rgba(156, 100, 20, 0.10)";
 
 // ── Exposure zones (Warm Instrument). Fixed meaning — never decorative. ──
 export const ZONE_COLORS = {
-  E0: "#b06a1a", // insulated — above the waterline
-  E1: "#146f9e", // augmented — at the waterline
-  E2: "#0d8f6e", // automated — submerged
+  E0: "#b06a1a", // insulated — above the waterline (warm amber)
+  E1: "#1663ab", // augmented — at the waterline (clear blue)
+  E2: "#2c9a5f", // automated — submerged (clear green; widened from teal so E1≠E2)
   alert: "#b23b3b", // below threshold
 } as const;
 
 export const ZONE_COLORS_DARK = {
   E0: "#b5793a",
-  E1: "#3f8fc2",
-  E2: "#3fa98d",
+  E1: "#4b93cc",
+  E2: "#52b078",
   alert: "#cf5a5a",
 } as const;
 
@@ -61,8 +61,8 @@ export const ZONE_LABELS = {
 // Soft zone backgrounds (light) — warm-instrument tints of the zone hues.
 export const ZONE_BG = {
   E0: "#f6efe6",
-  E1: "#e8f1f6",
-  E2: "#e6f2ee",
+  E1: "#e1ecf8", // clearer blue tint
+  E2: "#ddf1e2", // clearer green tint (widened from teal so the E1/E2 bands read apart)
   alert: "#f6e9e9",
 } as const;
 
