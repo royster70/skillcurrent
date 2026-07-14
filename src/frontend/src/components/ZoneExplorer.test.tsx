@@ -38,23 +38,21 @@ describe("ZoneExplorer", () => {
     expect(screen.getByText(/Beta = E1 \+ 0\.5×E2/)).toBeInTheDocument();
   });
 
-  it("shows a worked example defaulting to Registered Nurse", () => {
+  it("shows several recognizable roles at once (no selection needed)", () => {
     renderExplorer();
-    // Role chip + its tasks render by default
+    expect(screen.getByText("Registered Nurse")).toBeInTheDocument();
+    expect(screen.getByText("Cashier")).toBeInTheDocument();
+    expect(screen.getByText("Truck Driver")).toBeInTheDocument();
+    // …and their tasks are all rendered together
     expect(screen.getByText(/Chart patient vitals/)).toBeInTheDocument();
-    expect(screen.getByText(/Comfort and reassure patients/)).toBeInTheDocument();
-    // Deep link to the real occupation page
-    const link = screen.getByText(/full task breakdown/);
-    expect(link).toHaveAttribute("href", "/occupations?selected=29-1141.00");
+    expect(screen.getByText(/Scan items and total/)).toBeInTheDocument();
+    expect(screen.getByText(/Drive the vehicle safely/)).toBeInTheDocument();
   });
 
-  it("switches the worked example when another role is picked", () => {
+  it("links each role to its live per-task page", () => {
     renderExplorer();
-    fireEvent.click(screen.getByRole("button", { name: "Bookkeeper" }));
-    expect(screen.getByText(/Enter transactions into the ledger/)).toBeInTheDocument();
-    // Nurse tasks gone
-    expect(screen.queryByText(/Chart patient vitals/)).toBeNull();
-    expect(screen.getByText(/full task breakdown/)).toHaveAttribute("href", "/occupations?selected=43-3031.00");
+    expect(screen.getByText("Registered Nurse").closest("a")).toHaveAttribute("href", "/occupations?selected=29-1141.00");
+    expect(screen.getByText("Truck Driver").closest("a")).toHaveAttribute("href", "/occupations?selected=53-3032.00");
   });
 
   it("labels the worked example as representative, not live-computed", () => {

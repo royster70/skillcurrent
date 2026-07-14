@@ -71,53 +71,67 @@ const pctOfScale = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max)
 // exposure. Representative (curated) — the live per-task reading is on each
 // occupation's page. Chosen to span the scale, so the spread is the lesson:
 // documentation/routine sinks, human contact stays dry. ──
+// A few — so there's always one you recognize — shown together, each with 3
+// tasks spanning the scale (a routine end, a middle, and a human end).
 const ROLE_EXAMPLES = [
   {
     soc: "29-1141.00",
     title: "Registered Nurse",
-    takeaway: "The charting is automatable. Comforting a frightened patient isn't — that's the high ground.",
+    takeaway: "Charting sinks; bedside care stays human.",
     tasks: [
-      { text: "Chart patient vitals and update medical records", beta: 0.88 },
-      { text: "Interpret diagnostic test results", beta: 0.71 },
+      { text: "Chart patient vitals and update records", beta: 0.88 },
       { text: "Administer medications and treatments", beta: 0.47 },
-      { text: "Coordinate care across the medical team", beta: 0.36 },
       { text: "Comfort and reassure patients and families", beta: 0.13 },
     ],
   },
   {
     soc: "41-2011.00",
     title: "Cashier",
-    takeaway: "Scanning and totalling are nearly gone. Reading an upset customer and defusing it isn't.",
+    takeaway: "Scanning's nearly gone; defusing conflict isn't.",
     tasks: [
       { text: "Scan items and total the purchase", beta: 0.9 },
-      { text: "Process payments and issue change", beta: 0.82 },
       { text: "Answer questions about products and prices", beta: 0.54 },
       { text: "De-escalate an upset customer", beta: 0.22 },
-      { text: "Keep the checkout area stocked and tidy", beta: 0.17 },
     ],
   },
   {
     soc: "43-3031.00",
     title: "Bookkeeper",
-    takeaway: "Data entry and reconciliation are prime automation targets; the judgment call on what looks wrong isn't.",
+    takeaway: "Data entry automates; the judgment call doesn't.",
     tasks: [
       { text: "Enter transactions into the ledger", beta: 0.93 },
-      { text: "Reconcile bank statements", beta: 0.8 },
       { text: "Generate monthly financial reports", beta: 0.67 },
-      { text: "Flag unusual transactions for review", beta: 0.41 },
       { text: "Advise on bookkeeping practices", beta: 0.27 },
     ],
   },
   {
     soc: "25-2021.00",
     title: "Primary Teacher",
-    takeaway: "Grading and prep get faster with AI. Holding a classroom and encouraging a struggling kid stays human.",
+    takeaway: "Grading speeds up; mentoring stays human.",
     tasks: [
       { text: "Grade assignments and quizzes", beta: 0.78 },
-      { text: "Prepare lesson plans and materials", beta: 0.61 },
       { text: "Explain new concepts to the class", beta: 0.43 },
-      { text: "Manage classroom behaviour", beta: 0.19 },
       { text: "Encourage and mentor struggling students", beta: 0.11 },
+    ],
+  },
+  {
+    soc: "53-3032.00",
+    title: "Truck Driver",
+    takeaway: "The paperwork sinks; the driving stays.",
+    tasks: [
+      { text: "Complete delivery logs and paperwork", beta: 0.82 },
+      { text: "Plan the day's delivery route", beta: 0.58 },
+      { text: "Drive the vehicle safely in traffic", beta: 0.14 },
+    ],
+  },
+  {
+    soc: "43-4051.00",
+    title: "Customer Service Rep",
+    takeaway: "Looking things up automates; the hard calls don't.",
+    tasks: [
+      { text: "Look up account details and order status", beta: 0.85 },
+      { text: "Answer routine product questions", beta: 0.6 },
+      { text: "Calm a frustrated customer and find a fix", beta: 0.2 },
     ],
   },
 ];
@@ -149,70 +163,66 @@ function MiniBetaTrack({ beta }: { beta: number }) {
   );
 }
 
-/** WorkedExample — "make Beta real": a recognizable role's actual tasks on the scale. */
-function WorkedExample() {
-  const [idx, setIdx] = useState(0);
-  const role = ROLE_EXAMPLES[idx];
-
+/** One role's card — title, a one-line takeaway, and its tasks on the scale. */
+function RoleCard({ role }: { role: (typeof ROLE_EXAMPLES)[number] }) {
   return (
-    <div style={{ marginTop: 16, background: t.surface, border: `1px solid ${t.line}`, borderRadius: 12, padding: "16px 20px 18px" }}>
-      <div style={{ fontSize: 12.5, fontWeight: 600, color: t.ink, marginBottom: 10 }}>
-        See a real job on the scale — pick one you know:
+    <div style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 10, padding: "14px 16px" }}>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
+        <Link
+          to={`/occupations?selected=${role.soc}`}
+          title={`See ${role.title}'s full task breakdown`}
+          style={{ fontFamily: TYPE.display, fontSize: 17, fontWeight: 600, color: t.ink, textDecoration: "none" }}
+        >
+          {role.title}
+        </Link>
+        <Link
+          to={`/occupations?selected=${role.soc}`}
+          style={{ fontFamily: TYPE.mono, fontSize: 11, color: t.brass, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
+        >
+          all tasks →
+        </Link>
       </div>
-      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
-        {ROLE_EXAMPLES.map((r, i) => {
-          const active = i === idx;
-          return (
-            <button
-              key={r.soc}
-              onClick={() => setIdx(i)}
-              style={{
-                padding: "6px 14px",
-                borderRadius: 20,
-                fontSize: 13,
-                fontWeight: active ? 600 : 500,
-                fontFamily: TYPE.body,
-                cursor: "pointer",
-                border: `1px solid ${active ? t.brass : t.line}`,
-                background: active ? "rgba(156, 100, 20, 0.10)" : t.surface,
-                color: active ? t.brass : t.inkMuted,
-                transition: "all 0.15s ease",
-              }}
-            >
-              {r.title}
-            </button>
-          );
-        })}
-      </div>
-
-      {/* Task rows — each everyday task, positioned on the scale */}
-      <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+      <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic", marginBottom: 12 }}>{role.takeaway}</div>
+      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
         {role.tasks.map((task) => {
           const zone = zoneOf(task.beta);
           return (
-            <div key={task.text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
-              <div style={{ flex: 1, fontSize: 13, color: t.ink, lineHeight: 1.35 }}>{task.text}</div>
-              <div style={{ width: 150, flexShrink: 0 }}>
+            <div key={task.text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
+              <div style={{ flex: 1, fontSize: 12.5, color: t.ink, lineHeight: 1.3 }}>{task.text}</div>
+              <div style={{ width: 96, flexShrink: 0 }}>
                 <MiniBetaTrack beta={task.beta} />
               </div>
-              <div style={{ width: 34, flexShrink: 0, textAlign: "right", fontFamily: TYPE.mono, fontSize: 12.5, fontWeight: 600, color: ZONE_COLORS[zone] }}>
+              <div style={{ width: 32, flexShrink: 0, textAlign: "right", fontFamily: TYPE.mono, fontSize: 12, fontWeight: 600, color: ZONE_COLORS[zone] }}>
                 {task.beta.toFixed(2)}
               </div>
             </div>
           );
         })}
       </div>
+    </div>
+  );
+}
 
-      {/* Takeaway — the spread is the point */}
-      <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${t.line}`, fontSize: 13, color: t.ink, lineHeight: 1.5 }}>
-        <span style={{ fontWeight: 600 }}>{role.title}: </span>
-        {role.takeaway}
+/** WorkedExample — "make Beta real": several recognizable jobs shown together
+ * (so there's always one you know), each with its real tasks on the scale. */
+function WorkedExample() {
+  return (
+    <div style={{ marginTop: 16 }}>
+      <div style={{ fontSize: 13, fontWeight: 600, color: t.ink, marginBottom: 4 }}>
+        A few jobs you'll recognize — see where their everyday tasks land
       </div>
-      <div style={{ marginTop: 4, fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
-        Representative tasks, positioned by their AI exposure.{" "}
-        <Link to={`/occupations?selected=${role.soc}`} style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>
-          See {role.title}'s full task breakdown →
-        </Link>
+      <div style={{ fontSize: 12, color: t.inkMuted, marginBottom: 14 }}>
+        Every job splits across the scale: the routine parts sink toward automation,
+        the human parts stay dry. That spread — not a single score — is what
+        SkillCurrent measures.
+      </div>
+      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
+        {ROLE_EXAMPLES.map((role) => (
+          <RoleCard key={role.soc} role={role} />
+        ))}
+      </div>
+      <div style={{ marginTop: 12, fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
+        Representative tasks, positioned by their AI exposure — each role links to its live per-task breakdown.
       </div>
     </div>
   );
