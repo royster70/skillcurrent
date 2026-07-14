@@ -1,15 +1,23 @@
 /**
- * Zone Explainer Panel — collapsible education panel explaining E0/E1/E2
- * exposure zones in plain language.
+ * Zone Explainer Panel — collapsible, INTERACTIVE education panel explaining
+ * E0/E1/E2 exposure zones.
+ *
+ * Beyond static text: a draggable Beta gauge (BETA_SCALE/ZONE_THRESHOLDS —
+ * the same tokens the rest of the app's zone logic uses) lets a reader "try"
+ * a Beta value and see which zone it lands in; the three zone cards highlight
+ * in sync with wherever the gauge currently sits, and clicking a card jumps
+ * the gauge to a representative point in that zone. Each card also surfaces
+ * illustrative example task types — more to explore than the original
+ * single-sentence description.
  *
  * Based on slide 4 of "Work Taxonomy and AI Skilling" primer presentation.
  * Collapsed by default — repeat users skip it, first-timers expand to learn.
- *
- * Self-contained: manages own expanded/collapsed state internally.
+ * Self-contained: manages its own state internally, no props needed from
+ * the 3 pages that embed it.
  */
 
-import { useState } from "react";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE } from "../lib/constants";
+import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
 import { IconInfo, IconChevron } from "./current/icons";
 
 const t = THEME.light;
@@ -26,6 +34,8 @@ const ZONE_DATA = [
     description:
       "Tasks unlikely to be impacted by AI in the near term. Human-only work with supporting systems and processes.",
     implication: "Focus: preserve and invest in these distinctly human capabilities.",
+    examples: "Conflict mediation · hands-on patient care · high-stakes negotiation · original strategic direction",
+    sample: 0.2,
   },
   {
     key: "E1" as const,
@@ -34,6 +44,8 @@ const ZONE_DATA = [
     description:
       "Co-pilot workflows where AI handles routine subtasks while humans provide judgment, creativity, and oversight.",
     implication: "Focus: upskill workers to collaborate effectively with AI tools.",
+    examples: "Drafting reports for review · code scaffolding · first-pass research synthesis · meeting prep",
+    sample: 0.6,
   },
   {
     key: "E2" as const,
@@ -42,11 +54,145 @@ const ZONE_DATA = [
     description:
       "Tasks that can be substantially automated or delegated to AI agents. Humans shift to quality assurance and exception handling.",
     implication: "Focus: redesign roles around oversight, exceptions, and new value creation.",
+    examples: "Data entry · transcription · template generation · routine scheduling · basic classification",
+    sample: 1.05,
   },
 ] as const;
 
+type ZoneKey = (typeof ZONE_DATA)[number]["key"];
+
+function zoneOf(beta: number): ZoneKey {
+  if (beta >= ZONE_THRESHOLDS.E2) return "E2";
+  if (beta >= ZONE_THRESHOLDS.E1) return "E1";
+  return "E0";
+}
+
+// A few illustrative anchor points — clearly labelled as illustrative, not a
+// live-computed reading, so the gauge stays honest about what's real (brand
+// brief §12: never blur measured vs modelled).
+const ANCHORS = [
+  { label: "e.g. Registered Nurse", beta: 0.28 },
+  { label: "e.g. Software Developer", beta: 0.61 },
+  { label: "e.g. Data Entry Clerk", beta: 1.15 },
+];
+
+/** An interactive Beta gauge — drag or click to "try" a value and see its zone. */
+function BetaGauge({ value, onChange }: { value: number; onChange: (v: number) => void }) {
+  const pct = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max) * 100));
+  const e1Start = pct(ZONE_THRESHOLDS.E1);
+  const e2Start = pct(ZONE_THRESHOLDS.E2);
+  const medianPct = pct(BETA_SCALE.median);
+  const valuePct = pct(value);
+  const active = zoneOf(value);
+
+  function setFromClientX(clientX: number, rect: DOMRect) {
+    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    onChange(Math.round(ratio * BETA_SCALE.max * 100) / 100);
+  }
+
+  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+    e.currentTarget.setPointerCapture(e.pointerId);
+    setFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+  }
+  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+    if (e.buttons !== 1) return;
+    setFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+  }
+
+  return (
+    <div>
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Try it — drag to read the scale</span>
+        <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[active] }}>
+          β {value.toFixed(2)} → {ZONE_LABELS[active]}
+        </span>
+      </div>
+      <div
+        onPointerDown={handlePointerDown}
+        onPointerMove={handlePointerMove}
+        role="slider"
+        aria-label="Beta value"
+        aria-valuemin={BETA_SCALE.min}
+        aria-valuemax={BETA_SCALE.max}
+        aria-valuenow={value}
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") onChange(Math.min(BETA_SCALE.max, value + 0.05));
+          if (e.key === "ArrowLeft") onChange(Math.max(BETA_SCALE.min, value - 0.05));
+        }}
+        style={{
+          position: "relative",
+          height: 26,
+          borderRadius: 6,
+          overflow: "visible",
+          cursor: "pointer",
+          display: "flex",
+          border: `1px solid ${t.line}`,
+          touchAction: "none",
+        }}
+      >
+        <div style={{ width: `${e1Start}%`, background: ZONE_BG.E0, borderRadius: "5px 0 0 5px" }} />
+        <div style={{ width: `${e2Start - e1Start}%`, background: ZONE_BG.E1 }} />
+        <div style={{ width: `${100 - e2Start}%`, background: ZONE_BG.E2, borderRadius: "0 5px 5px 0" }} />
+
+        {/* Median reference tick */}
+        <div
+          title={`Median β ${BETA_SCALE.median}`}
+          style={{ position: "absolute", left: `${medianPct}%`, top: -3, bottom: -3, width: 1, background: t.inkMuted, opacity: 0.5 }}
+        />
+
+        {/* Illustrative anchor points */}
+        {ANCHORS.map((a) => (
+          <div
+            key={a.label}
+            title={`${a.label} (illustrative)`}
+            style={{
+              position: "absolute",
+              left: `${pct(a.beta)}%`,
+              top: 27,
+              width: 6,
+              height: 6,
+              borderRadius: "50%",
+              background: t.inkMuted,
+              opacity: 0.55,
+              transform: "translateX(-3px)",
+            }}
+          />
+        ))}
+
+        {/* Draggable handle — the brass instrument reading the current */}
+        <div
+          style={{
+            position: "absolute",
+            left: `${valuePct}%`,
+            top: -4,
+            bottom: -4,
+            width: 4,
+            background: t.brass,
+            borderRadius: 2,
+            transform: "translateX(-2px)",
+            boxShadow: `0 0 0 2px ${t.surface}`,
+            transition: "left 0.15s ease",
+          }}
+        />
+      </div>
+      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: TYPE.mono, color: t.inkMuted, marginTop: 5 }}>
+        <span>0</span>
+        <span>0.40</span>
+        <span>0.85</span>
+        <span>1.5</span>
+      </div>
+      <div style={{ fontSize: 10.5, color: t.inkMuted, marginTop: 4, fontStyle: "italic" }}>
+        Grey dots are illustrative reference points, not live-computed readings — hover for detail.
+      </div>
+    </div>
+  );
+}
+
 export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPanelProps) {
   const [expanded, setExpanded] = useState(defaultExpanded);
+  const [betaValue, setBetaValue] = useState<number>(BETA_SCALE.median);
+  const activeZone = zoneOf(betaValue);
 
   return (
     <div
@@ -125,88 +271,119 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
       {/* Expandable body */}
       <div
         style={{
-          maxHeight: expanded ? 400 : 0,
+          maxHeight: expanded ? 700 : 0,
           overflow: "hidden",
           transition: "max-height 0.3s ease",
         }}
       >
-        <div style={{ padding: "20px 20px 16px" }}>
-          {/* Three zone cards */}
+        <div style={{ padding: "18px 20px 16px" }}>
+          {/* Interactive Beta gauge */}
+          <div style={{ marginBottom: 18, paddingBottom: 16, borderBottom: `1px solid ${t.line}` }}>
+            <BetaGauge value={betaValue} onChange={setBetaValue} />
+          </div>
+
+          {/* Three zone cards — highlight in sync with the gauge; click to jump the gauge here */}
           <div style={{ display: "flex", gap: 16 }}>
-            {ZONE_DATA.map((zone) => (
-              <div
-                key={zone.key}
-                style={{
-                  flex: 1,
-                  borderRadius: 8,
-                  borderLeft: `4px solid ${ZONE_COLORS[zone.key]}`,
-                  backgroundColor: ZONE_BG[zone.key],
-                  padding: "16px 16px 14px",
-                }}
-              >
+            {ZONE_DATA.map((zone) => {
+              const isActive = zone.key === activeZone;
+              return (
                 <div
+                  key={zone.key}
+                  role="button"
+                  tabIndex={0}
+                  onClick={() => setBetaValue(zone.sample)}
+                  onKeyDown={(e) => e.key === "Enter" && setBetaValue(zone.sample)}
                   style={{
-                    display: "flex",
-                    justifyContent: "space-between",
-                    alignItems: "center",
-                    marginBottom: 8,
+                    flex: 1,
+                    borderRadius: 8,
+                    borderLeft: `4px solid ${ZONE_COLORS[zone.key]}`,
+                    borderTop: `1px solid ${isActive ? ZONE_COLORS[zone.key] : "transparent"}`,
+                    borderRight: `1px solid ${isActive ? ZONE_COLORS[zone.key] : "transparent"}`,
+                    borderBottom: `1px solid ${isActive ? ZONE_COLORS[zone.key] : "transparent"}`,
+                    backgroundColor: ZONE_BG[zone.key],
+                    padding: "16px 16px 14px",
+                    cursor: "pointer",
+                    boxShadow: isActive ? `0 0 0 2px ${ZONE_COLORS[zone.key]}30` : "none",
+                    transition: "box-shadow 0.15s ease, border-color 0.15s ease",
                   }}
                 >
-                  <span
+                  <div
                     style={{
-                      fontSize: 14,
-                      fontWeight: 700,
-                      color: ZONE_COLORS[zone.key],
+                      display: "flex",
+                      justifyContent: "space-between",
+                      alignItems: "center",
+                      marginBottom: 8,
                     }}
                   >
-                    {zone.key} — {ZONE_LABELS[zone.key]}
-                  </span>
-                  <span
+                    <span
+                      style={{
+                        fontSize: 14,
+                        fontWeight: 700,
+                        color: ZONE_COLORS[zone.key],
+                      }}
+                    >
+                      {zone.key} — {ZONE_LABELS[zone.key]}
+                    </span>
+                    <span
+                      style={{
+                        fontSize: 11,
+                        fontWeight: 600,
+                        color: ZONE_COLORS[zone.key],
+                        backgroundColor: `${ZONE_COLORS[zone.key]}18`,
+                        padding: "2px 8px",
+                        borderRadius: 99,
+                        fontFamily: TYPE.mono,
+                      }}
+                    >
+                      {zone.threshold}
+                    </span>
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 13,
+                      fontWeight: 600,
+                      color: t.ink,
+                      marginBottom: 6,
+                    }}
+                  >
+                    {zone.headline}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 12,
+                      color: t.inkMuted,
+                      lineHeight: 1.5,
+                    }}
+                  >
+                    {zone.description}
+                  </div>
+                  <div
+                    style={{
+                      fontSize: 10.5,
+                      color: t.inkMuted,
+                      marginTop: 8,
+                      lineHeight: 1.5,
+                      paddingTop: 8,
+                      borderTop: `1px solid ${ZONE_COLORS[zone.key]}20`,
+                    }}
+                  >
+                    <span style={{ fontWeight: 600, color: t.ink }}>Typical tasks: </span>
+                    {zone.examples}
+                  </div>
+                  <div
                     style={{
                       fontSize: 11,
-                      fontWeight: 600,
-                      color: ZONE_COLORS[zone.key],
-                      backgroundColor: `${ZONE_COLORS[zone.key]}18`,
-                      padding: "2px 8px",
-                      borderRadius: 99,
-                      fontFamily: TYPE.mono,
+                      color: t.inkMuted,
+                      fontStyle: "italic",
+                      marginTop: 8,
+                      lineHeight: 1.4,
                     }}
                   >
-                    {zone.threshold}
-                  </span>
+                    {zone.implication}
+                  </div>
                 </div>
-                <div
-                  style={{
-                    fontSize: 13,
-                    fontWeight: 600,
-                    color: t.ink,
-                    marginBottom: 6,
-                  }}
-                >
-                  {zone.headline}
-                </div>
-                <div
-                  style={{
-                    fontSize: 12,
-                    color: t.inkMuted,
-                    lineHeight: 1.5,
-                  }}
-                >
-                  {zone.description}
-                </div>
-                <div
-                  style={{
-                    fontSize: 11,
-                    color: t.inkMuted,
-                    fontStyle: "italic",
-                    marginTop: 8,
-                    lineHeight: 1.4,
-                  }}
-                >
-                  {zone.implication}
-                </div>
-              </div>
-            ))}
+              );
+            })}
           </div>
 
           {/* Footer line */}
