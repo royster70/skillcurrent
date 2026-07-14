@@ -5,20 +5,21 @@
  * home for the platform's core concept (design 7a+7b combo). Data pages embed
  * the slim `ZoneLegend` instead, which links back here.
  *
- * Three layers, abstract → concrete:
- *   1. BetaGauge — drag the scale itself.
- *   2. WorkedExample — a REAL, recognizable job broken into its actual tasks,
- *      each plotted on the scale, so Beta stops being abstract: you see the
- *      paperwork sink and the human moments stay dry. Pick a job you know.
- *   3. Zone definition cards — what E0/E1/E2 mean.
+ * One instrument, concrete → abstract:
+ *   1. WorkedExample + WaterlineTank — a REAL, recognizable job's tasks on ONE
+ *      vertical exposure grid, with a DRAGGABLE waterline. The scale and the
+ *      tasks are the same picture: β stays put, the water rises, and you watch
+ *      which of the job's tasks the tide reaches. A rail browses other roles.
+ *   2. Zone definition cards — what E0/E1/E2 mean; they highlight with the
+ *      waterline's current zone and set it when clicked.
  *
- * The gauge uses BETA_SCALE/ZONE_THRESHOLDS — the same tokens the app's
+ * The tank uses BETA_SCALE/ZONE_THRESHOLDS — the same tokens the app's
  * zone-classification logic uses, so the instrument and the real scale are the
  * same numbers. Worked-example task positions are representative (curated for
  * the landing); the live per-task reading is on each occupation's own page.
  */
 
-import { useState, useEffect, type PointerEvent as ReactPointerEvent } from "react";
+import { useState, useEffect, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
 import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS, BRASS_TINT } from "../lib/constants";
 import { DUR, EASE, prefersReducedMotion, ensureMotionStyles } from "./current/motion";
@@ -176,20 +177,16 @@ function RoleSignature({ role }: { role: (typeof ROLE_EXAMPLES)[number] }) {
 
 /** WorkedExample — "make Beta real": focus on ONE recognizable job's tasks on the
  * scale, with a rail of the other roles (each previewing its shape) to browse. */
-function WorkedExample() {
+function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterline: (v: number) => void }) {
   const [idx, setIdx] = useState(0);
   const count = ROLE_EXAMPLES.length;
   const role = ROLE_EXAMPLES[idx];
-  const animate = !prefersReducedMotion();
 
   useEffect(() => {
     ensureMotionStyles();
   }, []);
 
   const go = (delta: number) => setIdx((i) => (i + delta + count) % count);
-
-  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
-  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
 
   const arrowBtn = (label: string, onClick: () => void, title: string) => (
     <button
@@ -246,39 +243,9 @@ function WorkedExample() {
           </div>
         </div>
 
-        {/* Shared scale header — calibrate once; task tracks align to it */}
-        <div style={{ position: "relative", height: 16, marginTop: 16 }}>
-          <div style={{ position: "absolute", inset: 0, display: "flex", fontSize: 9.5, fontWeight: 600 }}>
-            <div style={{ width: `${e1}%`, color: ZONE_COLORS.E0 }}>{ZONE_LABELS.E0}</div>
-            <div style={{ width: `${e2 - e1}%`, color: ZONE_COLORS.E1, textAlign: "center" }}>{ZONE_LABELS.E1}</div>
-            <div style={{ width: `${100 - e2}%`, color: ZONE_COLORS.E2, textAlign: "right" }}>{ZONE_LABELS.E2}</div>
-          </div>
-        </div>
-
-        {/* The role's tasks — keyed so switching plays a gentle fade-rise */}
-        <div
-          key={idx}
-          style={{
-            display: "flex", flexDirection: "column", gap: 14, marginTop: 4,
-            animation: animate ? `sc-fade-rise ${DUR.bearing}ms ${EASE}` : undefined,
-          }}
-        >
-          {role.tasks.map((task) => {
-            const zone = zoneOf(task.beta);
-            return (
-              <div key={task.text}>
-                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
-                  <span style={{ fontSize: 13.5, color: t.ink, lineHeight: 1.3 }}>{task.text}</span>
-                  <span style={{ display: "flex", alignItems: "baseline", gap: 6, flexShrink: 0, fontFamily: TYPE.mono }}>
-                    <span style={{ fontSize: 13, fontWeight: 700, color: ZONE_COLORS[zone] }}>{task.beta.toFixed(2)}</span>
-                    <span style={{ fontSize: 10.5, color: ZONE_COLORS[zone], opacity: 0.85 }}>{ZONE_LABELS[zone]}</span>
-                  </span>
-                </div>
-                <ScaleTrack betas={[task.beta]} height={13} dot={13} />
-              </div>
-            );
-          })}
-        </div>
+        {/* The waterline tank — the role's tasks on one grid, with the draggable
+            waterline that touches them. animKey re-triggers the fade on role swap. */}
+        <WaterlineTank role={role} waterline={waterline} onChange={onWaterline} animKey={idx} />
       </div>
 
       {/* Browse rail — every other role's shape, click to bring into focus */}
@@ -322,91 +289,140 @@ function WorkedExample() {
   );
 }
 
-/** An interactive Beta gauge — drag or click to "try" a value and see its zone. */
-function BetaGauge({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const e1Start = pctOfScale(ZONE_THRESHOLDS.E1);
-  const e2Start = pctOfScale(ZONE_THRESHOLDS.E2);
-  const medianPct = pctOfScale(BETA_SCALE.median);
-  const valuePct = pctOfScale(value);
-  const active = zoneOf(value);
+/** The waterline tank — a role's tasks on ONE vertical exposure grid, with a
+ * draggable waterline that fills with water and submerges tasks as it rises.
+ * This is the scale AND the tasks in one picture: β stays put, the water moves,
+ * and you watch which of a real job's tasks the tide reaches. Dry (human-only)
+ * sits at the top; submerged (automation) at the bottom — β increases downward. */
+const TANK_H = 300;
 
-  function setFromClientX(clientX: number, rect: DOMRect) {
-    const ratio = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+function WaterlineTank({
+  role,
+  waterline,
+  onChange,
+  animKey,
+}: {
+  role: (typeof ROLE_EXAMPLES)[number];
+  waterline: number;
+  onChange: (v: number) => void;
+  animKey: number;
+}) {
+  const yOf = (beta: number) => (beta / BETA_SCALE.max) * TANK_H;
+  const y40 = yOf(ZONE_THRESHOLDS.E1);
+  const y85 = yOf(ZONE_THRESHOLDS.E2);
+  const wlY = yOf(waterline);
+  const submerged = role.tasks.filter((task) => task.beta >= waterline).length;
+  const wlZone = zoneOf(waterline);
+  const animate = !prefersReducedMotion();
+  const wlTrans = animate ? `top ${DUR.hover}ms ${EASE}` : undefined;
+
+  function setFromClientY(clientY: number, rect: DOMRect) {
+    const ratio = Math.max(0, Math.min(1, (clientY - rect.top) / rect.height));
     onChange(Math.round(ratio * BETA_SCALE.max * 100) / 100);
   }
-
-  function handlePointerDown(e: ReactPointerEvent<HTMLDivElement>) {
+  function down(e: ReactPointerEvent<HTMLDivElement>) {
     e.currentTarget.setPointerCapture(e.pointerId);
-    setFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+    setFromClientY(e.clientY, e.currentTarget.getBoundingClientRect());
   }
-  function handlePointerMove(e: ReactPointerEvent<HTMLDivElement>) {
+  function move(e: ReactPointerEvent<HTMLDivElement>) {
     if (e.buttons !== 1) return;
-    setFromClientX(e.clientX, e.currentTarget.getBoundingClientRect());
+    setFromClientY(e.clientY, e.currentTarget.getBoundingClientRect());
   }
+
+  const bandLabel = (label: string, color: string, style: CSSProperties) => (
+    <span style={{ position: "absolute", right: 8, fontSize: 9.5, fontWeight: 600, color, ...style }}>{label}</span>
+  );
 
   return (
-    <div>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 6, flexWrap: "wrap", gap: 6 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Try it — drag to read the scale</span>
-        <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[active] }}>
-          β {value.toFixed(2)} → {ZONE_LABELS[active]}
+    <div style={{ marginTop: 14 }}>
+      {/* Readout — the live link between the waterline and the tasks */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
+        <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Drag the waterline — see which tasks it reaches</span>
+        <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[wlZone] }}>
+          β {waterline.toFixed(2)} · {submerged}/{role.tasks.length} submerged
         </span>
       </div>
+
       <div
-        onPointerDown={handlePointerDown}
-        onPointerMove={handlePointerMove}
         role="slider"
-        aria-label="Beta value"
+        aria-label="Waterline"
+        aria-orientation="vertical"
         aria-valuemin={BETA_SCALE.min}
         aria-valuemax={BETA_SCALE.max}
-        aria-valuenow={value}
+        aria-valuenow={waterline}
         tabIndex={0}
+        onPointerDown={down}
+        onPointerMove={move}
         onKeyDown={(e) => {
-          if (e.key === "ArrowRight") onChange(Math.min(BETA_SCALE.max, value + 0.05));
-          if (e.key === "ArrowLeft") onChange(Math.max(BETA_SCALE.min, value - 0.05));
+          if (e.key === "ArrowDown") onChange(Math.round(Math.min(BETA_SCALE.max, waterline + 0.05) * 100) / 100);
+          if (e.key === "ArrowUp") onChange(Math.round(Math.max(BETA_SCALE.min, waterline - 0.05) * 100) / 100);
         }}
         style={{
           position: "relative",
-          height: 26,
-          borderRadius: 6,
-          overflow: "visible",
-          cursor: "pointer",
-          display: "flex",
+          height: TANK_H,
+          borderRadius: 8,
+          overflow: "hidden",
+          cursor: "ns-resize",
           border: `1px solid ${t.line}`,
           touchAction: "none",
         }}
       >
-        <div style={{ width: `${e1Start}%`, background: ZONE_BG.E0, borderRadius: "5px 0 0 5px" }} />
-        <div style={{ width: `${e2Start - e1Start}%`, background: ZONE_BG.E1 }} />
-        <div style={{ width: `${100 - e2Start}%`, background: ZONE_BG.E2, borderRadius: "0 5px 5px 0" }} />
+        {/* Zone bands — dry ground at top, deep water at bottom */}
+        <div style={{ position: "absolute", left: 0, right: 0, top: 0, height: y40, background: ZONE_BG.E0 }} />
+        <div style={{ position: "absolute", left: 0, right: 0, top: y40, height: y85 - y40, background: ZONE_BG.E1 }} />
+        <div style={{ position: "absolute", left: 0, right: 0, top: y85, bottom: 0, background: ZONE_BG.E2 }} />
+        {bandLabel(ZONE_LABELS.E0, ZONE_COLORS.E0, { top: 6 })}
+        {bandLabel(ZONE_LABELS.E1, ZONE_COLORS.E1, { top: (y40 + y85) / 2 - 6 })}
+        {bandLabel(ZONE_LABELS.E2, ZONE_COLORS.E2, { bottom: 6 })}
 
-        {/* Median reference tick */}
-        <div
-          title={`Median β ${BETA_SCALE.median}`}
-          style={{ position: "absolute", left: `${medianPct}%`, top: -3, bottom: -3, width: 1, background: t.inkMuted, opacity: 0.5 }}
-        />
+        {/* Ground / water captions (the wireframe's "dry ground" / "submerged") */}
+        <span style={{ position: "absolute", left: 8, top: 6, fontSize: 9, color: t.inkMuted }}>human-only · dry</span>
+        <span style={{ position: "absolute", left: 8, bottom: 6, fontSize: 9, color: t.inkMuted }}>automation · submerged</span>
 
-        {/* Draggable handle — the brass instrument reading the current */}
+        {/* Water — fills from the waterline down; the moving hue (teal) */}
         <div
           style={{
-            position: "absolute",
-            left: `${valuePct}%`,
-            top: -4,
-            bottom: -4,
-            width: 4,
-            background: t.brass,
-            borderRadius: 2,
-            transform: "translateX(-2px)",
-            boxShadow: `0 0 0 2px ${t.surface}`,
-            transition: "left 0.15s ease",
+            position: "absolute", left: 0, right: 0, top: wlY, bottom: 0,
+            background: `${t.current}22`, pointerEvents: "none", transition: wlTrans,
           }}
         />
+
+        {/* Task lines — fixed at their β height; keyed so a role swap fades in */}
+        <div
+          key={animKey}
+          style={{ position: "absolute", inset: 0, animation: animate ? `sc-fade-rise ${DUR.bearing}ms ${EASE}` : undefined }}
+        >
+          {role.tasks.map((task) => {
+            const zone = zoneOf(task.beta);
+            const under = task.beta >= waterline;
+            return (
+              <div
+                key={task.text}
+                style={{
+                  position: "absolute", left: 0, right: 0, top: yOf(task.beta),
+                  transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 8,
+                  padding: "0 10px", pointerEvents: "none",
+                }}
+              >
+                <span style={{ width: 11, height: 11, borderRadius: "50%", background: ZONE_COLORS[zone], border: `2px solid ${t.surface}`, flexShrink: 0 }} />
+                <span style={{ flex: 1, fontSize: 12.5, lineHeight: 1.25, color: t.ink }}>{task.text}</span>
+                <span style={{ fontFamily: TYPE.mono, fontSize: 12, fontWeight: 700, color: ZONE_COLORS[zone], flexShrink: 0 }}>
+                  {task.beta.toFixed(2)}
+                  {under && <span style={{ fontWeight: 400, color: t.current, marginLeft: 5 }}>↓</span>}
+                </span>
+              </div>
+            );
+          })}
+        </div>
+
+        {/* The waterline itself — the brass instrument line + grip */}
+        <div style={{ position: "absolute", left: 0, right: 0, top: wlY, height: 0, borderTop: `2px solid ${t.brass}`, pointerEvents: "none", transition: wlTrans }}>
+          <span style={{ position: "absolute", right: 6, top: -7, width: 22, height: 14, borderRadius: 4, background: t.brass, display: "flex", alignItems: "center", justifyContent: "center", fontSize: 9, color: t.surface }}>≡</span>
+        </div>
       </div>
-      <div style={{ display: "flex", justifyContent: "space-between", fontSize: 10, fontFamily: TYPE.mono, color: t.inkMuted, marginTop: 5 }}>
-        <span>0</span>
-        <span>0.40</span>
-        <span>0.85</span>
-        <span>1.5</span>
+
+      <div style={{ fontSize: 10, color: t.inkMuted, marginTop: 6, fontStyle: "italic" }}>
+        The waterline is today's AI capability. As it improves, the tide climbs — and more of the job goes under.
       </div>
     </div>
   );
@@ -414,20 +430,16 @@ function BetaGauge({ value, onChange }: { value: number; onChange: (v: number) =
 
 /** The inline explorer — the landing's "READ THE SCALE" instrument. */
 export function ZoneExplorer() {
-  const [betaValue, setBetaValue] = useState<number>(BETA_SCALE.median);
-  const activeZone = zoneOf(betaValue);
+  const [waterline, setWaterline] = useState<number>(0.85);
+  const activeZone = zoneOf(waterline);
 
   return (
     <div style={{ fontFamily: TYPE.body }}>
-      {/* 1. The gauge, on a surface card so it reads over the ground/current */}
-      <div style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 12, padding: "18px 20px 14px" }}>
-        <BetaGauge value={betaValue} onChange={setBetaValue} />
-      </div>
+      {/* A real job on the scale, with the draggable waterline — the one
+          interactive instrument; the tasks and the zone cards both react to it. */}
+      <WorkedExample waterline={waterline} onWaterline={setWaterline} />
 
-      {/* 2. A real job on the scale — makes Beta concrete */}
-      <WorkedExample />
-
-      {/* 3. Three zone cards — highlight in sync with the gauge; click to jump the gauge */}
+      {/* Three zone cards — highlight with the waterline's zone; click to set it there */}
       <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
         {ZONE_DATA.map((zone) => {
           const isActive = zone.key === activeZone;
@@ -436,8 +448,8 @@ export function ZoneExplorer() {
               key={zone.key}
               role="button"
               tabIndex={0}
-              onClick={() => setBetaValue(zone.sample)}
-              onKeyDown={(e) => e.key === "Enter" && setBetaValue(zone.sample)}
+              onClick={() => setWaterline(zone.sample)}
+              onKeyDown={(e) => e.key === "Enter" && setWaterline(zone.sample)}
               style={{
                 flex: 1,
                 minWidth: 220,
