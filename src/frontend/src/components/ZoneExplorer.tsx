@@ -21,8 +21,9 @@
 
 import { useState, useEffect, type PointerEvent as ReactPointerEvent, type CSSProperties } from "react";
 import { Link } from "react-router-dom";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS, BRASS_TINT } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
 import { DUR, EASE, prefersReducedMotion, ensureMotionStyles } from "./current/motion";
+import { WaveUnderline } from "./current/CurrentFlow";
 
 const t = THEME.light;
 
@@ -67,7 +68,6 @@ function zoneOf(beta: number): ZoneKey {
   return "E0";
 }
 
-const pctOfScale = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max) * 100));
 
 // ── Worked examples: super-common roles, everyday tasks, positioned by
 // exposure. Representative (curated) — the live per-task reading is on each
@@ -147,45 +147,9 @@ const ROLE_EXAMPLES = [
   },
 ];
 
-/** The three zone bands with one dot per beta. Used both for the compact role
- * "signature" in the browse chips (teaser) and the focus panel's task rows. */
-function ScaleTrack({ betas, height = 8, dot = 10 }: { betas: number[]; height?: number; dot?: number }) {
-  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
-  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
-  const rad = height / 2;
-  return (
-    <div style={{ position: "relative", height, borderRadius: rad, display: "flex", overflow: "visible", border: `1px solid ${t.line}` }}>
-      <div style={{ width: `${e1}%`, background: ZONE_BG.E0, borderRadius: `${rad}px 0 0 ${rad}px` }} />
-      <div style={{ width: `${e2 - e1}%`, background: ZONE_BG.E1 }} />
-      <div style={{ width: `${100 - e2}%`, background: ZONE_BG.E2, borderRadius: `0 ${rad}px ${rad}px 0` }} />
-      {betas.map((b, i) => (
-        <div
-          key={i}
-          style={{
-            position: "absolute",
-            left: `${pctOfScale(b)}%`,
-            top: "50%",
-            width: dot,
-            height: dot,
-            borderRadius: "50%",
-            background: ZONE_COLORS[zoneOf(b)],
-            border: `${dot < 9 ? 1.5 : 2}px solid ${t.surface}`,
-            transform: "translate(-50%, -50%)",
-          }}
-        />
-      ))}
-    </div>
-  );
-}
-
-/** A small role "signature" — the 3-dot shape teaser inside each browse chip.
- * Shows at a glance how much of a role sinks vs stays dry, inviting a click. */
-function RoleSignature({ role }: { role: (typeof ROLE_EXAMPLES)[number] }) {
-  return <ScaleTrack betas={role.tasks.map((task) => task.beta)} height={6} dot={7} />;
-}
-
-/** WorkedExample — "make Beta real": focus on ONE recognizable job's tasks on the
- * scale, with a rail of the other roles (each previewing its shape) to browse. */
+/** WorkedExample — "make Beta real": one recognizable job's tasks in the tank,
+ * its name riding the current (a wave underline), and a flowing "Compare" row of
+ * the other jobs (no boxes) to browse. Picking a job flows the tide to it. */
 function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterline: (v: number) => void }) {
   const [idx, setIdx] = useState(0);
   const count = ROLE_EXAMPLES.length;
@@ -203,102 +167,68 @@ function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterl
   };
   const go = (delta: number) => selectRole((idx + delta + count) % count);
 
-  const arrowBtn = (label: string, onClick: () => void, title: string) => (
-    <button
-      onClick={onClick}
-      aria-label={title}
-      title={title}
-      style={{
-        width: 26, height: 26, borderRadius: 7, border: `1px solid ${t.line}`,
-        background: t.surface, color: t.inkMuted, cursor: "pointer",
-        fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
-      }}
-    >
-      {label}
-    </button>
-  );
+  const others = ROLE_EXAMPLES.map((r, i) => ({ r, i })).filter((x) => x.i !== idx);
 
   return (
-    <div style={{ marginTop: 16 }}>
-      <div style={{ fontSize: 13, fontWeight: 600, color: t.ink, marginBottom: 4 }}>
-        See where one job's tasks land — then browse the others
-      </div>
-      <div style={{ fontSize: 12, color: t.inkMuted, marginBottom: 14 }}>
-        Every job splits across the scale: the routine parts sink toward automation,
-        the human parts stay dry. That spread — not a single score — is what
-        SkillCurrent measures.
+    <div
+      tabIndex={0}
+      onKeyDown={(e) => {
+        if (e.key === "ArrowRight") go(1);
+        if (e.key === "ArrowLeft") go(-1);
+      }}
+      style={{ marginTop: 16, outline: "none" }}
+    >
+      <div style={{ fontSize: 12.5, color: t.inkMuted, marginBottom: 14, maxWidth: 520, lineHeight: 1.55 }}>
+        Every job splits across the scale — the routine parts sink toward automation, the human
+        parts stay dry. Watch the tide reach a real job; switch jobs to compare.
       </div>
 
-      {/* Focus panel — the one role in view, big and legible */}
-      <div
-        tabIndex={0}
-        onKeyDown={(e) => {
-          if (e.key === "ArrowRight") go(1);
-          if (e.key === "ArrowLeft") go(-1);
-        }}
-        style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 12, padding: "18px 20px", outline: "none" }}
-      >
-        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
-          <div style={{ minWidth: 0 }}>
-            <Link
-              to={`/occupations?selected=${role.soc}`}
-              title={`See ${role.title}'s full task breakdown`}
-              style={{ fontFamily: TYPE.display, fontSize: 21, fontWeight: 600, color: t.ink, textDecoration: "none", letterSpacing: -0.3 }}
+      {/* Focused role — its name rides the current (the wave underline) */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end", gap: 12, flexWrap: "wrap" }}>
+        <div style={{ position: "relative", display: "inline-block" }}>
+          <Link
+            to={`/occupations?selected=${role.soc}`}
+            title={`See ${role.title}'s full task breakdown`}
+            style={{ fontFamily: TYPE.display, fontSize: 23, fontWeight: 600, color: t.ink, textDecoration: "none", letterSpacing: -0.3 }}
+          >
+            {role.title}
+          </Link>
+          <WaveUnderline />
+        </div>
+        <Link
+          to={`/occupations?selected=${role.soc}`}
+          style={{ fontFamily: TYPE.mono, fontSize: 11, color: t.brass, textDecoration: "none", whiteSpace: "nowrap" }}
+        >
+          all tasks →
+        </Link>
+      </div>
+      <div style={{ fontSize: 12.5, color: t.inkMuted, fontStyle: "italic", marginTop: 9 }}>{role.takeaway}</div>
+
+      {/* The tank — the role's tasks + the draggable waterline */}
+      <WaterlineTank role={role} waterline={waterline} onChange={onWaterline} animKey={idx} />
+
+      {/* Compare — the other jobs as flowing text on the current, not boxes */}
+      <div style={{ display: "flex", flexWrap: "wrap", alignItems: "baseline", gap: "2px 0", marginTop: 16, fontSize: 12.5 }}>
+        <span style={{ color: t.inkMuted, marginRight: 6 }}>Compare</span>
+        {others.map(({ r, i }, n) => (
+          <span key={r.soc} style={{ display: "inline-flex", alignItems: "baseline" }}>
+            {n > 0 && <span style={{ color: t.line, margin: "0 3px" }}>·</span>}
+            <button
+              onClick={() => selectRole(i)}
+              title={`Switch to ${r.title}`}
+              style={{
+                border: "none", background: "none", cursor: "pointer", padding: "2px 3px",
+                fontFamily: TYPE.body, fontSize: 12.5, fontWeight: 500, color: t.current,
+              }}
             >
-              {role.title}
-            </Link>
-            <div style={{ fontSize: 12.5, color: t.inkMuted, fontStyle: "italic", marginTop: 3 }}>{role.takeaway}</div>
-          </div>
-          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
-            {arrowBtn("‹", () => go(-1), "Previous role")}
-            <span style={{ fontFamily: TYPE.mono, fontSize: 12, color: t.inkMuted, minWidth: 34, textAlign: "center" }}>
-              {idx + 1} / {count}
-            </span>
-            {arrowBtn("›", () => go(1), "Next role")}
-          </div>
-        </div>
-
-        {/* The waterline tank — the role's tasks on one grid, with the draggable
-            waterline that touches them. animKey re-triggers the fade on role swap. */}
-        <WaterlineTank role={role} waterline={waterline} onChange={onWaterline} animKey={idx} />
+              {r.title}
+            </button>
+          </span>
+        ))}
       </div>
 
-      {/* Browse rail — every other role's shape, click to bring into focus */}
-      <div style={{ marginTop: 12 }}>
-        <div style={{ fontSize: 11, color: t.inkMuted, marginBottom: 8 }}>
-          Explore {count} everyday jobs — each preview shows its shape on the scale:
-        </div>
-        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
-          {ROLE_EXAMPLES.map((r, i) => {
-            const active = i === idx;
-            return (
-              <button
-                key={r.soc}
-                onClick={() => selectRole(i)}
-                aria-pressed={active}
-                title={`Focus on ${r.title}`}
-                style={{
-                  flex: "1 1 150px", minWidth: 140, maxWidth: 220, textAlign: "left",
-                  display: "flex", flexDirection: "column", gap: 7, padding: "9px 11px",
-                  borderRadius: 9, cursor: "pointer",
-                  background: active ? BRASS_TINT : t.surface,
-                  border: `1px solid ${active ? t.brass : t.line}`,
-                  boxShadow: active ? `0 0 0 1px ${t.brass}` : "none",
-                  transition: `background ${DUR.hover}ms ${EASE}, border-color ${DUR.hover}ms ${EASE}`,
-                }}
-              >
-                <span style={{ fontSize: 12.5, fontWeight: 600, color: active ? t.brass : t.ink, lineHeight: 1.2 }}>
-                  {r.title}
-                </span>
-                <RoleSignature role={r} />
-              </button>
-            );
-          })}
-        </div>
-      </div>
-
-      <div style={{ marginTop: 12, fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
-        Representative tasks, positioned by their AI exposure — the focused role links to its live per-task breakdown.
+      <div style={{ marginTop: 10, fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
+        Representative tasks, positioned by their AI exposure — the live per-task reading is on each job's own page.
       </div>
     </div>
   );
