@@ -109,7 +109,10 @@ Do NOT widen one licence over both — code and data licences stay distinct.
 ## 2. Sequenced plan (licensing first)
 
 **Phase 1 — Legal foundation (BLOCKS everything public).**
-1. Decide the code licence (§5). Add `LICENSE`, `DATA_LICENSE`, `NOTICE`.
+1. ✅ Code licence decided (MIT). ✅ `LICENSE` (MIT), `DATA_LICENSE` (CC BY 4.0
+   compilation), `NOTICE` (per-source attribution) added + README Licence
+   section (2026-07-14). NOTICE is hand-maintained until the FR-9.5 registry
+   auto-generates it.
 2. Verify the TIER-2 sources (§1.2) — Eloundou first (P0).
 3. Repo hygiene: confirm `Data/` + `.env` + `*.zip` gitignored (done for zip);
    a secrets sweep before anything's public; reframe README/CLAUDE.md away from

@@ -1,0 +1,65 @@
+SkillCurrent — NOTICE and Attribution
+======================================
+
+SkillCurrent code is licensed under the MIT License (see LICENSE).
+The SkillCurrent data compilation is licensed under CC BY 4.0 (see DATA_LICENSE).
+
+This product incorporates data from the sources listed below. Attribution is
+required when redistributing the data compilation. This file is the
+human-maintained attribution list; it is intended to be regenerated from the
+FR-9.5 signal_source_registry once that lands. Keep it in sync with
+docs/data-sources.md and the "Data Sources Quick Reference" in CLAUDE.md.
+
+
+REDISTRIBUTABLE SOURCES  (bundled and/or derived-from; attribution required)
+---------------------------------------------------------------------------
+
+O*NET(R) 28.1 — U.S. Department of Labor, Employment & Training Administration
+    (USDOL/ETA).  https://www.onetcenter.org/
+    Public domain / courtesy of O*NET. O*NET(R) is a trademark of USDOL/ETA.
+
+Eloundou, Manning, Mishkin & Rock (2024), "GPTs are GPTs" — OpenAI.
+    MIT License, (c) 2024 OpenAI.  https://github.com/openai/GPTs-are-GPTs
+    Occupation-level AI-exposure scores (the foundational E0/E1/E2 / beta layer).
+
+Microsoft "Working with AI" — Microsoft.  CC BY 4.0.
+    AI applicability / Copilot usage scores.
+
+Anthropic Economic Index (AEI), labour-market + temporal releases — Anthropic.
+    CC BY.  https://huggingface.co/datasets/Anthropic/EconomicIndex
+
+U.S. Bureau of Labor Statistics — OEWS (May 2024).
+    Public domain (U.S. Government).  https://www.bls.gov/oes/
+
+Australian Bureau of Statistics (ABS) and Jobs and Skills Australia (JSA):
+    - OSCA 2024 v1.0 (ABS).  CC BY 4.0.  https://www.abs.gov.au/
+    - JSA Occupation Profiles / employment tables.  CC BY 4.0.
+    - ABS Census 2021 Working Population Profiles.  CC BY 4.0.
+    - Australian Skills Classification (ASC) v3.0 (JSA).  CC BY 4.0.
+      https://www.jobsandskills.gov.au/data/australian-skills-classification
+
+Epoch AI — Epoch Capabilities Index (ECI).  CC BY.  https://epoch.ai/
+
+OpenAI GDPval — task set only.  MIT License.
+    Tasks are redistributable; leaderboard scores are NOT (see below).
+
+
+CONSUMED-ONLY SOURCES  (cited/linked, NOT redistributed)
+--------------------------------------------------------
+
+The following inform analysis and may be cited, but their raw content and any
+derived scores are NOT bundled, exported, or served by SkillCurrent:
+
+    - AIOE (Felten, Raj & Seamans) — citation-only, redistribution-restricted.
+    - GDPval-AA (Artificial Analysis Elo) — not openly licensed.
+    - OpenAI GDPval leaderboard scores — view-only. SkillCurrent instead
+      regenerates its own scores via the public grader on the MIT task set.
+    - SML (Brynjolfsson et al.) and Webb (2020) — academic / citation-only.
+
+
+PENDING LICENCE VERIFICATION  (acquired, not yet ingested or shipped)
+---------------------------------------------------------------------
+
+    - JSA "Our Gen AI Transition" (CC BY — acquired, not yet ingested).
+    - AEI geographic release — per-release licence (CC BY vs MIT) must be
+      confirmed before ingestion or redistribution.
