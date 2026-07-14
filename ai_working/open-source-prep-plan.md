@@ -95,10 +95,10 @@ This registry is the linchpin of the whole open-source pivot. (It also fills the
 `/signals` `licence` field the design needs — currently unqueryable.)
 
 ### 1.6 Dual-licence structure (the files that don't exist yet)
-- **`LICENSE`** — code. **Decision: MIT vs Apache-2.0** (see §5). Recommend
-  **Apache-2.0** (explicit patent grant + contributor terms suit a
-  research-adjacent tool with external contributors) — but MIT is the simpler,
-  lower-friction default; genuinely your call.
+- **`LICENSE`** — code. **DECIDED 2026-07-14: MIT.** Chosen for licence-family
+  fit — the data stack is already MIT/CC-BY-heavy (Eloundou MIT, GDPval MIT), so
+  MIT keeps the whole tree in one permissive family with the lowest friction.
+  (Apache-2.0's explicit patent grant was the alternative; not chosen.)
 - **`DATA_LICENSE`** — **CC-BY-4.0** for the data compilation (matches the sources).
 - **`NOTICE` / `SOURCES.md`** — per-source attribution + citation for every TIER-1
   source (auto-generatable from the registry).
@@ -158,7 +158,9 @@ Do NOT widen one licence over both — code and data licences stay distinct.
   not "the lite version."
 
 ## 5. Decisions only Roy can make (surface early)
-1. **Code licence: MIT vs Apache-2.0** (recommend Apache-2.0; MIT simpler). Blocks Phase 1.
+1. ✅ **Code licence — RESOLVED (2026-07-14): MIT.** Chosen for licence-family fit
+   with the MIT/CC-BY-heavy data stack. Unblocks Phase 1; add `LICENSE` (MIT),
+   `DATA_LICENSE` (CC-BY-4.0), `NOTICE` next.
 2. ✅ **Eloundou licence — RESOLVED (2026-07-14): MIT, redistributable.** The
    core exposure layer is shippable. No longer a decision.
 3. **TIER-2 sources** — ship the ASX/CompanyLookup seed at all (it's full-build-only),
