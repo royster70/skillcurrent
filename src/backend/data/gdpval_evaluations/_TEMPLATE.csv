@@ -1,0 +1,2 @@
+task_id,model_era,model_name,evaluation_date,total_score,max_possible_score,completion_pct,notes
+EXAMPLE-copy-this-header-into-a-real-era-file,claude-4-sonnet,claude-sonnet-4-20250514,2026-07-13,21.0,45.0,0.4667,text-evaluation proxy (not computer-use)

@@ -182,6 +182,13 @@ def _build_pipeline_dag() -> list[PipelineStage]:
             "gdpval", partial(_call, "ingest_gdpval"), description="OpenAI GDPval benchmarks"
         ),
         PipelineStage(
+            "gdpval_evaluations",
+            partial(_call, "ingest_gdpval_evaluations"),
+            depends_on=["gdpval"],
+            optional=True,
+            description="GDPval model-era capability evals (from committed CSVs; paid compute is manual)",
+        ),
+        PipelineStage(
             "epoch_eci",
             partial(_call, "ingest_epoch_eci"),
             description="Epoch AI ECI capability benchmarks",
