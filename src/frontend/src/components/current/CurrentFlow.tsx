@@ -64,6 +64,18 @@ function streamPath(direction: "down" | "right", pos: number, len: number, amp: 
   );
 }
 
+/** A right-flowing streamline that also rises: left→right AND gently upward
+ * ("forward and improving"). The baseline lifts by `rise` across the length,
+ * with the same wave on top. */
+function risingRightPath(pos: number, len: number, amp: number, rise: number): string {
+  const y = (f: number) => pos - rise * f;
+  return (
+    `M-10,${y(0)} ` +
+    `C${len * 0.25},${y(0.25) - amp} ${len * 0.55},${y(0.55) + amp} ${len * 0.8},${y(0.8)} ` +
+    `S${len * 1.1},${y(1.1) - amp * 0.7} ${len + 10},${y(1)}`
+  );
+}
+
 export function CurrentFlow({
   direction = "down",
   length = 120,
@@ -168,9 +180,12 @@ export function BackgroundCurrent({
   const W = horizontal ? 1200 : 320;
   const H = horizontal ? 360 : 1200;
   const amp = horizontal ? 14 : 34;
+  const rise = horizontal ? 64 : 0; // upward lift across the width (in viewBox units)
   const across = horizontal ? H : W;
   const len = horizontal ? W : H;
-  const positions = Array.from({ length: strokes }, (_, i) => ((i + 1) * across) / (strokes + 1));
+  // Shift baselines down by half the rise so the risen streamlines still cover
+  // the full height rather than all drifting off the top.
+  const positions = Array.from({ length: strokes }, (_, i) => ((i + 1) * across) / (strokes + 1) + rise * 0.5);
 
   return (
     <div
@@ -187,7 +202,7 @@ export function BackgroundCurrent({
     >
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         {positions.map((pos, i) => {
-          const d = streamPath(direction, pos, len, amp);
+          const d = horizontal ? risingRightPath(pos, len, amp, rise) : streamPath(direction, pos, len, amp);
           const pathId = `${idPrefix}-stream-${i}`;
           return (
             <g key={i}>
