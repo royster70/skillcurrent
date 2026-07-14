@@ -54,7 +54,7 @@ function sector(
   };
 }
 
-const sectors = {
+const sectorsUS = {
   region: "US",
   total_sectors: 6,
   sectors: [
@@ -64,6 +64,21 @@ const sectors = {
     sector("62", "Health Care & Social Assistance", 300, 20_100_000, 0.34, 190, 96, 14),
     sector("31", "Manufacturing", 260, 12_800_000, 0.41, 120, 118, 22),
     sector("23", "Construction", 150, 7_600_000, 0.22, 118, 30, 2),
+  ],
+};
+
+// Distinct AU (ANZSIC) fixture — deliberately DIFFERENT codes/numbers from the
+// US set, so a region toggle that's actually wired to region-specific data is
+// visually obvious in the preview (catches "text changes, numbers don't").
+const sectorsAU = {
+  region: "AU",
+  total_sectors: 5,
+  sectors: [
+    sector("J", "Information Media & Telecommunications", 60, 240_000, 0.66, 6, 30, 10),
+    sector("K", "Financial & Insurance Services", 45, 470_000, 0.55, 14, 26, 5),
+    sector("M", "Professional, Scientific & Technical Services", 95, 1_190_000, 0.58, 22, 58, 15),
+    sector("Q", "Health Care & Social Assistance", 120, 1_870_000, 0.30, 78, 38, 4),
+    sector("E", "Construction", 70, 1_260_000, 0.19, 55, 14, 1),
   ],
 };
 
@@ -151,11 +166,11 @@ const driftEnduring = {
   total: 2, page: 1, page_size: 10,
 };
 
-// ── Router: base path → fixture (query string ignored) ──
+// ── Router: base path → fixture. Most fixtures ignore the query string; a few
+// (region-sensitive endpoints) read it — see the special cases below. ──
 
 const TABLE: Record<string, unknown> = {
   "/datasets": datasets,
-  "/sectors": sectors,
   "/search": search,
   "/drift/summary": driftSummary,
   "/drift/departing": driftDeparting,
@@ -165,6 +180,15 @@ const TABLE: Record<string, unknown> = {
 
 export function mockResponse(path: string): unknown | undefined {
   if (!MOCK_ENABLED) return undefined;
-  const base = path.split("?")[0];
+  const [base, query] = path.split("?");
+
+  // Region-sensitive endpoints: return genuinely different fixtures per
+  // region so a broken region toggle is visually obvious in the preview,
+  // rather than silently serving the same numbers under a different label.
+  if (base === "/sectors") {
+    const region = new URLSearchParams(query).get("region");
+    return region === "AU" ? sectorsAU : sectorsUS;
+  }
+
   return TABLE[base];
 }
