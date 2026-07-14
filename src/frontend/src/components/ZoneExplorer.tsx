@@ -361,24 +361,31 @@ function WaterlineTank({
             {role.tasks.map((task) => {
               const zone = zoneOf(task.beta);
               const under = task.beta >= waterline;
-              // Dot AREA ∝ share of the working day (radius ∝ √time).
-              const dotD = Math.max(9, Math.min(22, Math.sqrt(task.time) * 2.5));
               return (
                 <div
                   key={task.text}
                   style={{
                     position: "absolute", left: 0, right: 0, top: yOf(task.beta),
-                    transform: "translateY(-50%)", display: "flex", alignItems: "center", gap: 8,
-                    padding: "0 10px", pointerEvents: "none",
+                    transform: "translateY(-50%)", padding: "0 10px", pointerEvents: "none",
                   }}
                 >
-                  <span style={{ width: dotD, height: dotD, borderRadius: "50%", background: ZONE_COLORS[zone], border: `2px solid ${t.surface}`, flexShrink: 0 }} />
-                  <span style={{ flex: 1, fontSize: 12, lineHeight: 1.25, color: t.ink }}>{task.text}</span>
-                  <span style={{ fontFamily: TYPE.mono, fontSize: 12, fontWeight: 700, color: ZONE_COLORS[zone], flexShrink: 0, textAlign: "right" }}>
-                    {task.beta.toFixed(2)}
-                    {under && <span style={{ fontWeight: 400, color: t.current, marginLeft: 5 }}>↓</span>}
-                    <span style={{ display: "block", fontSize: 9, fontWeight: 400, color: t.inkMuted }}>{task.time}% of day</span>
-                  </span>
+                  {/* Row 1 — exposure: task at its β height, β value at the right */}
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 8 }}>
+                    <span style={{ flex: 1, fontSize: 11.5, lineHeight: 1.2, color: t.ink }}>{task.text}</span>
+                    <span style={{ fontFamily: TYPE.mono, fontSize: 11.5, fontWeight: 700, color: ZONE_COLORS[zone], flexShrink: 0 }}>
+                      {task.beta.toFixed(2)}
+                      {under && <span style={{ fontWeight: 400, color: t.current, marginLeft: 4 }}>↓</span>}
+                    </span>
+                  </div>
+                  {/* Row 2 — time: a bar whose LENGTH is this task's share of the day */}
+                  <div style={{ display: "flex", alignItems: "center", gap: 7, marginTop: 3 }}>
+                    <div style={{ flex: 1, height: 8, borderRadius: 4, background: `${ZONE_COLORS[zone]}20`, position: "relative", overflow: "hidden" }}>
+                      <div style={{ position: "absolute", left: 0, top: 0, bottom: 0, width: `${task.time}%`, background: ZONE_COLORS[zone], borderRadius: 4 }} />
+                    </div>
+                    <span style={{ fontFamily: TYPE.mono, fontSize: 9.5, color: t.inkMuted, flexShrink: 0, width: 58, textAlign: "right" }}>
+                      {task.time}% of day
+                    </span>
+                  </div>
                 </div>
               );
             })}
@@ -441,7 +448,7 @@ function WaterlineTank({
       </div>
 
       <div style={{ fontSize: 10, color: t.inkMuted, marginTop: 6, fontStyle: "italic" }}>
-        Dot size = share of the working day; the readout weights by it, so a small automatable task
+        Bar length = share of the working day; the readout weights by it, so a small automatable task
         counts for little. The waterline starts where AI reaches this job today — drag it up to see where the tide is heading.
       </div>
     </div>
