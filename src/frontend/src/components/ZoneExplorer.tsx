@@ -75,11 +75,15 @@ const pctOfScale = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max)
 // documentation/routine sinks, human contact stays dry. ──
 // A few — so there's always one you recognize — shown together, each with 3
 // tasks spanning the scale (a routine end, a middle, and a human end).
+// `today` = the role's occupation-level exposure — where the waterline sits for
+// this job *now*. The waterline snaps here on role switch (then stays draggable),
+// so browsing jobs visibly moves the tide: some jobs sit deep, some ride high.
 const ROLE_EXAMPLES = [
   {
     soc: "29-1141.00",
     title: "Registered Nurse",
     takeaway: "Charting sinks; bedside care stays human.",
+    today: 0.33,
     tasks: [
       { text: "Chart patient vitals and update records", beta: 0.88 },
       { text: "Administer medications and treatments", beta: 0.47 },
@@ -90,6 +94,7 @@ const ROLE_EXAMPLES = [
     soc: "41-2011.00",
     title: "Cashier",
     takeaway: "Scanning's nearly gone; defusing conflict isn't.",
+    today: 0.6,
     tasks: [
       { text: "Scan items and total the purchase", beta: 0.9 },
       { text: "Answer questions about products and prices", beta: 0.54 },
@@ -100,6 +105,7 @@ const ROLE_EXAMPLES = [
     soc: "43-3031.00",
     title: "Bookkeeper",
     takeaway: "Data entry automates; the judgment call doesn't.",
+    today: 0.7,
     tasks: [
       { text: "Enter transactions into the ledger", beta: 0.93 },
       { text: "Generate monthly financial reports", beta: 0.67 },
@@ -110,6 +116,7 @@ const ROLE_EXAMPLES = [
     soc: "25-2021.00",
     title: "Primary Teacher",
     takeaway: "Grading speeds up; mentoring stays human.",
+    today: 0.38,
     tasks: [
       { text: "Grade assignments and quizzes", beta: 0.78 },
       { text: "Explain new concepts to the class", beta: 0.43 },
@@ -120,6 +127,7 @@ const ROLE_EXAMPLES = [
     soc: "53-3032.00",
     title: "Truck Driver",
     takeaway: "The paperwork sinks; the driving stays.",
+    today: 0.45,
     tasks: [
       { text: "Complete delivery logs and paperwork", beta: 0.82 },
       { text: "Plan the day's delivery route", beta: 0.58 },
@@ -130,6 +138,7 @@ const ROLE_EXAMPLES = [
     soc: "43-4051.00",
     title: "Customer Service Rep",
     takeaway: "Looking things up automates; the hard calls don't.",
+    today: 0.55,
     tasks: [
       { text: "Look up account details and order status", beta: 0.85 },
       { text: "Answer routine product questions", beta: 0.6 },
@@ -186,7 +195,13 @@ function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterl
     ensureMotionStyles();
   }, []);
 
-  const go = (delta: number) => setIdx((i) => (i + delta + count) % count);
+  // Selecting a role snaps the waterline to that job's "today" exposure, so the
+  // tide visibly moves as you browse — then it stays draggable to explore.
+  const selectRole = (i: number) => {
+    setIdx(i);
+    onWaterline(ROLE_EXAMPLES[i].today);
+  };
+  const go = (delta: number) => selectRole((idx + delta + count) % count);
 
   const arrowBtn = (label: string, onClick: () => void, title: string) => (
     <button
@@ -259,7 +274,7 @@ function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterl
             return (
               <button
                 key={r.soc}
-                onClick={() => setIdx(i)}
+                onClick={() => selectRole(i)}
                 aria-pressed={active}
                 title={`Focus on ${r.title}`}
                 style={{
@@ -422,7 +437,7 @@ function WaterlineTank({
       </div>
 
       <div style={{ fontSize: 10, color: t.inkMuted, marginTop: 6, fontStyle: "italic" }}>
-        The waterline is today's AI capability. As it improves, the tide climbs — and more of the job goes under.
+        The waterline starts where AI capability reaches this job today. Drag it up to see where the tide is heading — more of the job goes under.
       </div>
     </div>
   );
@@ -430,7 +445,7 @@ function WaterlineTank({
 
 /** The inline explorer — the landing's "READ THE SCALE" instrument. */
 export function ZoneExplorer() {
-  const [waterline, setWaterline] = useState<number>(0.85);
+  const [waterline, setWaterline] = useState<number>(ROLE_EXAMPLES[0].today);
   const activeZone = zoneOf(waterline);
 
   return (

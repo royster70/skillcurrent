@@ -74,13 +74,22 @@ describe("ZoneExplorer", () => {
     expect(screen.getByText(/Representative tasks, positioned by their AI exposure/)).toBeInTheDocument();
   });
 
-  it("renders the waterline as a vertical aria slider", () => {
+  it("renders the waterline as a vertical aria slider at the role's today level", () => {
     renderExplorer();
     const slider = screen.getByRole("slider", { name: "Waterline" });
     expect(slider).toHaveAttribute("aria-orientation", "vertical");
-    expect(slider).toHaveAttribute("aria-valuenow", "0.85");
+    // default focus = Registered Nurse, today β = 0.33
+    expect(slider).toHaveAttribute("aria-valuenow", "0.33");
     expect(slider).toHaveAttribute("aria-valuemin", "0");
     expect(slider).toHaveAttribute("aria-valuemax", "1.5");
+  });
+
+  it("snaps the waterline to each role's today level when browsed", () => {
+    renderExplorer();
+    const slider = screen.getByRole("slider", { name: "Waterline" });
+    expect(slider).toHaveAttribute("aria-valuenow", "0.33"); // Nurse
+    fireEvent.click(screen.getByText("Bookkeeper"));
+    expect(slider).toHaveAttribute("aria-valuenow", "0.7"); // Bookkeeper's today
   });
 
   it("sets the waterline when a zone card is clicked", () => {
@@ -94,16 +103,16 @@ describe("ZoneExplorer", () => {
     renderExplorer();
     const slider = screen.getByRole("slider", { name: "Waterline" });
     fireEvent.keyDown(slider, { key: "ArrowDown" });
-    expect(slider).toHaveAttribute("aria-valuenow", "0.9");
+    expect(slider).toHaveAttribute("aria-valuenow", "0.38");
     fireEvent.keyDown(slider, { key: "ArrowUp" });
-    expect(slider).toHaveAttribute("aria-valuenow", "0.85");
+    expect(slider).toHaveAttribute("aria-valuenow", "0.33");
   });
 
   it("reports how many of the focused role's tasks are submerged", () => {
     renderExplorer();
-    // default focus = Registered Nurse (β 0.88, 0.47, 0.13), waterline at 0.85
-    // → only the 0.88 task is below the line
-    expect(screen.getByText(/1\/3 submerged/)).toBeInTheDocument();
+    // default focus = Registered Nurse (β 0.88, 0.47, 0.13), waterline at 0.33
+    // → the 0.88 and 0.47 tasks are below the line
+    expect(screen.getByText(/2\/3 submerged/)).toBeInTheDocument();
   });
 });
 
