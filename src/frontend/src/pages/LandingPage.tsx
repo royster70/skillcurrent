@@ -10,7 +10,7 @@ import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
-import { CurrentFlow } from "../components/current/CurrentFlow";
+import { CurrentFlow, BackgroundCurrent } from "../components/current/CurrentFlow";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE } from "../components/current/motion";
 import { IconOccupations, IconAnchor, IconSources } from "../components/current/icons";
@@ -50,15 +50,6 @@ function Waypoint({ children, center }: { children: ReactNode; center?: boolean 
       }}
     >
       {children}
-    </div>
-  );
-}
-
-// ── A thin connector of current between narrative beats ──
-function Thread() {
-  return (
-    <div style={{ textAlign: "center" }}>
-      <CurrentFlow direction="down" length={90} breadth={120} strokes={3} opacity={0.3} />
     </div>
   );
 }
@@ -170,61 +161,70 @@ export function LandingPage() {
 
   return (
     <div style={{ margin: -32, color: t.ink, fontFamily: TYPE.body }}>
-      {/* ── Hero ── */}
-      <section
-        style={{
-          minHeight: "88vh",
-          display: "flex",
-          flexDirection: "column",
-          alignItems: "center",
-          justifyContent: "center",
-          textAlign: "center",
-          padding: "0 32px",
-          background: `linear-gradient(180deg, ${t.surface} 0%, ${t.ground} 100%)`,
-        }}
-      >
-        <div style={{ fontFamily: TYPE.mono, fontSize: 12, letterSpacing: 2, color: t.inkMuted, marginBottom: 20 }}>
-          OPEN INTELLIGENCE FOR THE CHANGING WORLD OF WORK
-        </div>
-        <h1 style={{ fontFamily: TYPE.display, fontSize: "clamp(30px, 7vw, 62px)", fontWeight: 600, margin: 0, letterSpacing: -1, lineHeight: 1.05 }}>
-          Skill<span style={{ color: t.brass }}>Current</span>
-        </h1>
-        <p style={{ maxWidth: 560, fontSize: "clamp(16px, 2.4vw, 19px)", lineHeight: 1.5, color: t.inkMuted, marginTop: 20 }}>
-          AI capability is rising like a waterline across the work we do. See where
-          it sits today, where it's heading — and the skills that keep you above it.
-        </p>
-        <div style={{ marginTop: 8 }}>
-          <CurrentFlow direction="down" length={140} breadth={220} strokes={3} opacity={0.35} />
-        </div>
-        <div style={{ color: t.brass, fontSize: 12.5, fontFamily: TYPE.mono, letterSpacing: 1.5 }}>
-          FOLLOW THE CURRENT
-        </div>
-      </section>
+      {/* ── Hero + narrative beats: ONE continuous current runs behind both,
+          the whole way down — not decorative accents between sections, the
+          page IS the current. ── */}
+      <div style={{ position: "relative" }}>
+        <BackgroundCurrent strokes={5} opacity={0.24} speed={5.5} />
 
-      {/* ── Narrative beats, threaded by the current ── */}
-      <section style={{ maxWidth: 720, margin: "0 auto", padding: "40px 32px 0" }}>
-        {BEATS.map((beat, i) => (
-          <div key={i}>
-            <Reveal delay={i * 60}>
-              <div style={{ padding: "56px 0", textAlign: "center" }}>
-                {beat.waypoint && <Waypoint center>{beat.waypoint}</Waypoint>}
-                <p
-                  style={{
-                    fontFamily: TYPE.display,
-                    fontSize: "clamp(22px, 3.6vw, 30px)",
-                    lineHeight: 1.35,
-                    color: t.ink,
-                    margin: 0,
-                  }}
-                >
-                  {beat.line}
-                </p>
-              </div>
-            </Reveal>
-            {i < BEATS.length - 1 && <Thread />}
-          </div>
-        ))}
-      </section>
+        <div style={{ position: "relative", zIndex: 1 }}>
+          {/* ── Hero ── */}
+          <section
+            style={{
+              minHeight: "88vh",
+              display: "flex",
+              flexDirection: "column",
+              alignItems: "center",
+              justifyContent: "center",
+              textAlign: "center",
+              padding: "0 32px",
+              background: `linear-gradient(180deg, ${t.surface} 0%, transparent 100%)`,
+            }}
+          >
+            <div style={{ fontFamily: TYPE.mono, fontSize: 12, letterSpacing: 2, color: t.inkMuted, marginBottom: 20 }}>
+              OPEN INTELLIGENCE FOR THE CHANGING WORLD OF WORK
+            </div>
+            <h1 style={{ fontFamily: TYPE.display, fontSize: "clamp(30px, 7vw, 62px)", fontWeight: 600, margin: 0, letterSpacing: -1, lineHeight: 1.05 }}>
+              Skill<span style={{ color: t.brass }}>Current</span>
+            </h1>
+            <p style={{ maxWidth: 560, fontSize: "clamp(16px, 2.4vw, 19px)", lineHeight: 1.5, color: t.inkMuted, marginTop: 20 }}>
+              AI capability is rising like a waterline across the work we do. See where
+              it sits today, where it's heading — and the skills that keep you above it.
+            </p>
+            <div style={{ marginTop: 28, color: t.brass, fontSize: 13, fontFamily: TYPE.mono, letterSpacing: 2 }}>
+              ↓ FOLLOW THE CURRENT
+            </div>
+          </section>
+
+          {/* ── Narrative beats — float on the current, don't interrupt it ── */}
+          <section style={{ maxWidth: 720, margin: "0 auto", padding: "20px 32px 60px" }}>
+            {BEATS.map((beat, i) => (
+              <Reveal key={i} delay={i * 60}>
+                <div style={{ padding: "56px 0", textAlign: "center" }}>
+                  {beat.waypoint && <Waypoint center>{beat.waypoint}</Waypoint>}
+                  <p
+                    style={{
+                      fontFamily: TYPE.display,
+                      fontSize: "clamp(22px, 3.6vw, 30px)",
+                      lineHeight: 1.35,
+                      color: t.ink,
+                      margin: 0,
+                      background: t.ground,
+                      display: "inline",
+                      boxDecorationBreak: "clone",
+                      WebkitBoxDecorationBreak: "clone",
+                      padding: "0.15em 0.4em",
+                      borderRadius: 6,
+                    }}
+                  >
+                    {beat.line}
+                  </p>
+                </div>
+              </Reveal>
+            ))}
+          </section>
+        </div>
+      </div>
 
       {/* ── The live waterline chart (beat 4 lands here) ── */}
       <section style={{ maxWidth: 900, margin: "0 auto", padding: "24px 32px 60px" }}>

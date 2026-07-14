@@ -6,9 +6,9 @@
  * bearing convention. Reduced-motion renders the streams as static lines.
  */
 
-import { useEffect, useRef, useState, type CSSProperties } from "react";
+import { useEffect, useId, useRef, useState, type CSSProperties } from "react";
 import { THEME } from "../../lib/constants";
-import { DUR, EASE, ensureMotionStyles } from "./motion";
+import { DUR, EASE, ensureMotionStyles, prefersReducedMotion } from "./motion";
 
 /** Play animations only while on screen — off-screen currents pause, so the
  * page never runs more than a viewport's worth of motion at once. */
@@ -116,6 +116,102 @@ export function CurrentFlow({
             }}
           />
         ))}
+      </svg>
+    </div>
+  );
+}
+
+interface BackgroundCurrentProps {
+  /** Number of parallel streamlines. */
+  strokes?: number;
+  color?: string;
+  opacity?: number;
+  /** Seconds per flow cycle. */
+  speed?: number;
+  /** Small dots travelling along each streamline — the strongest "this is a
+   * current, not a static line" signal. Off automatically under
+   * prefers-reduced-motion. */
+  particles?: boolean;
+  style?: CSSProperties;
+}
+
+/** The river: a full-bleed, continuous current that runs behind an entire
+ * page section (absolutely positioned, CSS-sized to 100% of its relatively-
+ * positioned parent — the parent's natural content height sets how tall it
+ * runs). Distinct from `CurrentFlow`, which is icon-scale and used for local
+ * accents (hover, the wordmark underline). This is the "the whole page is one
+ * current" statement piece — it should be felt, not just noticed. */
+export function BackgroundCurrent({
+  strokes = 4,
+  color,
+  opacity = 0.22,
+  speed = 5,
+  particles = true,
+  style,
+}: BackgroundCurrentProps) {
+  ensureMotionStyles();
+  const t = THEME.light;
+  const stroke = color ?? t.current;
+  const { ref, playing } = useInViewPlayState<HTMLDivElement>();
+  const reduced = prefersReducedMotion();
+  const idPrefix = useId();
+
+  // A tall virtual canvas stretched via CSS (preserveAspectRatio="none") to
+  // fill whatever height the parent section actually has.
+  const W = 320;
+  const H = 1200;
+  const amp = 34;
+  const positions = Array.from({ length: strokes }, (_, i) => ((i + 1) * W) / (strokes + 1));
+
+  return (
+    <div
+      ref={ref}
+      aria-hidden="true"
+      style={{
+        position: "absolute",
+        inset: 0,
+        overflow: "hidden",
+        pointerEvents: "none",
+        zIndex: 0,
+        ...style,
+      }}
+    >
+      <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
+        {positions.map((pos, i) => {
+          const d = streamPath("down", pos, H, amp);
+          const pathId = `${idPrefix}-stream-${i}`;
+          return (
+            <g key={i}>
+              <path
+                id={pathId}
+                className="sc-stream"
+                d={d}
+                fill="none"
+                stroke={stroke}
+                strokeWidth={2.5}
+                strokeLinecap="round"
+                opacity={opacity}
+                style={{
+                  animationDelay: `${i * 0.8}s`,
+                  animationPlayState: playing ? "running" : "paused",
+                  ["--sc-speed" as string]: `${speed}s`,
+                }}
+              />
+              {particles && !reduced && (
+                <circle r={4} fill={stroke} opacity={Math.min(1, opacity + 0.35)}>
+                  <animateMotion
+                    dur={`${speed * 1.7}s`}
+                    repeatCount="indefinite"
+                    begin={`${i * 0.9}s`}
+                    rotate="auto"
+                  >
+                    <mpath href={`#${pathId}`} />
+                  </animateMotion>
+                </circle>
+              )}
+            </g>
+          );
+        })}
       </svg>
     </div>
   );
