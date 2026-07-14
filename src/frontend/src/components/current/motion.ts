@@ -44,6 +44,7 @@ export function ensureMotionStyles(): void {
   stroke-dasharray: 12 228;
   animation: sc-flow var(--sc-speed, 3.4s) linear infinite;
 }
+@keyframes sc-fade-rise { from { opacity: 0; transform: translateY(6px); } to { opacity: 1; transform: none; } }
 @media ${REDUCED_MOTION_QUERY} {
   .sc-stream { animation: none; stroke-dasharray: none; }
 }

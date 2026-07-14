@@ -38,21 +38,35 @@ describe("ZoneExplorer", () => {
     expect(screen.getByText(/Beta = E1 \+ 0\.5×E2/)).toBeInTheDocument();
   });
 
-  it("shows several recognizable roles at once (no selection needed)", () => {
+  it("offers every recognizable role to browse, but focuses one at a time", () => {
     renderExplorer();
-    expect(screen.getByText("Registered Nurse")).toBeInTheDocument();
+    // all role names are reachable (focus title + the browse rail)
+    expect(screen.getAllByText("Registered Nurse").length).toBeGreaterThan(0);
     expect(screen.getByText("Cashier")).toBeInTheDocument();
     expect(screen.getByText("Truck Driver")).toBeInTheDocument();
-    // …and their tasks are all rendered together
+    // default focus = the first role, so only its tasks are shown…
     expect(screen.getByText(/Chart patient vitals/)).toBeInTheDocument();
-    expect(screen.getByText(/Scan items and total/)).toBeInTheDocument();
-    expect(screen.getByText(/Drive the vehicle safely/)).toBeInTheDocument();
+    // …and another role's tasks stay hidden until you pick it
+    expect(screen.queryByText(/Scan items and total/)).not.toBeInTheDocument();
   });
 
-  it("links each role to its live per-task page", () => {
+  it("switches focus when a role is picked from the browse rail", () => {
     renderExplorer();
-    expect(screen.getByText("Registered Nurse").closest("a")).toHaveAttribute("href", "/occupations?selected=29-1141.00");
-    expect(screen.getByText("Truck Driver").closest("a")).toHaveAttribute("href", "/occupations?selected=53-3032.00");
+    fireEvent.click(screen.getByText("Cashier"));
+    expect(screen.getByText(/Scan items and total/)).toBeInTheDocument();
+    // the previously focused role's tasks are no longer in view
+    expect(screen.queryByText(/Chart patient vitals/)).not.toBeInTheDocument();
+  });
+
+  it("links the focused role to its live per-task page", () => {
+    renderExplorer();
+    // the focused role's title (an anchor) — the rail chips are buttons, not links
+    const nurseLink = screen.getAllByText("Registered Nurse").find((el) => el.closest("a"));
+    expect(nurseLink?.closest("a")).toHaveAttribute("href", "/occupations?selected=29-1141.00");
+    // pick another role from the rail → it becomes the focused, linked role
+    fireEvent.click(screen.getByText("Truck Driver"));
+    const truckLink = screen.getAllByText("Truck Driver").find((el) => el.closest("a"));
+    expect(truckLink?.closest("a")).toHaveAttribute("href", "/occupations?selected=53-3032.00");
   });
 
   it("labels the worked example as representative, not live-computed", () => {

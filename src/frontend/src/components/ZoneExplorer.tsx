@@ -18,9 +18,10 @@
  * the landing); the live per-task reading is on each occupation's own page.
  */
 
-import { useState, type PointerEvent as ReactPointerEvent } from "react";
+import { useState, useEffect, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS, BRASS_TINT } from "../lib/constants";
+import { DUR, EASE, prefersReducedMotion, ensureMotionStyles } from "./current/motion";
 
 const t = THEME.light;
 
@@ -136,93 +137,186 @@ const ROLE_EXAMPLES = [
   },
 ];
 
-/** A single task plotted on a mini Beta scale — the zone bands + a positioned dot. */
-function MiniBetaTrack({ beta }: { beta: number }) {
+/** The three zone bands with one dot per beta. Used both for the compact role
+ * "signature" in the browse chips (teaser) and the focus panel's task rows. */
+function ScaleTrack({ betas, height = 8, dot = 10 }: { betas: number[]; height?: number; dot?: number }) {
   const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
   const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
-  const zone = zoneOf(beta);
+  const rad = height / 2;
   return (
-    <div style={{ position: "relative", height: 8, borderRadius: 4, display: "flex", overflow: "visible", border: `1px solid ${t.line}` }}>
-      <div style={{ width: `${e1}%`, background: ZONE_BG.E0, borderRadius: "3px 0 0 3px" }} />
+    <div style={{ position: "relative", height, borderRadius: rad, display: "flex", overflow: "visible", border: `1px solid ${t.line}` }}>
+      <div style={{ width: `${e1}%`, background: ZONE_BG.E0, borderRadius: `${rad}px 0 0 ${rad}px` }} />
       <div style={{ width: `${e2 - e1}%`, background: ZONE_BG.E1 }} />
-      <div style={{ width: `${100 - e2}%`, background: ZONE_BG.E2, borderRadius: "0 3px 3px 0" }} />
-      <div
-        style={{
-          position: "absolute",
-          left: `${pctOfScale(beta)}%`,
-          top: -2,
-          width: 10,
-          height: 10,
-          borderRadius: "50%",
-          background: ZONE_COLORS[zone],
-          border: `2px solid ${t.surface}`,
-          transform: "translateX(-5px)",
-        }}
-      />
+      <div style={{ width: `${100 - e2}%`, background: ZONE_BG.E2, borderRadius: `0 ${rad}px ${rad}px 0` }} />
+      {betas.map((b, i) => (
+        <div
+          key={i}
+          style={{
+            position: "absolute",
+            left: `${pctOfScale(b)}%`,
+            top: "50%",
+            width: dot,
+            height: dot,
+            borderRadius: "50%",
+            background: ZONE_COLORS[zoneOf(b)],
+            border: `${dot < 9 ? 1.5 : 2}px solid ${t.surface}`,
+            transform: "translate(-50%, -50%)",
+          }}
+        />
+      ))}
     </div>
   );
 }
 
-/** One role's card — title, a one-line takeaway, and its tasks on the scale. */
-function RoleCard({ role }: { role: (typeof ROLE_EXAMPLES)[number] }) {
-  return (
-    <div style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 10, padding: "14px 16px" }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 8, marginBottom: 2 }}>
-        <Link
-          to={`/occupations?selected=${role.soc}`}
-          title={`See ${role.title}'s full task breakdown`}
-          style={{ fontFamily: TYPE.display, fontSize: 17, fontWeight: 600, color: t.ink, textDecoration: "none" }}
-        >
-          {role.title}
-        </Link>
-        <Link
-          to={`/occupations?selected=${role.soc}`}
-          style={{ fontFamily: TYPE.mono, fontSize: 11, color: t.brass, textDecoration: "none", whiteSpace: "nowrap", flexShrink: 0 }}
-        >
-          all tasks →
-        </Link>
-      </div>
-      <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic", marginBottom: 12 }}>{role.takeaway}</div>
-      <div style={{ display: "flex", flexDirection: "column", gap: 9 }}>
-        {role.tasks.map((task) => {
-          const zone = zoneOf(task.beta);
-          return (
-            <div key={task.text} style={{ display: "flex", alignItems: "center", gap: 10 }}>
-              <div style={{ flex: 1, fontSize: 12.5, color: t.ink, lineHeight: 1.3 }}>{task.text}</div>
-              <div style={{ width: 96, flexShrink: 0 }}>
-                <MiniBetaTrack beta={task.beta} />
-              </div>
-              <div style={{ width: 32, flexShrink: 0, textAlign: "right", fontFamily: TYPE.mono, fontSize: 12, fontWeight: 600, color: ZONE_COLORS[zone] }}>
-                {task.beta.toFixed(2)}
-              </div>
-            </div>
-          );
-        })}
-      </div>
-    </div>
-  );
+/** A small role "signature" — the 3-dot shape teaser inside each browse chip.
+ * Shows at a glance how much of a role sinks vs stays dry, inviting a click. */
+function RoleSignature({ role }: { role: (typeof ROLE_EXAMPLES)[number] }) {
+  return <ScaleTrack betas={role.tasks.map((task) => task.beta)} height={6} dot={7} />;
 }
 
-/** WorkedExample — "make Beta real": several recognizable jobs shown together
- * (so there's always one you know), each with its real tasks on the scale. */
+/** WorkedExample — "make Beta real": focus on ONE recognizable job's tasks on the
+ * scale, with a rail of the other roles (each previewing its shape) to browse. */
 function WorkedExample() {
+  const [idx, setIdx] = useState(0);
+  const count = ROLE_EXAMPLES.length;
+  const role = ROLE_EXAMPLES[idx];
+  const animate = !prefersReducedMotion();
+
+  useEffect(() => {
+    ensureMotionStyles();
+  }, []);
+
+  const go = (delta: number) => setIdx((i) => (i + delta + count) % count);
+
+  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
+  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
+
+  const arrowBtn = (label: string, onClick: () => void, title: string) => (
+    <button
+      onClick={onClick}
+      aria-label={title}
+      title={title}
+      style={{
+        width: 26, height: 26, borderRadius: 7, border: `1px solid ${t.line}`,
+        background: t.surface, color: t.inkMuted, cursor: "pointer",
+        fontSize: 14, lineHeight: 1, display: "flex", alignItems: "center", justifyContent: "center",
+      }}
+    >
+      {label}
+    </button>
+  );
+
   return (
     <div style={{ marginTop: 16 }}>
       <div style={{ fontSize: 13, fontWeight: 600, color: t.ink, marginBottom: 4 }}>
-        A few jobs you'll recognize — see where their everyday tasks land
+        See where one job's tasks land — then browse the others
       </div>
       <div style={{ fontSize: 12, color: t.inkMuted, marginBottom: 14 }}>
         Every job splits across the scale: the routine parts sink toward automation,
         the human parts stay dry. That spread — not a single score — is what
         SkillCurrent measures.
       </div>
-      <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(300px, 1fr))", gap: 14 }}>
-        {ROLE_EXAMPLES.map((role) => (
-          <RoleCard key={role.soc} role={role} />
-        ))}
+
+      {/* Focus panel — the one role in view, big and legible */}
+      <div
+        tabIndex={0}
+        onKeyDown={(e) => {
+          if (e.key === "ArrowRight") go(1);
+          if (e.key === "ArrowLeft") go(-1);
+        }}
+        style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 12, padding: "18px 20px", outline: "none" }}
+      >
+        <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap" }}>
+          <div style={{ minWidth: 0 }}>
+            <Link
+              to={`/occupations?selected=${role.soc}`}
+              title={`See ${role.title}'s full task breakdown`}
+              style={{ fontFamily: TYPE.display, fontSize: 21, fontWeight: 600, color: t.ink, textDecoration: "none", letterSpacing: -0.3 }}
+            >
+              {role.title}
+            </Link>
+            <div style={{ fontSize: 12.5, color: t.inkMuted, fontStyle: "italic", marginTop: 3 }}>{role.takeaway}</div>
+          </div>
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexShrink: 0 }}>
+            {arrowBtn("‹", () => go(-1), "Previous role")}
+            <span style={{ fontFamily: TYPE.mono, fontSize: 12, color: t.inkMuted, minWidth: 34, textAlign: "center" }}>
+              {idx + 1} / {count}
+            </span>
+            {arrowBtn("›", () => go(1), "Next role")}
+          </div>
+        </div>
+
+        {/* Shared scale header — calibrate once; task tracks align to it */}
+        <div style={{ position: "relative", height: 16, marginTop: 16 }}>
+          <div style={{ position: "absolute", inset: 0, display: "flex", fontSize: 9.5, fontWeight: 600 }}>
+            <div style={{ width: `${e1}%`, color: ZONE_COLORS.E0 }}>{ZONE_LABELS.E0}</div>
+            <div style={{ width: `${e2 - e1}%`, color: ZONE_COLORS.E1, textAlign: "center" }}>{ZONE_LABELS.E1}</div>
+            <div style={{ width: `${100 - e2}%`, color: ZONE_COLORS.E2, textAlign: "right" }}>{ZONE_LABELS.E2}</div>
+          </div>
+        </div>
+
+        {/* The role's tasks — keyed so switching plays a gentle fade-rise */}
+        <div
+          key={idx}
+          style={{
+            display: "flex", flexDirection: "column", gap: 14, marginTop: 4,
+            animation: animate ? `sc-fade-rise ${DUR.bearing}ms ${EASE}` : undefined,
+          }}
+        >
+          {role.tasks.map((task) => {
+            const zone = zoneOf(task.beta);
+            return (
+              <div key={task.text}>
+                <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 10, marginBottom: 6 }}>
+                  <span style={{ fontSize: 13.5, color: t.ink, lineHeight: 1.3 }}>{task.text}</span>
+                  <span style={{ display: "flex", alignItems: "baseline", gap: 6, flexShrink: 0, fontFamily: TYPE.mono }}>
+                    <span style={{ fontSize: 13, fontWeight: 700, color: ZONE_COLORS[zone] }}>{task.beta.toFixed(2)}</span>
+                    <span style={{ fontSize: 10.5, color: ZONE_COLORS[zone], opacity: 0.85 }}>{ZONE_LABELS[zone]}</span>
+                  </span>
+                </div>
+                <ScaleTrack betas={[task.beta]} height={13} dot={13} />
+              </div>
+            );
+          })}
+        </div>
       </div>
+
+      {/* Browse rail — every other role's shape, click to bring into focus */}
+      <div style={{ marginTop: 12 }}>
+        <div style={{ fontSize: 11, color: t.inkMuted, marginBottom: 8 }}>
+          Explore {count} everyday jobs — each preview shows its shape on the scale:
+        </div>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
+          {ROLE_EXAMPLES.map((r, i) => {
+            const active = i === idx;
+            return (
+              <button
+                key={r.soc}
+                onClick={() => setIdx(i)}
+                aria-pressed={active}
+                title={`Focus on ${r.title}`}
+                style={{
+                  flex: "1 1 150px", minWidth: 140, maxWidth: 220, textAlign: "left",
+                  display: "flex", flexDirection: "column", gap: 7, padding: "9px 11px",
+                  borderRadius: 9, cursor: "pointer",
+                  background: active ? BRASS_TINT : t.surface,
+                  border: `1px solid ${active ? t.brass : t.line}`,
+                  boxShadow: active ? `0 0 0 1px ${t.brass}` : "none",
+                  transition: `background ${DUR.hover}ms ${EASE}, border-color ${DUR.hover}ms ${EASE}`,
+                }}
+              >
+                <span style={{ fontSize: 12.5, fontWeight: 600, color: active ? t.brass : t.ink, lineHeight: 1.2 }}>
+                  {r.title}
+                </span>
+                <RoleSignature role={r} />
+              </button>
+            );
+          })}
+        </div>
+      </div>
+
       <div style={{ marginTop: 12, fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
-        Representative tasks, positioned by their AI exposure — each role links to its live per-task breakdown.
+        Representative tasks, positioned by their AI exposure — the focused role links to its live per-task breakdown.
       </div>
     </div>
   );
