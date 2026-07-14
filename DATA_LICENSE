@@ -1,0 +1,32 @@
+SkillCurrent — Data Licence
+
+The SkillCurrent DATA COMPILATION — the derived datasets produced by this
+project (for example task_drift_metrics, industry_occupation_profiles, au_task,
+dwa_asc_bridge, the derived embeddings and concordances, and any bundled
+seed / CDN export) — is licensed under the Creative Commons Attribution 4.0
+International licence (CC BY 4.0).
+
+    Human-readable summary: https://creativecommons.org/licenses/by/4.0/
+    Full legal code:        https://creativecommons.org/licenses/by/4.0/legalcode
+
+You are free to share and adapt the compilation for any purpose, provided you
+give appropriate credit. Required per-source attribution is listed in NOTICE.
+
+Scope and important distinctions
+--------------------------------
+- This licence covers the *compilation* and this project's own derived tables.
+  It is grantable because every upstream source contributing to those tables is
+  itself redistributable (CC BY / MIT / public domain) — see NOTICE.
+- Upstream sources retain their own licences. Where an upstream licence imposes
+  terms beyond CC BY 4.0, that source's terms govern its portion of the data.
+- This project's own model-evaluation outputs (e.g. gdpval_evaluations, produced
+  by running a public grader on MIT-licensed tasks against this project's own
+  model outputs) are original to this project and released under CC BY 4.0.
+- The software / code is licensed separately under the MIT License (see LICENSE).
+
+NOT INCLUDED (consumed-only, never redistributed)
+-------------------------------------------------
+Datasets under citation-only or view-only terms — including AIOE (Felten),
+GDPval-AA (Artificial Analysis), and OpenAI's GDPval leaderboard scores — are
+used only as cited references. They are NOT part of this compilation and are not
+present in any published output (seed, CDN export, or API). See NOTICE.

@@ -166,3 +166,16 @@ skillcurrent/
       e2e/                   # Playwright E2E tests (6 suites, 46 tests)
       playwright.config.ts   # Playwright configuration
 ```
+
+## Licence
+
+SkillCurrent is dual-licensed — code and data are distinct:
+
+- **Code** — [MIT](LICENSE).
+- **Data compilation** — [CC BY 4.0](DATA_LICENSE). The derived datasets are
+  redistributable because every upstream source is CC BY / MIT / public domain.
+- **Attribution** — see [NOTICE](NOTICE) for required per-source credit, and
+  [docs/data-sources.md](docs/data-sources.md) for the full source registry.
+
+Citation-only sources (e.g. AIOE, GDPval-AA, OpenAI's GDPval leaderboard scores)
+are used only as cited references — never bundled, exported, or served.
