@@ -6,7 +6,7 @@ leak guardrails, and the pre-publication cleanup punch-list so the process is
 repeatable — not trapped in a chat log.
 
 **Working repo**: `royster70/workforce-ai-platform` (GitHub, **private**)
-**Public repo**: _to create_ — e.g. `royster70/workforce-ai-impact` (**public**)
+**Public repo**: _to create_ — e.g. `royster70/skillcurrent` (**public**)
 **Code licence**: MIT (decided 2026-07-14) · **Data licence**: CC-BY-4.0 (compilation)
 **Companion plan**: `ai_working/open-source-prep-plan.md` (licensing + phases)
 
@@ -64,7 +64,7 @@ One local clone, two remotes. `origin` stays private; `public` is the mirror.
 
 ```bash
 # create the PUBLIC repo on GitHub first (empty, no README), then:
-git remote add public https://github.com/royster70/workforce-ai-impact.git
+git remote add public https://github.com/royster70/skillcurrent.git
 
 # a 'public' integration branch that ONLY ever moves forward
 git switch -c public master        # branch off a clean, cleaned-up state

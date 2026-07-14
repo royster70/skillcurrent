@@ -1,4 +1,4 @@
-# Workforce AI Impact Analysis Platform
+# SkillCurrent
 
 Analyzes how AI reshapes work at the task level. Combines O*NET occupational taxonomy, Eloundou 2024 theoretical exposure scores, Microsoft "Working with AI" empirical applicability scores, Anthropic Economic Index (AEI) empirical usage data, BLS/ABS employment statistics, and GPTVal longitudinal capability measures to produce workforce planning intelligence.
 

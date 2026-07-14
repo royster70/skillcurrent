@@ -1,6 +1,6 @@
 # Data Dictionary
 
-All database tables for the Workforce AI Impact Analysis Platform. Grouped by domain.
+All database tables for the SkillCurrent. Grouped by domain.
 
 ---
 

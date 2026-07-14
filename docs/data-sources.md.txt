@@ -28,7 +28,7 @@ All datasets stored at: `C:\Projects\data\`
 
 The key things this gives you:
 
-**Separation of concerns** — data lives at `C:\Projects\data\`, code lives at `C:\Projects\workforce-ai-platform\`. Claude Code knows the path, can reference files in ingestion scripts, but the data isn't cluttering or bloating the repo.
+**Separation of concerns** — data lives at `C:\Projects\data\`, code lives at `C:\Projects\skillcurrent\`. Claude Code knows the path, can reference files in ingestion scripts, but the data isn't cluttering or bloating the repo.
 
 **Version tracking without the data** — when O*NET bumps to 28.2 or a new AEI snapshot drops, you update one line in the registry. Claude Code picks up the new path automatically when building ingestion scripts.
 
@@ -39,7 +39,7 @@ The key things this gives you:
 So your eventual structure would be:
 ```
 C:\User\royst\Projects\
-├── workforce-ai-platform\    ← git repo
+├── skillcurrent\    ← git repo
 │   ├── CLAUDE.md
 │   ├── docs\
 │   │   ├── research\

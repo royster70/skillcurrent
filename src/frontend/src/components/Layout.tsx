@@ -27,7 +27,7 @@ export function Layout() {
       }}>
         {/* Header + collapse toggle */}
         <div style={{ display: "flex", alignItems: "center", justifyContent: "space-between", marginBottom: collapsed ? 16 : 2 }}>
-          {!collapsed && <div style={{ fontSize: 18, fontWeight: 700 }}>Workforce AI</div>}
+          {!collapsed && <div style={{ fontSize: 18, fontWeight: 700 }}>SkillCurrent</div>}
           <button
             onClick={() => setCollapsed(!collapsed)}
             title={collapsed ? "Expand sidebar" : "Collapse sidebar"}

@@ -1,4 +1,4 @@
-# Architecture — Workforce AI Impact Analysis Platform
+# Architecture — SkillCurrent
 
 How the platform is structured, at two altitudes:
 

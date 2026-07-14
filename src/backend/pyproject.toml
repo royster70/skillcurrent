@@ -6,7 +6,7 @@ build-backend = "setuptools.build_meta"
 include = ["app*"]
 
 [project]
-name = "workforce-ai-backend"
+name = "skillcurrent-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
 dependencies = [

@@ -17,7 +17,7 @@ async def lifespan(app: FastAPI) -> AsyncGenerator[None, None]:
 
 
 app = FastAPI(
-    title="Workforce AI Impact Analysis Platform",
+    title="SkillCurrent",
     description="Tier 1 Industry Intelligence — AI exposure analysis by occupation and industry",
     version="0.1.0",
     lifespan=lifespan,

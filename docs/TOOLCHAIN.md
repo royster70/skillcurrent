@@ -1,6 +1,6 @@
 # Platform Toolchain Reference
 
-Complete toolchain for the Workforce AI Impact Analysis Platform. Each entry explains what the tool is, why it was chosen for this platform specifically, how it fits with other tools, and any constraints to follow.
+Complete toolchain for the SkillCurrent. Each entry explains what the tool is, why it was chosen for this platform specifically, how it fits with other tools, and any constraints to follow.
 
 ---
 

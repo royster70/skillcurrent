@@ -1,6 +1,6 @@
 # Ingestion Runbook
 
-How to rebuild the Workforce AI Platform database from scratch. This covers environment setup, migrations, and all data ingestion scripts in the correct order.
+How to rebuild the SkillCurrent database from scratch. This covers environment setup, migrations, and all data ingestion scripts in the correct order.
 
 ---
 
