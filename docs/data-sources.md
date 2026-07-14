@@ -82,6 +82,21 @@ Local data directory: `C:\Users\royst\Projects\Data\` (outside the git repo, not
 | Status | ACQUIRED — not yet ingested. No ingestion script exists yet. |
 | Planned use | Theoretical/citation-based AI exposure baseline, complementary to Eloundou — not yet wired into any FR. **Before ingesting, confirm the licence permits storing derived scores in the platform database and serving them via API; the citation-only status may restrict this.** |
 
+## Eloundou 2024 — "GPTs are GPTs" occupation exposure (OpenAI)
+
+| Field | Value |
+|-------|-------|
+| Publisher | Eloundou, Manning, Mishkin & Rock (OpenAI) |
+| Dataset | Occupation-level AI-exposure scores (E0/E1/E2, dual GPT-4 `dv_` + human raters), 923 occupations |
+| Paper | Science 384:1306–1308 (2024); working paper arXiv 2303.10130 |
+| Source repo | **`openai/GPTs-are-GPTs`** (GitHub) — the ingested file `occ_level.csv` lives in that repo's `data/` directory |
+| Licence | **MIT** (verified 2026-07-14 via GitHub API — `openai/GPTs-are-GPTs` `LICENSE` = "MIT License, Copyright (c) 2024 OpenAI") |
+| Redistribution OK | **Yes** — MIT permits use, modification, redistribution with attribution. This is FOUNDATIONAL: the whole exposure/β layer and every table derived from it inherit this, so the redistributable-data story holds to its foundation. |
+| Local path | `occ_level.csv` (dir set by `DATA_ROOT`) |
+| Status | LOADED — `eloundou_occ_scores` (923); DWA-level derived via Strategy A → `eloundou_dwa_scores` (17,537) |
+| Used by | The core exposure signal (β = E1 + 0.5×E2) behind zones, the matrix, drift, US/AU task exposure |
+| Ingestion | `python -m scripts.ingest_eloundou` (`source_url` recorded as arXiv 2303.10130) |
+
 ---
 
 ## Established sources (loaded, cross-reference)
