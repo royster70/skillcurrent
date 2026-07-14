@@ -5,10 +5,17 @@
  * home for the platform's core concept (design 7a+7b combo). Data pages embed
  * the slim `ZoneLegend` instead, which links back here.
  *
- * The draggable Beta gauge uses BETA_SCALE/ZONE_THRESHOLDS — the same tokens
- * the app's zone-classification logic uses, so the instrument and the real
- * scale are the same numbers. Anchor points are explicitly illustrative
- * (brand honesty rule: never blur measured vs modelled).
+ * Three layers, abstract → concrete:
+ *   1. BetaGauge — drag the scale itself.
+ *   2. WorkedExample — a REAL, recognizable job broken into its actual tasks,
+ *      each plotted on the scale, so Beta stops being abstract: you see the
+ *      paperwork sink and the human moments stay dry. Pick a job you know.
+ *   3. Zone definition cards — what E0/E1/E2 mean.
+ *
+ * The gauge uses BETA_SCALE/ZONE_THRESHOLDS — the same tokens the app's
+ * zone-classification logic uses, so the instrument and the real scale are the
+ * same numbers. Worked-example task positions are representative (curated for
+ * the landing); the live per-task reading is on each occupation's own page.
  */
 
 import { useState, type PointerEvent as ReactPointerEvent } from "react";
@@ -26,7 +33,6 @@ export const ZONE_DATA = [
     description:
       "Tasks unlikely to be impacted by AI in the near term. Human-only work with supporting systems and processes.",
     implication: "Focus: preserve and invest in these distinctly human capabilities.",
-    examples: "Conflict mediation · hands-on patient care · high-stakes negotiation · original strategic direction",
     sample: 0.2,
   },
   {
@@ -37,7 +43,6 @@ export const ZONE_DATA = [
     description:
       "Co-pilot workflows where AI handles routine subtasks while humans provide judgment, creativity, and oversight.",
     implication: "Focus: upskill workers to collaborate effectively with AI tools.",
-    examples: "Drafting reports for review · code scaffolding · first-pass research synthesis · meeting prep",
     sample: 0.6,
   },
   {
@@ -48,7 +53,6 @@ export const ZONE_DATA = [
     description:
       "Tasks that can be substantially automated or delegated to AI agents. Humans shift to quality assurance and exception handling.",
     implication: "Focus: redesign roles around oversight, exceptions, and new value creation.",
-    examples: "Data entry · transcription · template generation · routine scheduling · basic classification",
     sample: 1.05,
   },
 ] as const;
@@ -61,21 +65,165 @@ function zoneOf(beta: number): ZoneKey {
   return "E0";
 }
 
-// A few illustrative anchor points — clearly labelled as illustrative, not a
-// live-computed reading (brand brief §12: never blur measured vs modelled).
-const ANCHORS = [
-  { label: "e.g. Registered Nurse", beta: 0.28 },
-  { label: "e.g. Software Developer", beta: 0.61 },
-  { label: "e.g. Data Entry Clerk", beta: 1.15 },
+const pctOfScale = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max) * 100));
+
+// ── Worked examples: super-common roles, everyday tasks, positioned by
+// exposure. Representative (curated) — the live per-task reading is on each
+// occupation's page. Chosen to span the scale, so the spread is the lesson:
+// documentation/routine sinks, human contact stays dry. ──
+const ROLE_EXAMPLES = [
+  {
+    soc: "29-1141.00",
+    title: "Registered Nurse",
+    takeaway: "The charting is automatable. Comforting a frightened patient isn't — that's the high ground.",
+    tasks: [
+      { text: "Chart patient vitals and update medical records", beta: 0.88 },
+      { text: "Interpret diagnostic test results", beta: 0.71 },
+      { text: "Administer medications and treatments", beta: 0.47 },
+      { text: "Coordinate care across the medical team", beta: 0.36 },
+      { text: "Comfort and reassure patients and families", beta: 0.13 },
+    ],
+  },
+  {
+    soc: "41-2011.00",
+    title: "Cashier",
+    takeaway: "Scanning and totalling are nearly gone. Reading an upset customer and defusing it isn't.",
+    tasks: [
+      { text: "Scan items and total the purchase", beta: 0.9 },
+      { text: "Process payments and issue change", beta: 0.82 },
+      { text: "Answer questions about products and prices", beta: 0.54 },
+      { text: "De-escalate an upset customer", beta: 0.22 },
+      { text: "Keep the checkout area stocked and tidy", beta: 0.17 },
+    ],
+  },
+  {
+    soc: "43-3031.00",
+    title: "Bookkeeper",
+    takeaway: "Data entry and reconciliation are prime automation targets; the judgment call on what looks wrong isn't.",
+    tasks: [
+      { text: "Enter transactions into the ledger", beta: 0.93 },
+      { text: "Reconcile bank statements", beta: 0.8 },
+      { text: "Generate monthly financial reports", beta: 0.67 },
+      { text: "Flag unusual transactions for review", beta: 0.41 },
+      { text: "Advise on bookkeeping practices", beta: 0.27 },
+    ],
+  },
+  {
+    soc: "25-2021.00",
+    title: "Primary Teacher",
+    takeaway: "Grading and prep get faster with AI. Holding a classroom and encouraging a struggling kid stays human.",
+    tasks: [
+      { text: "Grade assignments and quizzes", beta: 0.78 },
+      { text: "Prepare lesson plans and materials", beta: 0.61 },
+      { text: "Explain new concepts to the class", beta: 0.43 },
+      { text: "Manage classroom behaviour", beta: 0.19 },
+      { text: "Encourage and mentor struggling students", beta: 0.11 },
+    ],
+  },
 ];
+
+/** A single task plotted on a mini Beta scale — the zone bands + a positioned dot. */
+function MiniBetaTrack({ beta }: { beta: number }) {
+  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
+  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
+  const zone = zoneOf(beta);
+  return (
+    <div style={{ position: "relative", height: 8, borderRadius: 4, display: "flex", overflow: "visible", border: `1px solid ${t.line}` }}>
+      <div style={{ width: `${e1}%`, background: ZONE_BG.E0, borderRadius: "3px 0 0 3px" }} />
+      <div style={{ width: `${e2 - e1}%`, background: ZONE_BG.E1 }} />
+      <div style={{ width: `${100 - e2}%`, background: ZONE_BG.E2, borderRadius: "0 3px 3px 0" }} />
+      <div
+        style={{
+          position: "absolute",
+          left: `${pctOfScale(beta)}%`,
+          top: -2,
+          width: 10,
+          height: 10,
+          borderRadius: "50%",
+          background: ZONE_COLORS[zone],
+          border: `2px solid ${t.surface}`,
+          transform: "translateX(-5px)",
+        }}
+      />
+    </div>
+  );
+}
+
+/** WorkedExample — "make Beta real": a recognizable role's actual tasks on the scale. */
+function WorkedExample() {
+  const [idx, setIdx] = useState(0);
+  const role = ROLE_EXAMPLES[idx];
+
+  return (
+    <div style={{ marginTop: 16, background: t.surface, border: `1px solid ${t.line}`, borderRadius: 12, padding: "16px 20px 18px" }}>
+      <div style={{ fontSize: 12.5, fontWeight: 600, color: t.ink, marginBottom: 10 }}>
+        See a real job on the scale — pick one you know:
+      </div>
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 16 }}>
+        {ROLE_EXAMPLES.map((r, i) => {
+          const active = i === idx;
+          return (
+            <button
+              key={r.soc}
+              onClick={() => setIdx(i)}
+              style={{
+                padding: "6px 14px",
+                borderRadius: 20,
+                fontSize: 13,
+                fontWeight: active ? 600 : 500,
+                fontFamily: TYPE.body,
+                cursor: "pointer",
+                border: `1px solid ${active ? t.brass : t.line}`,
+                background: active ? "rgba(156, 100, 20, 0.10)" : t.surface,
+                color: active ? t.brass : t.inkMuted,
+                transition: "all 0.15s ease",
+              }}
+            >
+              {r.title}
+            </button>
+          );
+        })}
+      </div>
+
+      {/* Task rows — each everyday task, positioned on the scale */}
+      <div style={{ display: "flex", flexDirection: "column", gap: 11 }}>
+        {role.tasks.map((task) => {
+          const zone = zoneOf(task.beta);
+          return (
+            <div key={task.text} style={{ display: "flex", alignItems: "center", gap: 12 }}>
+              <div style={{ flex: 1, fontSize: 13, color: t.ink, lineHeight: 1.35 }}>{task.text}</div>
+              <div style={{ width: 150, flexShrink: 0 }}>
+                <MiniBetaTrack beta={task.beta} />
+              </div>
+              <div style={{ width: 34, flexShrink: 0, textAlign: "right", fontFamily: TYPE.mono, fontSize: 12.5, fontWeight: 600, color: ZONE_COLORS[zone] }}>
+                {task.beta.toFixed(2)}
+              </div>
+            </div>
+          );
+        })}
+      </div>
+
+      {/* Takeaway — the spread is the point */}
+      <div style={{ marginTop: 14, paddingTop: 12, borderTop: `1px solid ${t.line}`, fontSize: 13, color: t.ink, lineHeight: 1.5 }}>
+        <span style={{ fontWeight: 600 }}>{role.title}: </span>
+        {role.takeaway}
+      </div>
+      <div style={{ marginTop: 4, fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
+        Representative tasks, positioned by their AI exposure.{" "}
+        <Link to={`/occupations?selected=${role.soc}`} style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>
+          See {role.title}'s full task breakdown →
+        </Link>
+      </div>
+    </div>
+  );
+}
 
 /** An interactive Beta gauge — drag or click to "try" a value and see its zone. */
 function BetaGauge({ value, onChange }: { value: number; onChange: (v: number) => void }) {
-  const pct = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max) * 100));
-  const e1Start = pct(ZONE_THRESHOLDS.E1);
-  const e2Start = pct(ZONE_THRESHOLDS.E2);
-  const medianPct = pct(BETA_SCALE.median);
-  const valuePct = pct(value);
+  const e1Start = pctOfScale(ZONE_THRESHOLDS.E1);
+  const e2Start = pctOfScale(ZONE_THRESHOLDS.E2);
+  const medianPct = pctOfScale(BETA_SCALE.median);
+  const valuePct = pctOfScale(value);
   const active = zoneOf(value);
 
   function setFromClientX(clientX: number, rect: DOMRect) {
@@ -134,25 +282,6 @@ function BetaGauge({ value, onChange }: { value: number; onChange: (v: number) =
           style={{ position: "absolute", left: `${medianPct}%`, top: -3, bottom: -3, width: 1, background: t.inkMuted, opacity: 0.5 }}
         />
 
-        {/* Illustrative anchor points */}
-        {ANCHORS.map((a) => (
-          <div
-            key={a.label}
-            title={`${a.label} (illustrative)`}
-            style={{
-              position: "absolute",
-              left: `${pct(a.beta)}%`,
-              top: 27,
-              width: 6,
-              height: 6,
-              borderRadius: "50%",
-              background: t.inkMuted,
-              opacity: 0.55,
-              transform: "translateX(-3px)",
-            }}
-          />
-        ))}
-
         {/* Draggable handle — the brass instrument reading the current */}
         <div
           style={{
@@ -175,9 +304,6 @@ function BetaGauge({ value, onChange }: { value: number; onChange: (v: number) =
         <span>0.85</span>
         <span>1.5</span>
       </div>
-      <div style={{ fontSize: 10.5, color: t.inkMuted, marginTop: 4, fontStyle: "italic" }}>
-        Grey dots are illustrative reference points, not live-computed readings — hover for detail.
-      </div>
     </div>
   );
 }
@@ -189,19 +315,15 @@ export function ZoneExplorer() {
 
   return (
     <div style={{ fontFamily: TYPE.body }}>
-      {/* The gauge, on a surface card so it reads over the ground/current */}
-      <div
-        style={{
-          background: t.surface,
-          border: `1px solid ${t.line}`,
-          borderRadius: 12,
-          padding: "18px 20px 14px",
-        }}
-      >
+      {/* 1. The gauge, on a surface card so it reads over the ground/current */}
+      <div style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 12, padding: "18px 20px 14px" }}>
         <BetaGauge value={betaValue} onChange={setBetaValue} />
       </div>
 
-      {/* Three zone cards — highlight in sync with the gauge; click to jump the gauge */}
+      {/* 2. A real job on the scale — makes Beta concrete */}
+      <WorkedExample />
+
+      {/* 3. Three zone cards — highlight in sync with the gauge; click to jump the gauge */}
       <div style={{ display: "flex", gap: 16, marginTop: 16, flexWrap: "wrap" }}>
         {ZONE_DATA.map((zone) => {
           const isActive = zone.key === activeZone;
@@ -247,19 +369,6 @@ export function ZoneExplorer() {
               </div>
               <div style={{ fontSize: 13, fontWeight: 600, color: t.ink, marginBottom: 6 }}>{zone.headline}</div>
               <div style={{ fontSize: 12, color: t.inkMuted, lineHeight: 1.5 }}>{zone.description}</div>
-              <div
-                style={{
-                  fontSize: 10.5,
-                  color: t.inkMuted,
-                  marginTop: 8,
-                  lineHeight: 1.5,
-                  paddingTop: 8,
-                  borderTop: `1px solid ${ZONE_COLORS[zone.key]}20`,
-                }}
-              >
-                <span style={{ fontWeight: 600, color: t.ink }}>Typical tasks: </span>
-                {zone.examples}
-              </div>
               <div style={{ fontSize: 11, color: t.inkMuted, fontStyle: "italic", marginTop: 8, lineHeight: 1.4 }}>
                 {zone.implication}
               </div>

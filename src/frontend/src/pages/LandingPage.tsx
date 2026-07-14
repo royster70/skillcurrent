@@ -161,12 +161,25 @@ export function LandingPage() {
   const pathsBearing = hoveredPath === -1 ? 0 : (hoveredPath - 1) * 26;
 
   // Hash deep-links (e.g. the data pages' "Learn to read the scale →") land
-  // scrolled to their section. Instant under prefers-reduced-motion.
+  // scrolled to their section. Deferred past first paint via double-rAF so a
+  // freshly-mounted (and async-growing) page has laid out before we measure
+  // the target. Instant under prefers-reduced-motion.
   const { hash } = useLocation();
   useEffect(() => {
     if (!hash) return;
-    const el = document.getElementById(hash.slice(1));
-    el?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+    const id = hash.slice(1);
+    let raf2 = 0;
+    const raf1 = requestAnimationFrame(() => {
+      raf2 = requestAnimationFrame(() => {
+        document
+          .getElementById(id)
+          ?.scrollIntoView({ behavior: prefersReducedMotion() ? "auto" : "smooth", block: "start" });
+      });
+    });
+    return () => {
+      cancelAnimationFrame(raf1);
+      cancelAnimationFrame(raf2);
+    };
   }, [hash]);
 
   return (
@@ -240,19 +253,21 @@ export function LandingPage() {
           beat 4's "Read it" hands off into actually learning the scale,
           before the measured chart. The one teaching home for Beta; data
           pages' ZoneLegend links here. ── */}
+      {/* NOT wrapped in Reveal: this is a deep-link destination (the data
+          pages' ZoneLegend links to #read-the-scale) — a scroll-reveal
+          opacity gate would leave it invisible when a jump lands without a
+          scroll event. Always visible on arrival. */}
       <section id="read-the-scale" style={{ maxWidth: 900, margin: "0 auto", padding: "12px 32px 48px", scrollMarginTop: 24 }}>
-        <Reveal>
-          <Waypoint>READ THE SCALE</Waypoint>
-          <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px" }}>
-            The instrument: Beta
-          </h2>
-          <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 18 }}>
-            Every task gets one exposure reading — Beta, from the Eloundou 2024
-            research. Where it falls on the scale decides the zone: still dry,
-            at the line, or submerged. Drag the handle and try it.
-          </p>
-          <ZoneExplorer />
-        </Reveal>
+        <Waypoint>READ THE SCALE</Waypoint>
+        <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px" }}>
+          The instrument: Beta
+        </h2>
+        <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 18 }}>
+          Every task gets one exposure reading — Beta, from the Eloundou 2024
+          research. Where it falls on the scale decides the zone: still dry,
+          at the line, or submerged. Drag the handle and try it.
+        </p>
+        <ZoneExplorer />
       </section>
 
       {/* ── The live waterline chart ── */}
