@@ -285,12 +285,20 @@ function WaterlineTank({
 
   return (
     <div style={{ marginTop: 14 }}>
-      {/* Readout — the live link between the waterline and the tasks */}
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "baseline", marginBottom: 8, flexWrap: "wrap", gap: 6 }}>
-        <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Drag the waterline — see which tasks it reaches</span>
-        <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[wlZone] }}>
-          β {waterline.toFixed(2)} · {submerged}/{role.tasks.length} submerged
-        </span>
+      {/* Two headers aligned to the columns — names each side so the role's
+          live tank and the generic key read as clearly different things. */}
+      <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 8 }}>
+        <div style={{ flex: "1 1 230px", minWidth: 180, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Drag the waterline</span>
+          <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[wlZone] }}>
+            β {waterline.toFixed(2)} · {submerged}/{role.tasks.length} submerged
+          </span>
+        </div>
+        <div style={{ flex: "1 1 300px", minWidth: 200, maxWidth: 420 }}>
+          <span style={{ fontFamily: TYPE.mono, fontSize: 10, letterSpacing: 0.6, textTransform: "uppercase", color: t.inkMuted }}>
+            The key — what each zone means
+          </span>
+        </div>
       </div>
 
       {/* Tank + aligned zone rail — one instrument on a shared vertical axis:
@@ -389,25 +397,33 @@ function WaterlineTank({
                 title={`Set the waterline into ${ZONE_LABELS[zone.key]}`}
                 style={{
                   position: "absolute", top: band.top, height: band.height, left: 0, right: 0,
-                  borderLeft: `3px solid ${ZONE_COLORS[zone.key]}`,
-                  background: active ? ZONE_BG[zone.key] : "transparent",
-                  boxShadow: active ? `inset 0 0 0 1px ${ZONE_COLORS[zone.key]}55` : "none",
-                  borderRadius: 6,
-                  padding: "6px 6px 6px 11px",
-                  cursor: "pointer",
-                  overflow: "hidden",
-                  opacity: active ? 1 : 0.72,
-                  transition: `background ${DUR.hover}ms ${EASE}, box-shadow ${DUR.hover}ms ${EASE}, opacity ${DUR.hover}ms ${EASE}`,
+                  display: "flex", gap: 9, alignItems: "flex-start",
+                  padding: "6px 2px", cursor: "pointer", overflow: "hidden",
+                  opacity: active ? 1 : 0.5,
+                  transition: `opacity ${DUR.hover}ms ${EASE}`,
                 }}
               >
-                <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                  <span style={{ fontSize: 12.5, fontWeight: 700, color: ZONE_COLORS[zone.key] }}>
-                    {zone.key} — {ZONE_LABELS[zone.key]}
-                  </span>
-                  <span style={{ fontFamily: TYPE.mono, fontSize: 10, color: t.inkMuted }}>{zone.threshold}</span>
+                {/* Colored tab — thick and glowing when the waterline is in this
+                    zone; a legend mark, not a filled band (that's the tank). */}
+                <div
+                  style={{
+                    alignSelf: "stretch", width: active ? 5 : 3, borderRadius: 3,
+                    background: ZONE_COLORS[zone.key], flexShrink: 0,
+                    boxShadow: active ? `0 0 0 2px ${ZONE_COLORS[zone.key]}33` : "none",
+                    transition: `width ${DUR.hover}ms ${EASE}`,
+                  }}
+                />
+                <div style={{ minWidth: 0 }}>
+                  <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                    <span style={{ fontSize: 12.5, fontWeight: active ? 800 : 700, color: ZONE_COLORS[zone.key] }}>
+                      {zone.key} — {ZONE_LABELS[zone.key]}
+                    </span>
+                    <span style={{ fontFamily: TYPE.mono, fontSize: 10, color: t.inkMuted }}>{zone.threshold}</span>
+                    {active && <span style={{ fontSize: 9.5, fontWeight: 600, color: ZONE_COLORS[zone.key] }}>◀ waterline</span>}
+                  </div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.ink, marginTop: 2 }}>{zone.headline}</div>
+                  <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 2, lineHeight: 1.35 }}>{zone.short}</div>
                 </div>
-                <div style={{ fontSize: 12, fontWeight: 600, color: t.ink, marginTop: 2 }}>{zone.headline}</div>
-                <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 2, lineHeight: 1.35 }}>{zone.short}</div>
               </div>
             );
           })}
