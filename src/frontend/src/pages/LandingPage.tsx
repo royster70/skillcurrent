@@ -10,7 +10,7 @@ import { Link, useLocation } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
-import { CurrentFlow, BackgroundCurrent } from "../components/current/CurrentFlow";
+import { CurrentFlow, BackgroundCurrent, WaveUnderline } from "../components/current/CurrentFlow";
 import { ZoneExplorer } from "../components/ZoneExplorer";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE, prefersReducedMotion } from "../components/current/motion";
@@ -184,11 +184,11 @@ export function LandingPage() {
 
   return (
     <div style={{ margin: -32, color: t.ink, fontFamily: TYPE.body }}>
-      {/* ── Hero + narrative beats: ONE continuous current runs behind both,
-          the whole way down — not decorative accents between sections, the
-          page IS the current. ── */}
+      {/* ── Hero + narrative beats: ONE continuous current runs behind both —
+          flowing left→right (forward, "where it's heading"), not downward, so
+          the mood reads as direction-of-travel, never decline. ── */}
       <div style={{ position: "relative" }}>
-        <BackgroundCurrent strokes={5} opacity={0.24} speed={5.5} />
+        <BackgroundCurrent direction="right" strokes={7} opacity={0.22} speed={6} />
 
         <div style={{ position: "relative", zIndex: 1 }}>
           {/* ── Hero ── */}
@@ -214,8 +214,14 @@ export function LandingPage() {
               AI capability is rising like a waterline across the work we do. See where
               it sits today, where it's heading — and the skills that keep you above it.
             </p>
-            <div style={{ marginTop: 28, color: t.brass, fontSize: 13, fontFamily: TYPE.mono, letterSpacing: 2 }}>
-              ↓ FOLLOW THE CURRENT
+            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
+              <div style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
+                <span style={{ color: t.brass, fontSize: 17, fontWeight: 700, fontFamily: TYPE.mono, letterSpacing: 3.5 }}>
+                  FOLLOW THE CURRENT
+                </span>
+                <WaveUnderline color={t.brass} />
+              </div>
+              <span aria-hidden="true" style={{ color: t.inkMuted, fontSize: 15, opacity: 0.6 }}>⌄</span>
             </div>
           </section>
 
@@ -316,7 +322,7 @@ export function LandingPage() {
             Three currents to follow
           </div>
           <div style={{ textAlign: "center", marginBottom: 8 }}>
-            <CurrentFlow direction="down" length={72} breadth={140} strokes={3} opacity={0.3} bearing={pathsBearing} />
+            <CurrentFlow direction="right" length={200} breadth={54} strokes={3} opacity={0.3} bearing={pathsBearing} />
           </div>
           <div style={{ display: "grid", gridTemplateColumns: "repeat(auto-fit, minmax(240px, 1fr))", gap: 18 }}>
             {PATHS.map((p, i) => (

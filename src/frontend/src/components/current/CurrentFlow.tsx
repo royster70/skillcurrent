@@ -122,6 +122,9 @@ export function CurrentFlow({
 }
 
 interface BackgroundCurrentProps {
+  /** Flow axis. `right` reads as forward / "where it's heading" (the default for
+   * ambient mood); `down` guides scroll. */
+  direction?: "down" | "right";
   /** Number of parallel streamlines. */
   strokes?: number;
   color?: string;
@@ -142,6 +145,7 @@ interface BackgroundCurrentProps {
  * accents (hover, the wordmark underline). This is the "the whole page is one
  * current" statement piece — it should be felt, not just noticed. */
 export function BackgroundCurrent({
+  direction = "down",
   strokes = 4,
   color,
   opacity = 0.22,
@@ -156,12 +160,17 @@ export function BackgroundCurrent({
   const reduced = prefersReducedMotion();
   const idPrefix = useId();
 
-  // A tall virtual canvas stretched via CSS (preserveAspectRatio="none") to
-  // fill whatever height the parent section actually has.
-  const W = 320;
-  const H = 1200;
-  const amp = 34;
-  const positions = Array.from({ length: strokes }, (_, i) => ((i + 1) * W) / (strokes + 1));
+  // A virtual canvas stretched via CSS (preserveAspectRatio="none") to fill the
+  // parent. `right` = streamlines run across the width (forward); `down` = a
+  // vertical river. `across` distributes the strokes on the perpendicular axis;
+  // `len` is the flow-axis length; amp is gentler horizontally (it stretches).
+  const horizontal = direction === "right";
+  const W = horizontal ? 1200 : 320;
+  const H = horizontal ? 360 : 1200;
+  const amp = horizontal ? 14 : 34;
+  const across = horizontal ? H : W;
+  const len = horizontal ? W : H;
+  const positions = Array.from({ length: strokes }, (_, i) => ((i + 1) * across) / (strokes + 1));
 
   return (
     <div
@@ -178,7 +187,7 @@ export function BackgroundCurrent({
     >
       <svg width="100%" height="100%" viewBox={`0 0 ${W} ${H}`} preserveAspectRatio="none">
         {positions.map((pos, i) => {
-          const d = streamPath("down", pos, H, amp);
+          const d = streamPath(direction, pos, len, amp);
           const pathId = `${idPrefix}-stream-${i}`;
           return (
             <g key={i}>
