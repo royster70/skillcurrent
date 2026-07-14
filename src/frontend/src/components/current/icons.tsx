@@ -110,6 +110,26 @@ export function IconTextLines(props: IconProps) {
   );
 }
 
+/** Info — a plain circled "i", used for explainer/education toggles. */
+export function IconInfo(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="11" cy="11" r="8" />
+      <line x1="11" y1="15" x2="11" y2="10.5" />
+      <line x1="11" y1="7.2" x2="11.01" y2="7.2" />
+    </svg>
+  );
+}
+
+/** Chevron — expand/collapse indicator. */
+export function IconChevron(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <polyline points="6 9 11 14 16 9" />
+    </svg>
+  );
+}
+
 /** Open book — the "what's the data" / sources mark. */
 export function IconSources(props: IconProps) {
   return (

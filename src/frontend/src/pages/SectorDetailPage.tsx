@@ -3,12 +3,14 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
-import { ZONE_COLORS, CLASSIFICATION_COLORS, GDPVAL_COLORS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, CLASSIFICATION_COLORS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
 import { InsightCallout } from "../components/InsightCallout";
+
+const t = THEME.light;
 
 export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
@@ -81,15 +83,15 @@ export function SectorDetailPage() {
   const narrative = generateNarrative(data);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: TYPE.body, color: t.ink }}>
       {/* Header */}
       <div>
         <button onClick={() => navigate(`/${region === "AU" ? "?region=AU" : ""}`)}
-          style={{ fontSize: 13, color: "#2563EB", background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 8 }}>
+          style={{ fontSize: 13, color: t.brass, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 8 }}>
           ← Back to Sectors
         </button>
-        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0 }}>{data.naics_title}</h1>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+        <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0 }}>{data.naics_title}</h1>
+        <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
           {region === "AU" ? "ANZSIC" : "NAICS"} {data.naics_code} · {data.occupation_count} occupations
           {data.total_employment ? ` · ${(data.total_employment / 1_000_000).toFixed(1)}M ${region === "AU" ? "AU" : "US"} workers` : ""}
         </p>
@@ -98,8 +100,8 @@ export function SectorDetailPage() {
       {/* Narrative summary */}
       {narrative.length > 0 && (
         <div style={{
-          background: "#FAFBFF", borderRadius: 12, border: "1.5px solid #E0E7FF",
-          padding: "14px 20px", lineHeight: 1.6, fontSize: 13, color: "#374151",
+          background: BRASS_TINT, borderRadius: 12, border: `1.5px solid ${t.line}`,
+          padding: "14px 20px", lineHeight: 1.6, fontSize: 13, color: t.ink,
         }}>
           {narrative.map((sentence, i) => (
             <span key={i}>{sentence}{i < narrative.length - 1 ? " " : ""}</span>
@@ -116,7 +118,7 @@ export function SectorDetailPage() {
             percentile={sectorContext.eloundou.percentile}
             median={sectorContext.eloundou.median}
             population={sectorContext.eloundou.population}
-            accentColor={ZONE_COLORS.E0}
+            signalColor={SIGNAL_COLORS.eloundou}
             sourceKey="eloundou"
           />
           <ContextualScoreCard
@@ -125,7 +127,7 @@ export function SectorDetailPage() {
             percentile={sectorContext.microsoft.percentile}
             median={sectorContext.microsoft.median}
             population={sectorContext.microsoft.population}
-            accentColor={ZONE_COLORS.E1}
+            signalColor={SIGNAL_COLORS.microsoft}
             sourceKey="microsoft"
           />
           <ContextualScoreCard
@@ -134,7 +136,7 @@ export function SectorDetailPage() {
             percentile={sectorContext.aei.percentile}
             median={sectorContext.aei.median}
             population={sectorContext.aei.population}
-            accentColor={ZONE_COLORS.E2}
+            signalColor={SIGNAL_COLORS.aei}
             sourceKey="aei"
           />
         </div>
@@ -171,9 +173,9 @@ export function SectorDetailPage() {
       {/* Charts row */}
       <div style={{ display: "flex", gap: 16 }}>
         {/* Priority impact scores with headcount labels */}
-        <div style={{ flex: 1, background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7", padding: 20 }}>
+        <div style={{ flex: 1, background: t.surface, borderRadius: 12, border: "1.5px solid #E4E4E7", padding: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Priority Roles — Impact Score</div>
-          <div style={{ fontSize: 12, color: "#71717A", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: t.inkMuted, marginBottom: 16 }}>
             Composite of AI exposure, headcount, concentration, and drift · Label shows score · headcount
           </div>
           <ResponsiveContainer width="100%" height={350}>
@@ -186,19 +188,19 @@ export function SectorDetailPage() {
                   <Cell key={i} fill={
                     d.zone === "E2" ? ZONE_COLORS.E2 :
                     d.zone === "E1" ? ZONE_COLORS.E1 :
-                    d.zone === "E0" ? ZONE_COLORS.E0 : "#94A3B8"
+                    d.zone === "E0" ? ZONE_COLORS.E0 : t.inkMuted
                   } />
                 ))}
-                <LabelList dataKey="label" position="right" style={{ fontSize: 10, fill: "#71717A" }} />
+                <LabelList dataKey="label" position="right" style={{ fontSize: 10, fill: t.inkMuted }} />
               </Bar>
             </BarChart>
           </ResponsiveContainer>
         </div>
 
         {/* Three-tier comparison */}
-        <div style={{ flex: 1, background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7", padding: 20 }}>
+        <div style={{ flex: 1, background: t.surface, borderRadius: 12, border: "1.5px solid #E4E4E7", padding: 20 }}>
           <div style={{ fontSize: 16, fontWeight: 600, marginBottom: 4 }}>Three-Tier Evidence Comparison</div>
-          <div style={{ fontSize: 12, color: "#71717A", marginBottom: 16 }}>
+          <div style={{ fontSize: 12, color: t.inkMuted, marginBottom: 16 }}>
             Theoretical (Eloundou, 0–1.5) vs empirical (Microsoft 0–0.5, AEI) for priority roles
           </div>
           <ResponsiveContainer width="100%" height={350}>
@@ -206,22 +208,22 @@ export function SectorDetailPage() {
               <XAxis type="number" tick={{ fontSize: 11 }} />
               <YAxis type="category" dataKey="name" width={150} tick={{ fontSize: 10 }} />
               <Tooltip />
-              <Bar dataKey="Eloundou" fill={ZONE_COLORS.E0} barSize={6} radius={[0, 3, 3, 0]} />
-              <Bar dataKey="Microsoft" fill={ZONE_COLORS.E1} barSize={6} radius={[0, 3, 3, 0]} />
-              <Bar dataKey="AEI" fill={ZONE_COLORS.E2} barSize={6} radius={[0, 3, 3, 0]} />
+              <Bar dataKey="Eloundou" fill={SIGNAL_COLORS.eloundou} barSize={6} radius={[0, 3, 3, 0]} />
+              <Bar dataKey="Microsoft" fill={SIGNAL_COLORS.microsoft} barSize={6} radius={[0, 3, 3, 0]} />
+              <Bar dataKey="AEI" fill={SIGNAL_COLORS.aei} barSize={6} radius={[0, 3, 3, 0]} />
             </BarChart>
           </ResponsiveContainer>
         </div>
       </div>
 
       {/* Role table */}
-      <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7", overflow: "hidden" }}>
+      <div style={{ background: t.surface, borderRadius: 12, border: "1.5px solid #E4E4E7", overflow: "hidden" }}>
         <div style={{ padding: "16px 20px", borderBottom: "1px solid #E4E4E7", display: "flex", justifyContent: "space-between", alignItems: "center" }}>
           <div>
             <span style={{ fontSize: 16, fontWeight: 600 }}>
               {showFullMix ? "All Occupations" : "Priority Roles"}
             </span>
-            <span style={{ fontSize: 13, color: "#71717A", marginLeft: 8 }}>
+            <span style={{ fontSize: 13, color: t.inkMuted, marginLeft: 8 }}>
               {gdpvalFilter
                 ? `${displayRoles.length} with GDPval benchmarks`
                 : showFullMix ? `${data.full_mix.length} occupations` : `Top ${data.priority_roles.length} by impact`}
@@ -233,8 +235,8 @@ export function SectorDetailPage() {
               style={{
                 fontSize: 12, fontWeight: 600, padding: "6px 12px", borderRadius: 8,
                 border: gdpvalFilter ? `1px solid ${GDPVAL_COLORS.primary}` : "1px solid #E4E4E7",
-                backgroundColor: gdpvalFilter ? GDPVAL_COLORS.bg : "#fff", cursor: "pointer",
-                color: gdpvalFilter ? GDPVAL_COLORS.primary : "#71717A",
+                backgroundColor: gdpvalFilter ? GDPVAL_COLORS.bg : t.surface, cursor: "pointer",
+                color: gdpvalFilter ? GDPVAL_COLORS.primary : t.inkMuted,
               }}
             >
               GDPval Only ({gdpvalSocs.size > 0 ? data.full_mix.filter((r) => gdpvalSocs.has(r.soc_code)).length : "..."})
@@ -243,8 +245,8 @@ export function SectorDetailPage() {
               onClick={() => setShowFullMix(!showFullMix)}
               style={{
                 fontSize: 13, fontWeight: 500, padding: "6px 14px", borderRadius: 8,
-                border: "1px solid #E4E4E7", backgroundColor: "#fff", cursor: "pointer",
-                color: "#2563EB",
+                border: "1px solid #E4E4E7", backgroundColor: t.surface, cursor: "pointer",
+                color: t.brass,
               }}
             >
               {showFullMix ? "Show Priority Only" : `Show All ${data.occupation_count} Roles`}
@@ -254,7 +256,7 @@ export function SectorDetailPage() {
 
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 13 }}>
           <thead>
-            <tr style={{ backgroundColor: "#F9FAFB" }}>
+            <tr style={{ backgroundColor: t.ground }}>
               <th style={th}>Occupation</th>
               <th style={{ ...th, textAlign: "right", width: 80 }}>Headcount</th>
               <th style={{ ...th, textAlign: "right", width: 50 }}>LQ</th>
@@ -319,18 +321,18 @@ function generateNarrative(data: {
 }
 
 function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate>; hasGdpval?: boolean }) {
-  const zoneColor = r.dominant_zone ? ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] : "#71717A";
-  const driftColor = r.drift_classification ? CLASSIFICATION_COLORS[r.drift_classification as keyof typeof CLASSIFICATION_COLORS] : "#71717A";
+  const zoneColor = r.dominant_zone ? ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] : t.inkMuted;
+  const driftColor = r.drift_classification ? CLASSIFICATION_COLORS[r.drift_classification as keyof typeof CLASSIFICATION_COLORS] : t.inkMuted;
 
   return (
     <tr style={{ borderTop: "1px solid #E4E4E7", cursor: "pointer" }}
       onClick={() => navigate(`/occupations?selected=${r.soc_code}`)}
-      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F9FAFB")}
+      onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = t.ground)}
       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
     >
       <td style={td}>
         <div style={{ fontWeight: 500 }}>{r.occupation_title}</div>
-        <div style={{ fontSize: 11, color: "#A1A1AA", display: "flex", alignItems: "center", gap: 6 }}>
+        <div style={{ fontSize: 11, color: t.inkMuted, display: "flex", alignItems: "center", gap: 6 }}>
           {r.soc_code}
           {hasGdpval && (
             <span style={{
@@ -344,7 +346,7 @@ function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigat
         </div>
       </td>
       <td style={{ ...td, textAlign: "right" }}>{fmtNum(r.headcount)}</td>
-      <td style={{ ...td, textAlign: "right", fontWeight: r.location_quotient && r.location_quotient > 2 ? 600 : 400, color: r.location_quotient && r.location_quotient > 2 ? "#DC2626" : "#18181B" }}>
+      <td style={{ ...td, textAlign: "right", fontWeight: r.location_quotient && r.location_quotient > 2 ? 600 : 400, color: r.location_quotient && r.location_quotient > 2 ? ZONE_COLORS.alert : t.ink }}>
         {r.location_quotient?.toFixed(1) || "\u2014"}
       </td>
       <td style={{ ...td, textAlign: "right" }}>{r.eloundou_beta?.toFixed(2) || "\u2014"}</td>
@@ -374,7 +376,7 @@ function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigat
           {r.risk_factors.map((f, i) => (
             <span key={i} style={{
               fontSize: 10, padding: "2px 6px", borderRadius: 4,
-              backgroundColor: "#FEF2F2", color: "#DC2626",
+              backgroundColor: ZONE_BG.alert, color: ZONE_COLORS.alert,
             }}>
               {f}
             </span>
@@ -385,7 +387,7 @@ function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigat
   );
 }
 
-const th: React.CSSProperties = { padding: "10px 12px", fontWeight: 600, fontSize: 11, color: "#71717A", textAlign: "left", letterSpacing: 0.5 };
+const th: React.CSSProperties = { padding: "10px 12px", fontWeight: 600, fontSize: 11, color: t.inkMuted, textAlign: "left", letterSpacing: 0.5 };
 const td: React.CSSProperties = { padding: "10px 12px" };
 
 function fmtNum(n: number | null): string {

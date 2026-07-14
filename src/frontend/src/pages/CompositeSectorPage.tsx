@@ -17,11 +17,18 @@ import {
   type SubdivisionEntry,
   type SubdivisionOccupationProfile,
 } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { ZoneExplainerPanel } from "../components/ZoneExplainerPanel";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
 import { InsightCallout } from "../components/InsightCallout";
+
+const t = THEME.light;
+// NOTE: the AU-only indigo panels below (CompositeSubdivisions,
+// SubdivisionOccupationPanel, ANZSCO_COLORS) and the purple "Weighted Beta"
+// metric card keep their existing distinct palettes deliberately — documented
+// visual languages (CLAUDE.md), not legacy debt. Only the generic page chrome
+// is reskinned to Warm Instrument here.
 
 export function CompositeSectorPage() {
   const [searchParams] = useSearchParams();
@@ -37,25 +44,25 @@ export function CompositeSectorPage() {
 
   if (codes.length < 2) {
     return (
-      <div style={{ padding: 32 }}>
-        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0 }}>Composite Sector Analysis</h1>
-        <p style={{ color: "#71717A", marginTop: 8 }}>
+      <div style={{ padding: 32, fontFamily: TYPE.body, color: t.ink }}>
+        <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0 }}>Composite Sector Analysis</h1>
+        <p style={{ color: t.inkMuted, marginTop: 8 }}>
           Select 2 or more sectors from the{" "}
-          <a href="/" style={{ color: "#2563EB" }}>Sectors page</a>{" "}
+          <a href="/" style={{ color: t.brass }}>Sectors page</a>{" "}
           to build a composite view.
         </p>
       </div>
     );
   }
 
-  if (loading) return <div style={{ padding: 32 }}>Loading composite analysis...</div>;
+  if (loading) return <div style={{ padding: 32, fontFamily: TYPE.body, color: t.ink }}>Loading composite analysis...</div>;
   if (error) return (
-    <div style={{ padding: 32 }}>
+    <div style={{ padding: 32, fontFamily: TYPE.body, color: t.ink }}>
       <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0 }}>Composite Sector Analysis</h1>
-      <p style={{ color: "#DC2626", marginTop: 8 }}>
+      <p style={{ color: ZONE_COLORS.alert, marginTop: 8 }}>
         Failed to load composite analysis: {error}
       </p>
-      <p style={{ color: "#71717A", marginTop: 4, fontSize: 14 }}>
+      <p style={{ color: t.inkMuted, marginTop: 4, fontSize: 14 }}>
         If the backend was recently updated, try restarting the API server.
         Selected codes: {codes.join(", ")}
       </p>
@@ -95,25 +102,25 @@ function CompositeContent({
   }, [data.sector_names]);
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: TYPE.body, color: t.ink }}>
       {/* Header */}
       <div>
         {data.company_name ? (
           <>
-            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
+            <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
               {data.company_name}
             </h1>
-            <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+            <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
               {data.codes.length} sectors · {fmtEmp(totalEmp)} workers
               · composite AI exposure profile
             </p>
           </>
         ) : (
           <>
-            <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
+            <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
               Composite Sector Analysis
             </h1>
-            <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+            <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
               {data.codes.length} sectors combined · {fmtEmp(totalEmp)} workers
               · employment-weighted exposure profile
             </p>
@@ -125,7 +132,7 @@ function CompositeContent({
       <div style={{ display: "flex", gap: 8, alignItems: "center", flexWrap: "wrap" }}>
         <span style={{
           fontSize: 11, fontWeight: 600, letterSpacing: 1,
-          color: "#A1A1AA", fontFamily: "Inter, system-ui, sans-serif",
+          color: t.inkMuted, fontFamily: TYPE.mono,
         }}>SECTORS</span>
         {data.sector_names.map((name) => (
           <div
@@ -133,14 +140,13 @@ function CompositeContent({
             style={{
               display: "flex", alignItems: "center", gap: 6,
               borderRadius: 99, padding: "6px 12px 6px 8px",
-              background: ZONE_BG.E1,
-              border: "1px solid #93C5FD",
+              background: BRASS_TINT,
+              border: `1px solid ${t.line}`,
               fontSize: 12, fontWeight: 500,
-              fontFamily: "Inter, system-ui, sans-serif",
-              color: "#1E40AF",
+              color: t.ink,
             }}
           >
-            <div style={{ width: 8, height: 8, borderRadius: "50%", background: "#2563EB" }} />
+            <div style={{ width: 8, height: 8, borderRadius: "50%", background: t.brass }} />
             {name}
           </div>
         ))}
@@ -150,8 +156,7 @@ function CompositeContent({
             display: "flex", alignItems: "center", gap: 4,
             background: "none", border: "none", cursor: "pointer",
             padding: "6px 12px", borderRadius: 8,
-            fontSize: 12, fontWeight: 500, color: "#71717A",
-            fontFamily: "Inter, system-ui, sans-serif",
+            fontSize: 12, fontWeight: 500, color: t.inkMuted,
           }}
         >
           <svg width={14} height={14} viewBox="0 0 24 24" fill="none"
@@ -230,20 +235,20 @@ function CompositeContent({
 
       {/* Occupation table */}
       <div style={{
-        background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7", overflow: "hidden",
+        background: t.surface, borderRadius: 12, border: `1.5px solid ${t.line}`, overflow: "hidden",
       }}>
         <div style={{
           fontSize: 16, fontWeight: 600, padding: "16px 20px",
-          borderBottom: "1px solid #E4E4E7",
+          borderBottom: `1px solid ${t.line}`,
         }}>
           Unified Occupations
-          <span style={{ fontSize: 12, fontWeight: 400, color: "#A1A1AA", marginLeft: 8 }}>
+          <span style={{ fontSize: 12, fontWeight: 400, color: t.inkMuted, marginLeft: 8 }}>
             De-duplicated across {data.codes.length} sectors · sorted by combined headcount
           </span>
         </div>
         <table style={{ width: "100%", borderCollapse: "collapse", fontSize: 14 }}>
           <thead>
-            <tr style={{ backgroundColor: "#F9FAFB" }}>
+            <tr style={{ backgroundColor: t.ground }}>
               <th style={th}>Occupation</th>
               <th style={th}>Sectors</th>
               <th style={{ ...th, textAlign: "right" }}>Headcount</th>
@@ -258,8 +263,8 @@ function CompositeContent({
               <tr
                 key={occ.onet_soc}
                 onClick={() => navigate(`/occupations?selected=${occ.onet_soc}`)}
-                style={{ cursor: "pointer", borderTop: "1px solid #E4E4E7" }}
-                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = "#F9FAFB")}
+                style={{ cursor: "pointer", borderTop: `1px solid ${t.line}` }}
+                onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = t.ground)}
                 onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
               >
                 <td style={{ ...td, maxWidth: 260 }}>{occ.occupation_title}</td>
@@ -290,7 +295,7 @@ function CompositeContent({
                 <td style={{ ...td, textAlign: "right" }}>{fmtScore(occ.aei_exposure)}</td>
                 <td style={{
                   ...td, textAlign: "center", fontWeight: 600,
-                  color: occ.dominant_zone ? ZONE_COLORS[occ.dominant_zone as keyof typeof ZONE_COLORS] : "#A1A1AA",
+                  color: occ.dominant_zone ? ZONE_COLORS[occ.dominant_zone as keyof typeof ZONE_COLORS] : t.inkMuted,
                 }}>
                   {occ.dominant_zone || "—"}
                 </td>
@@ -300,38 +305,39 @@ function CompositeContent({
         </table>
         <div style={{
           padding: "10px 16px", textAlign: "center",
-          borderTop: "1px solid #E4E4E7", fontSize: 13, color: "#71717A",
+          borderTop: `1px solid ${t.line}`, fontSize: 13, color: t.inkMuted,
         }}>
           {data.occupation_count} unique occupations across {data.codes.length} sectors
           {data.occupation_count > 50 && " · Showing top 50 by headcount"}
         </div>
       </div>
 
-      {/* Narrative summary */}
+      {/* Narrative summary — a first-class dark "instrument" card, using the
+          same THEME.dark tokens the app-wide dark mode will use. */}
       <div style={{
-        background: "#1F1F23", borderRadius: 12, padding: "16px 20px",
-        border: "1px solid #27272A",
+        background: THEME.dark.surface, borderRadius: 12, padding: "16px 20px",
+        border: `1px solid ${THEME.dark.line}`,
         display: "flex", flexDirection: "column", gap: 8,
       }}>
         <div style={{
-          fontSize: 10, fontWeight: 600, letterSpacing: 0.8, color: "#A1A1AA",
+          fontSize: 10, fontWeight: 600, letterSpacing: 0.8, color: THEME.dark.inkMuted,
+          fontFamily: TYPE.mono,
         }}>COMPOSITE INTELLIGENCE SUMMARY</div>
         <div style={{
-          fontSize: 12, lineHeight: 1.6, color: "#A1A1AA",
-          fontFamily: "Inter, system-ui, sans-serif",
+          fontSize: 12, lineHeight: 1.6, color: THEME.dark.inkMuted,
         }}>
           {narrative}
         </div>
         <div style={{ display: "flex", gap: 16, padding: "8px 0", alignItems: "center" }}>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>
+          <span style={{ fontSize: 13, fontWeight: 600, color: THEME.dark.ink, fontFamily: TYPE.mono }}>
             {fmtEmp(data.total_employment)} workers
           </span>
-          <span style={{ color: "#52525B" }}>·</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: ZONE_COLORS.E0 }}>
+          <span style={{ color: THEME.dark.inkMuted }}>·</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: ZONE_COLORS.E0, fontFamily: TYPE.mono }}>
             {pct(data.workers_e0, data.total_employment)} E0 zone
           </span>
-          <span style={{ color: "#52525B" }}>·</span>
-          <span style={{ fontSize: 13, fontWeight: 600, color: "#fff" }}>
+          <span style={{ color: THEME.dark.inkMuted }}>·</span>
+          <span style={{ fontSize: 13, fontWeight: 600, color: THEME.dark.ink, fontFamily: TYPE.mono }}>
             {data.occupation_count} unique occupations
           </span>
         </div>
@@ -396,7 +402,7 @@ function CompositeSubdivisions({
 
   return (
     <div style={{
-      background: "#fff", borderRadius: 12, border: "1.5px solid #E0E7FF",
+      background: t.surface, borderRadius: 12, border: "1.5px solid #E0E7FF",
       overflow: "hidden",
     }}>
       <div style={{
@@ -528,7 +534,7 @@ function SubdivisionOccupationPanel({
 
   return (
     <div style={{
-      background: "#fff", borderRadius: 12, border: "1.5px solid #E0E7FF",
+      background: t.surface, borderRadius: 12, border: "1.5px solid #E0E7FF",
       overflow: "hidden",
     }}>
       <div style={{
@@ -660,7 +666,7 @@ function SubdivisionOccRow({ profile }: { profile: SubdivisionOccupationProfile 
 
 const th: React.CSSProperties = {
   padding: "10px 16px", fontWeight: 600, fontSize: 12,
-  color: "#71717A", letterSpacing: 0.5, textAlign: "left",
+  color: t.inkMuted, letterSpacing: 0.5, textAlign: "left",
 };
 const td: React.CSSProperties = { padding: "10px 16px" };
 

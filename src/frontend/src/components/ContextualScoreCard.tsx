@@ -2,6 +2,9 @@
 
 import { useState } from "react";
 import type { OccupationEraSnapshot } from "../lib/api";
+import { THEME, TYPE } from "../lib/constants";
+
+const t = THEME.light;
 
 interface ContextualScoreCardProps {
   label: string;
@@ -9,7 +12,11 @@ interface ContextualScoreCardProps {
   percentile: number | null;
   median: number | null;
   population: number | null;
-  accentColor: string;
+  /** The card's own signal identity (SIGNAL_COLORS.eloundou/microsoft/aei/...) —
+   * used only as a fallback when no percentile context exists yet. This is a
+   * per-SOURCE colour, never a ZONE_COLORS value: this card shows one signal's
+   * reading, not an exposure zone. */
+  signalColor: string;
   sourceKey: "eloundou" | "microsoft" | "aei";
   eraSnapshots?: OccupationEraSnapshot[];
 }
@@ -17,17 +24,17 @@ interface ContextualScoreCardProps {
 const SOURCE_EXPLAINERS: Record<string, { title: string; plain: string; measures: string; kind: "predicted" | "measured"; period: string }> = {
   eloundou: {
     title: "Eloundou Exposure Score",
-    plain: "Researchers looked at every task in this job and asked: \"Could AI help with this?\" This score shows how much of the job could potentially be changed by AI \u2014 not whether it is being changed, just whether it could be.",
+    plain: "Researchers looked at every task in this job and asked: \"Could AI help with this?\" This score shows how much of the job could potentially be changed by AI — not whether it is being changed, just whether it could be.",
     measures: "Theoretical AI capability based on task analysis (GPT-4 + human raters, 2024 research)",
     kind: "predicted",
     period: "Single assessment (2024)",
   },
   microsoft: {
     title: "Microsoft AI Applicability",
-    plain: "Microsoft tracked how people actually use AI tools like Copilot at work. This score shows how applicable AI is to this job's daily activities \u2014 based on real usage data, not theory.",
-    measures: "Empirical AI applicability from Microsoft 365 Copilot usage (Jan\u2013Sept 2024)",
+    plain: "Microsoft tracked how people actually use AI tools like Copilot at work. This score shows how applicable AI is to this job's daily activities — based on real usage data, not theory.",
+    measures: "Empirical AI applicability from Microsoft 365 Copilot usage (Jan–Sept 2024)",
     kind: "measured",
-    period: "Jan\u2013Sept 2024",
+    period: "Jan–Sept 2024",
   },
   aei: {
     title: "Anthropic Economic Index",
@@ -38,12 +45,14 @@ const SOURCE_EXPLAINERS: Record<string, { title: string; plain: string; measures
   },
 };
 
+// Percentile-extremity shading — its own scale, orthogonal to zone/signal colour
+// (this answers "how unusual is this reading", not "which source" or "which zone").
 function percentileColor(pct: number): string {
-  if (pct >= 90) return "#DC2626";
-  if (pct >= 75) return "#F97316";
-  if (pct >= 50) return "#EAB308";
-  if (pct >= 25) return "#2563EB";
-  return "#16A34A";
+  if (pct >= 90) return "#b23b3b";
+  if (pct >= 75) return t.brass;
+  if (pct >= 50) return "#9c8a14";
+  if (pct >= 25) return t.current;
+  return "#0d8f6e";
 }
 
 function percentileLabel(pct: number): string {
@@ -70,7 +79,7 @@ function EraSparkline({ snapshots }: { snapshots: OccupationEraSnapshot[] }) {
   }).join(" ");
 
   const isGrowing = values[values.length - 1] > values[0] + 0.001;
-  const color = isGrowing ? "#DC2626" : "#A1A1AA";
+  const color = isGrowing ? "#b23b3b" : t.inkMuted;
   const firstEra = snapshots[0].model_era.replace("sonnet-", "");
   const lastEra = snapshots[snapshots.length - 1].model_era.replace("sonnet-", "");
 
@@ -84,18 +93,18 @@ function EraSparkline({ snapshots }: { snapshots: OccupationEraSnapshot[] }) {
           r={2} fill={color}
         />
       </svg>
-      <div style={{ fontSize: 9, color: "#A1A1AA", marginTop: 1 }}>
-        {firstEra} {"\u2192"} {lastEra}
-        <span style={{ color, fontWeight: 600 }}> {isGrowing ? "\u2191" : "\u2192"}</span>
+      <div style={{ fontSize: 9, color: t.inkMuted, marginTop: 1, fontFamily: TYPE.mono }}>
+        {firstEra} {"→"} {lastEra}
+        <span style={{ color, fontWeight: 600 }}> {isGrowing ? "↑" : "→"}</span>
       </div>
     </div>
   );
 }
 
-export function ContextualScoreCard({ label, value, percentile, median, population, accentColor, sourceKey, eraSnapshots }: ContextualScoreCardProps) {
+export function ContextualScoreCard({ label, value, percentile, median, population, signalColor, sourceKey, eraSnapshots }: ContextualScoreCardProps) {
   const [showExplainer, setShowExplainer] = useState(false);
   const hasContext = percentile != null && population != null;
-  const color = hasContext ? percentileColor(percentile) : accentColor;
+  const color = hasContext ? percentileColor(percentile) : signalColor;
   const explainer = SOURCE_EXPLAINERS[sourceKey];
   const isPredicted = explainer.kind === "predicted";
 
@@ -104,16 +113,17 @@ export function ContextualScoreCard({ label, value, percentile, median, populati
       flex: 1, padding: "10px 14px", borderRadius: 8, minWidth: 130, position: "relative",
       border: `1px ${isPredicted ? "dashed" : "solid"} ${color}30`,
       backgroundColor: `${color}08`,
+      fontFamily: TYPE.body,
     }}>
       {/* Label row with kind tag and info button */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "center" }}>
         <div style={{ display: "flex", alignItems: "center", gap: 4 }}>
-          <div style={{ fontSize: 11, color: "#71717A", fontWeight: 500 }}>{label}</div>
+          <div style={{ fontSize: 11, color: t.inkMuted, fontWeight: 500 }}>{label}</div>
           <span style={{
             fontSize: 8, fontWeight: 600, padding: "1px 4px", borderRadius: 3,
-            backgroundColor: isPredicted ? "#F5F3FF" : "#F0FDF4",
-            color: isPredicted ? "#7C3AED" : "#16A34A",
-            border: `1px ${isPredicted ? "dashed" : "solid"} ${isPredicted ? "#7C3AED30" : "#16A34A30"}`,
+            backgroundColor: isPredicted ? "#f3eefa" : "#e6f2ee",
+            color: isPredicted ? "#6b3fa0" : "#0d8f6e",
+            border: `1px ${isPredicted ? "dashed" : "solid"} ${isPredicted ? "#6b3fa030" : "#0d8f6e30"}`,
             textTransform: "uppercase", letterSpacing: 0.5,
           }}>
             {isPredicted ? "Predicted" : "Measured"}
@@ -122,9 +132,9 @@ export function ContextualScoreCard({ label, value, percentile, median, populati
         <button
           onClick={() => setShowExplainer(!showExplainer)}
           style={{
-            width: 16, height: 16, borderRadius: "50%", border: "1px solid #D4D4D8",
-            backgroundColor: showExplainer ? "#2563EB" : "#F4F4F5",
-            color: showExplainer ? "#fff" : "#71717A",
+            width: 16, height: 16, borderRadius: "50%", border: `1px solid ${t.line}`,
+            backgroundColor: showExplainer ? t.brass : t.ground,
+            color: showExplainer ? "#fff" : t.inkMuted,
             fontSize: 10, fontWeight: 700, cursor: "pointer",
             display: "flex", alignItems: "center", justifyContent: "center",
             padding: 0, lineHeight: 1,
@@ -135,31 +145,31 @@ export function ContextualScoreCard({ label, value, percentile, median, populati
         </button>
       </div>
 
-      <div style={{ fontSize: 20, fontWeight: 700, color }}>
-        {value != null ? value.toFixed(3) : "\u2014"}
+      <div style={{ fontSize: 20, fontWeight: 700, color, fontFamily: TYPE.mono }}>
+        {value != null ? value.toFixed(3) : "—"}
       </div>
 
       {hasContext && (
         <>
           {/* Percentile distribution bar */}
-          <div style={{ position: "relative", height: 6, marginTop: 6, borderRadius: 3, backgroundColor: "#E4E4E7" }}>
-            <div style={{ position: "absolute", left: "25%", top: -1, width: 1, height: 8, backgroundColor: "#A1A1AA" }} />
-            <div style={{ position: "absolute", left: "75%", top: -1, width: 1, height: 8, backgroundColor: "#A1A1AA" }} />
+          <div style={{ position: "relative", height: 6, marginTop: 6, borderRadius: 3, backgroundColor: t.line }}>
+            <div style={{ position: "absolute", left: "25%", top: -1, width: 1, height: 8, backgroundColor: t.inkMuted }} />
+            <div style={{ position: "absolute", left: "75%", top: -1, width: 1, height: 8, backgroundColor: t.inkMuted }} />
             <div style={{
               position: "absolute",
               left: `${Math.max(2, Math.min(98, percentile))}%`,
               top: -2, width: 10, height: 10, borderRadius: "50%",
-              backgroundColor: color, border: "2px solid white",
+              backgroundColor: color, border: `2px solid ${t.surface}`,
               boxShadow: "0 0 2px rgba(0,0,0,0.3)", transform: "translateX(-5px)",
             }} />
           </div>
 
           {/* Interpretive label */}
-          <div style={{ fontSize: 10, color: "#71717A", marginTop: 4, lineHeight: 1.3 }}>
+          <div style={{ fontSize: 10, color: t.inkMuted, marginTop: 4, lineHeight: 1.3 }}>
             <span style={{ fontWeight: 600, color }}>{percentileLabel(percentile)}</span>
-            {" \u00b7 P"}{percentile}{" of "}{population}
+            {" · P"}{percentile}{" of "}{population}
             {median != null && (
-              <span> {"\u00b7"} med {median.toFixed(3)}</span>
+              <span> {"·"} med {median.toFixed(3)}</span>
             )}
           </div>
         </>
@@ -169,7 +179,7 @@ export function ContextualScoreCard({ label, value, percentile, median, populati
       {eraSnapshots && eraSnapshots.length >= 2 ? (
         <EraSparkline snapshots={eraSnapshots} />
       ) : (
-        <div style={{ fontSize: 9, color: "#A1A1AA", marginTop: 4 }}>
+        <div style={{ fontSize: 9, color: t.inkMuted, marginTop: 4 }}>
           {explainer.period}
         </div>
       )}
@@ -179,17 +189,17 @@ export function ContextualScoreCard({ label, value, percentile, median, populati
         <div style={{
           position: "absolute", top: "100%", left: 0, right: 0, zIndex: 10,
           marginTop: 4, padding: "10px 12px", borderRadius: 8,
-          backgroundColor: "#fff", border: "1px solid #E4E4E7",
+          backgroundColor: t.surface, border: `1px solid ${t.line}`,
           boxShadow: "0 4px 12px rgba(0,0,0,0.12)",
           minWidth: 220,
         }}>
-          <div style={{ fontSize: 11, fontWeight: 600, color: "#18181B", marginBottom: 4 }}>
+          <div style={{ fontSize: 11, fontWeight: 600, color: t.ink, marginBottom: 4 }}>
             {explainer.title}
           </div>
-          <div style={{ fontSize: 11, color: "#52525B", lineHeight: 1.5, marginBottom: 6 }}>
+          <div style={{ fontSize: 11, color: t.inkMuted, lineHeight: 1.5, marginBottom: 6 }}>
             {explainer.plain}
           </div>
-          <div style={{ fontSize: 10, color: "#A1A1AA", lineHeight: 1.4, fontStyle: "italic" }}>
+          <div style={{ fontSize: 10, color: t.inkMuted, lineHeight: 1.4, fontStyle: "italic" }}>
             {explainer.measures}
           </div>
         </div>

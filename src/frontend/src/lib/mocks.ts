@@ -116,12 +116,51 @@ const search = {
   ],
 };
 
+const driftSummary = {
+  total_tasks: 4605,
+  classified_tasks: 3533,
+  departing: 558,
+  enduring: 2971,
+  below_threshold: 4,
+  emerging: 0,
+  unclassified: 1072,
+  avg_velocity_departing: 0.012,
+  avg_velocity_enduring: 0.001,
+};
+
+const driftDeparting = {
+  tasks: [
+    { task_text: "Draft routine correspondence and standard reports", velocity: 0.021, r_squared: 0.91, latest_task_pct: 0.42, peak_task_pct: 0.44, classification: "departing", snapshot_count: 4 },
+    { task_text: "Summarise long documents into key points", velocity: 0.018, r_squared: 0.88, latest_task_pct: 0.38, peak_task_pct: 0.39, classification: "departing", snapshot_count: 4 },
+  ],
+  total: 2, page: 1, page_size: 15,
+};
+
+const driftBelowThreshold = {
+  tasks: [
+    { task_text: "Reconcile monthly expense reports against receipts", velocity: 0.009, r_squared: 0.83, latest_task_pct: 0.46, peak_task_pct: 0.46, classification: "below_threshold", snapshot_count: 4 },
+  ],
+  total: 1, page: 1, page_size: 20,
+};
+
+const driftEnduring = {
+  tasks: [
+    { task_text: "Resolve conflicts between team members", velocity: 0.0005, r_squared: 0.61, latest_task_pct: 0.08, peak_task_pct: 0.09, classification: "enduring", snapshot_count: 4 },
+    { task_text: "Conduct in-person client relationship building", velocity: 0.0002, r_squared: 0.55, latest_task_pct: 0.05, peak_task_pct: 0.05, classification: "enduring", snapshot_count: 4 },
+  ],
+  total: 2, page: 1, page_size: 10,
+};
+
 // ── Router: base path → fixture (query string ignored) ──
 
 const TABLE: Record<string, unknown> = {
   "/datasets": datasets,
   "/sectors": sectors,
   "/search": search,
+  "/drift/summary": driftSummary,
+  "/drift/departing": driftDeparting,
+  "/drift/below-threshold": driftBelowThreshold,
+  "/drift/enduring": driftEnduring,
 };
 
 export function mockResponse(path: string): unknown | undefined {

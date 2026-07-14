@@ -9,7 +9,10 @@
  */
 
 import { useState } from "react";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE } from "../lib/constants";
+import { IconInfo, IconChevron } from "./current/icons";
+
+const t = THEME.light;
 
 interface ZoneExplainerPanelProps {
   defaultExpanded?: boolean;
@@ -26,7 +29,7 @@ const ZONE_DATA = [
   },
   {
     key: "E1" as const,
-    threshold: "Beta 0.40\u20130.85",
+    threshold: "Beta 0.40–0.85",
     headline: "AI assists, human leads",
     description:
       "Co-pilot workflows where AI handles routine subtasks while humans provide judgment, creativity, and oversight.",
@@ -34,7 +37,7 @@ const ZONE_DATA = [
   },
   {
     key: "E2" as const,
-    threshold: "Beta \u2265 0.85",
+    threshold: "Beta ≥ 0.85",
     headline: "AI performs, human validates",
     description:
       "Tasks that can be substantially automated or delegated to AI agents. Humans shift to quality assurance and exception handling.",
@@ -49,9 +52,10 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
     <div
       style={{
         borderRadius: 12,
-        border: "1.5px solid #E4E4E7",
+        border: `1.5px solid ${t.line}`,
         overflow: "hidden",
         transition: "all 0.3s ease",
+        fontFamily: TYPE.body,
       }}
     >
       {/* Header — always visible */}
@@ -65,34 +69,19 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
           justifyContent: "space-between",
           alignItems: "center",
           padding: "12px 20px",
-          backgroundColor: "#FAFBFC",
-          borderBottom: expanded ? "1px solid #E4E4E740" : "none",
+          backgroundColor: t.ground,
+          borderBottom: expanded ? `1px solid ${t.line}` : "none",
           cursor: "pointer",
           userSelect: "none",
         }}
       >
         <div style={{ display: "flex", gap: 10, alignItems: "center" }}>
-          {/* Info circle icon */}
-          <svg
-            width={16}
-            height={16}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#71717A"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
-          >
-            <circle cx={12} cy={12} r={10} />
-            <line x1={12} y1={16} x2={12} y2={12} />
-            <line x1={12} y1={8} x2={12.01} y2={8} />
-          </svg>
+          <IconInfo size={16} color={t.inkMuted} />
           <span
             style={{
               fontSize: 14,
               fontWeight: 600,
-              color: "#3F3F46",
-              fontFamily: "Inter, system-ui, sans-serif",
+              color: t.ink,
             }}
           >
             Understanding Exposure Zones
@@ -117,29 +106,19 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
           <span
             style={{
               fontSize: 13,
-              color: "#71717A",
-              fontFamily: "Inter, system-ui, sans-serif",
+              color: t.inkMuted,
             }}
           >
             What do E0, E1, E2 mean?
           </span>
-          {/* Chevron */}
-          <svg
-            width={16}
-            height={16}
-            viewBox="0 0 24 24"
-            fill="none"
-            stroke="#A1A1AA"
-            strokeWidth={2}
-            strokeLinecap="round"
-            strokeLinejoin="round"
+          <IconChevron
+            size={16}
+            color={t.inkMuted}
             style={{
               transition: "transform 0.3s ease",
               transform: expanded ? "rotate(180deg)" : "rotate(0deg)",
             }}
-          >
-            <polyline points="6 9 12 15 18 9" />
-          </svg>
+          />
         </div>
       </div>
 
@@ -178,7 +157,6 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
                       fontSize: 14,
                       fontWeight: 700,
                       color: ZONE_COLORS[zone.key],
-                      fontFamily: "Inter, system-ui, sans-serif",
                     }}
                   >
                     {zone.key} — {ZONE_LABELS[zone.key]}
@@ -191,7 +169,7 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
                       backgroundColor: `${ZONE_COLORS[zone.key]}18`,
                       padding: "2px 8px",
                       borderRadius: 99,
-                      fontFamily: "Inter, system-ui, sans-serif",
+                      fontFamily: TYPE.mono,
                     }}
                   >
                     {zone.threshold}
@@ -201,9 +179,8 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
                   style={{
                     fontSize: 13,
                     fontWeight: 600,
-                    color: "#3F3F46",
+                    color: t.ink,
                     marginBottom: 6,
-                    fontFamily: "Inter, system-ui, sans-serif",
                   }}
                 >
                   {zone.headline}
@@ -211,9 +188,8 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
                 <div
                   style={{
                     fontSize: 12,
-                    color: "#52525B",
+                    color: t.inkMuted,
                     lineHeight: 1.5,
-                    fontFamily: "Inter, system-ui, sans-serif",
                   }}
                 >
                   {zone.description}
@@ -221,11 +197,10 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
                 <div
                   style={{
                     fontSize: 11,
-                    color: "#71717A",
+                    color: t.inkMuted,
                     fontStyle: "italic",
                     marginTop: 8,
                     lineHeight: 1.4,
-                    fontFamily: "Inter, system-ui, sans-serif",
                   }}
                 >
                   {zone.implication}
@@ -238,11 +213,10 @@ export function ZoneExplainerPanel({ defaultExpanded = false }: ZoneExplainerPan
           <div
             style={{
               fontSize: 11,
-              color: "#A1A1AA",
+              color: t.inkMuted,
               fontStyle: "italic",
               textAlign: "center",
               marginTop: 14,
-              fontFamily: "Inter, system-ui, sans-serif",
             }}
           >
             Beta = E1 + 0.5×E2 (Eloundou 2024). No occupation has all tasks
