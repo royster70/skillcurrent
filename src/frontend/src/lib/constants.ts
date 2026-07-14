@@ -16,6 +16,11 @@ export const THEME = {
     ink: "#0e1f27",
     inkMuted: "#46565c",
     brass: "#9c6414",
+    // The instrument reads the current: brass is the fixed tool (wordmark text,
+    // buttons, active states); `current` is the water/wind hue reserved for
+    // anything that MOVES (streamlines, the waterline underline, hover flows).
+    // Deliberately distinct from the E1/E2 zone hues below — motion, not data.
+    current: "#3f8aa1",
     line: "#d9e2e0",
   },
   dark: {
@@ -24,6 +29,7 @@ export const THEME = {
     ink: "#e7f1ef",
     inkMuted: "#9fb0b5",
     brass: "#e3a344",
+    current: "#6cb8cc",
     line: "#1e3340",
   },
 } as const;

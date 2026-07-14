@@ -13,6 +13,8 @@ import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
 import { CurrentFlow } from "../components/current/CurrentFlow";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE } from "../components/current/motion";
+import { IconOccupations, IconAnchor, IconSources } from "../components/current/icons";
+import type { ComponentType, SVGProps } from "react";
 
 const t = THEME.light;
 
@@ -109,22 +111,22 @@ function WaterlineBar({ s, shown, index }: { s: Sector; shown: boolean; index: n
   );
 }
 
-const PATHS = [
+const PATHS: { to: string; Icon: ComponentType<SVGProps<SVGSVGElement> & { size?: number }>; title: string; blurb: string }[] = [
   {
     to: "/occupations",
-    icon: "⛰",
+    Icon: IconOccupations,
     title: "Explore skills",
     blurb: "Find the high ground — the skills that stay above the line.",
   },
   {
     to: "/methodology",
-    icon: "⚓",
+    Icon: IconAnchor,
     title: "How this works",
     blurb: "From public data to a single, honest exposure signal.",
   },
   {
     to: "/sources",
-    icon: "📖",
+    Icon: IconSources,
     title: "What's the data",
     blurb: "Every signal, its vintage and licence — open by design.",
   },
@@ -293,7 +295,9 @@ export function LandingPage() {
                 onFocus={() => setHoveredPath(i)}
                 onBlur={() => setHoveredPath(-1)}
               >
-                <div style={{ fontSize: 26, marginBottom: 10 }}>{p.icon}</div>
+                <div style={{ color: hoveredPath === i ? t.brass : t.inkMuted, marginBottom: 12, transition: `color ${DUR.hover}ms ${EASE}` }}>
+                  <p.Icon size={26} />
+                </div>
                 <div style={{ fontFamily: TYPE.display, fontSize: 19, fontWeight: 600, marginBottom: 6 }}>{p.title}</div>
                 <div style={{ fontSize: 14, lineHeight: 1.5, color: t.inkMuted }}>{p.blurb}</div>
                 <div style={{ position: "relative", marginTop: 12, height: 20 }}>

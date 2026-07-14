@@ -77,7 +77,7 @@ export function CurrentFlow({
 }: CurrentFlowProps) {
   ensureMotionStyles();
   const t = THEME.light;
-  const stroke = color ?? t.brass;
+  const stroke = color ?? t.current; // motion = the water/wind hue, not the brass instrument
   const { ref, playing } = useInViewPlayState<HTMLDivElement>();
 
   const w = direction === "down" ? breadth : length;
@@ -124,7 +124,8 @@ export function CurrentFlow({
 /** A gently flowing brass underline (the wordmark's waterline). */
 export function WaveUnderline({ color, style }: { color?: string; style?: CSSProperties }) {
   ensureMotionStyles();
-  const stroke = color ?? THEME.light.brass;
+  // The brass wordmark sits on the water it reads: the underline is the current hue.
+  const stroke = color ?? THEME.light.current;
   return (
     <svg
       aria-hidden="true"

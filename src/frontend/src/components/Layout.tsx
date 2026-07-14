@@ -4,16 +4,17 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE } from "../lib/constants";
 import { WaveUnderline } from "./current/CurrentFlow";
+import { IconWaterline, IconSectors, IconSearch, IconOccupations, IconDrift } from "./current/icons";
 
 const t = THEME.light;
 const BRASS_TINT = "rgba(156, 100, 20, 0.10)"; // brass #9c6414 @ 10%
 
 const navItems = [
-  { to: "/", label: "Waterline", icon: "🌊" },
-  { to: "/sectors", label: "Sectors", icon: "📊" },
-  { to: "/search", label: "Role Search", icon: "🔍" },
-  { to: "/occupations", label: "Occupations", icon: "👥" },
-  { to: "/drift", label: "Drift Analysis", icon: "📈" },
+  { to: "/", label: "Waterline", Icon: IconWaterline },
+  { to: "/sectors", label: "Sectors", Icon: IconSectors },
+  { to: "/search", label: "Role Search", Icon: IconSearch },
+  { to: "/occupations", label: "Occupations", Icon: IconOccupations },
+  { to: "/drift", label: "Drift Analysis", Icon: IconDrift },
 ];
 
 export function Layout() {
@@ -119,7 +120,7 @@ export function Layout() {
               transition: "all 0.15s ease",
             })}
           >
-            <span style={{ fontSize: collapsed ? 18 : 15, opacity: 0.9 }}>{item.icon}</span>
+            <item.Icon size={collapsed ? 19 : 17} style={{ flexShrink: 0 }} />
             {!collapsed && item.label}
           </NavLink>
         ))}
