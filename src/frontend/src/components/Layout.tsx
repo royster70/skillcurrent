@@ -3,6 +3,7 @@ import { NavLink, Outlet } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE } from "../lib/constants";
+import { WaveUnderline } from "./current/CurrentFlow";
 
 const t = THEME.light;
 const BRASS_TINT = "rgba(156, 100, 20, 0.10)"; // brass #9c6414 @ 10%
@@ -49,7 +50,11 @@ export function Layout() {
         >
           {!collapsed && (
             <div style={{ fontFamily: TYPE.display, fontSize: 21, fontWeight: 600, color: t.ink, letterSpacing: -0.3 }}>
-              Skill<span style={{ color: t.brass }}>Current</span>
+              Skill
+              <span style={{ position: "relative", color: t.brass }}>
+                Current
+                <WaveUnderline />
+              </span>
             </div>
           )}
           <button
