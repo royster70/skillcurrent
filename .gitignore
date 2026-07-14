@@ -53,6 +53,9 @@ playwright-report/
 *.pdf
 ~$*
 
+# Design-tool download bundles (e.g. Claude Design exports) — never committed
+*.zip
+
 # Local dev server runtime (scripts/dev.sh|ps1 — pid files + logs)
 .dev/
 

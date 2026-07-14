@@ -1,46 +1,10 @@
-# API Requirements Derived from Wireframe Rounds 1–7
+# API Requirements Derived from Wireframe Rounds 1–9
 
 Derived: 2026-07-13, from `Waterline Wireframes.dc.html` (turns 1–7) against the
 current frontend API surface (`src/lib/api.ts`) and the Tier 1 brief.
 Each requirement cites the wireframe option that created it (1a, 3b, 5a…).
 
 Legend: ✅ exists today · 🔧 modify existing endpoint · 🆕 new work · 📦 CDN build artifact · 🗓 deferred
-
----
-
-## 0. Review correction (2026-07-13, verified against live code)
-
-This delta was reviewed field-by-field against the real backend
-(`app/api/v1/*.py`, `schemas.py`). **It is accurate** — every ✅ "exists today"
-claim was confirmed against the actual code (matrix axes + `routine` quadrant,
-`eloundou_median`/`eloundou_percentile`, `weighted_eloundou_beta`,
-`/gdpval/occupations/{soc}`, subdivision endpoints all present as stated), and
-every 🆕 was confirmed absent (`signal_coverage`, `evidence_tier`, `au_mapping`,
-`/occupations/facets`, `/signals` — none exist anywhere in `api/v1/`). One
-correction:
-
-**🔧 HIGH PRIORITY — era_snapshots is NOT cleanly "already covered" (§1 row 4).**
-`EraSnapshot.automation_potential` in `task_matrix.py` — the field the era
-scrubber (turns 5a–5c) would animate — is computed as `min(task_pct / 5.0, 1.0)`:
-AEI **usage share** rescaled by an arbitrary constant, stored in a field whose
-name is indistinguishable from the current-era `automation_potential` (which IS
-real Eloundou-beta capability). `drift_velocity` is the same trap (a linregress
-slope over usage). Shipping the scrubber against this animates a usage number
-dressed as capability — the exact conflation this whole project guards against.
-**Fix required before the scrubber ships**: drop `automation_potential` from
-`EraSnapshot`, or rename it (`usage_derived_estimate`) + mark heuristic so the
-UI renders it dashed (brief §8 convention). This is the same class of issue §2.5
-already flags for the raw `automation_pct`/`augmentation_pct` columns — it just
-also applies to the *derived* field §1 treated as done. See brief §8.1.
-
-**Also note (not a correction, a landscape update):** a 2026-07-13 datascout
-scan confirmed no redistributable "capability × O*NET × longitudinal-panel"
-source exists, so §3.3's GDPval restore stays the only path to real task-level
-capability movement. One acquisition candidate surfaced — **GDPval-AA**
-(Artificial Analysis's multi-model Elo leaderboard over the same GDPval
-occupation set) — as a licence-permitting *complement* to the self-run restore.
-See brief §8.3 before building anything era-scrubber-adjacent beyond the 44
-GDPval occupations.
 
 ---
 
@@ -145,28 +109,14 @@ Driver: 6b tier chip popover ("which signals exist and what each adds"),
   (theoretical/measured), breadth (occupations covered), depth description,
   color token. One source of truth for the five-instrument legend.
 
-### 3.3 GDPval evaluations — 🗓 designed-for-absence, NOT blocking (build now, fill later)
-- **Corrected framing (2026-07-14): do NOT gate the build on this.** `gdpval_evaluations`
-  is 0 rows and fills later via a paid run; the design ships fully *without* it and the
-  scores drop in with **no frontend change** through the committed-CSV ingest
-  (`src/backend/data/gdpval_evaluations/` → `scripts/ingest_gdpval_evaluations.py`, wired
-  into `run_pipeline` as an optional stage). Lab-agnostic — Claude and/or OpenAI eras are
-  just additional `<era>.csv` files.
-- **GDPval has TWO distinct states; do not collapse them to one boolean:**
-  1. **Task-covered** — is this occupation *in* the GDPval benchmark set. **Known today**
-     (44 occupations; `gdpval_tasks` + `gdpval_benchmark_count` loaded). The coverage-
-     fingerprint GDPval dot is accurate NOW.
-  2. **Scored** — do we have capability numbers for those tasks. **0 today**, fills after
-     the run. Drives the GDPval capability panel (6a) and the era-scrubber's *task-level*
-     movement (5b/5c).
-  A "covered" occupation with no scores renders as "benchmark defined, not yet measured"
-  (a first-class absence per 6a), NOT a fake zero and NOT a missing fingerprint dot.
-- **The trendline itself does NOT depend on this.** The "capability rising over time"
-  story ships now from **Epoch ECI** (`gptval_benchmarks`, loaded, CC-BY, 6 Sonnet
-  generations). GDPval's role is *occupation-grounding* the trend, which is the fill-later
-  enrichment — the MIT GDPval task set contains no scores, so it can't itself be a
-  trendline (brief §8). Until scores land, the scrubber's task-level motion shows the
-  usage-share proxy, honestly labeled (see §2.5 + the §0 `automation_potential` fix).
+### 3.3 GDPval evaluations restore — 🗓 fill-later, NOT blocking (superseded by 4b.2/4b.3)
+- `gdpval_evaluations` is 0 rows and fills later via a paid run. **Do NOT gate the
+  build on it** (iteration-2 correction, verified 2026-07-14): the durable
+  committed-CSV ingest is built and lab-agnostic, so scores drop in with no
+  frontend change. Coverage is a two-state enum (4b.2), the scrubber's motion is
+  labelled usage until scores land (4b.3), and the "capability rising" trendline
+  is carried NOW by Epoch ECI (4b.4). This row remains only as the pointer to
+  those; the earlier "design-blocking dependency" framing was wrong.
 
 ### 3.4 Propagated era movement (nearest-neighbor) — 🗓 deferred
 - Extending GDPval movement to ~970 non-GDPval occupations via
@@ -200,6 +150,63 @@ The wireframes confirm the brief's static-first plan. The export pipeline must e
 Full-build-only (never exported, dead-code-eliminated via
 `VITE_DEPLOYMENT_MODE`): `/search/semantic`, `/companies/classify`,
 `/companies/search`, `/occupations/facets` (if §3.1 decision keeps it).
+
+## 4b. Iteration 2 additions (turns 8–9, 2026-07-14)
+
+Deltas from the open-source + API-readiness round. Field-by-field review
+confirmed §1–§3 markings are accurate; these are additive.
+
+### 4b.1 `/signals` payload grows provenance fields — 🔧 (extends §3.2)
+Drivers: methodology source registry (8b), fingerprint "as of" hovers +
+global vintage stamp (8d).
+- Per signal: `version_key` (source vintage — e.g. `2024_science`, `28.1`),
+  `vintage_date` (for the spread timeline), `licence`, `breadth`
+  (occupations covered), `kind` (measured/theoretical), colour token.
+- **Lead with `version_key`, never `ingested_at`** — pipeline-refresh dates
+  falsely imply uniform currency (iteration-2 §B3).
+- **Data-source note (verified 2026-07-14):** `version_key`/`vintage_date` come
+  from `dataset_versions` (real DB), but **`licence` is NOT a DB field** — there
+  is no licence column anywhere. It must be a **curated static mapping** (seed
+  `signals.json` from `docs/data-sources.md`) until FR-9.5's
+  `signal_source_registry` lands. Consistent with 4b.6 (static build-time), just
+  don't expect to query it.
+- Ships in `signals.json` for CDN; one source of truth for legend,
+  registry table, and vintage stamp.
+
+### 4b.2 GDPval coverage is TWO states, not a boolean — 🔧 (amends §2.1)
+Driver: half-filled fingerprint dot + "benchmark defined, not yet measured"
+panel (8d, 8e).
+- `signal_coverage.gdpval` becomes `"scored" | "covered" | "none"`
+  (all 44 benchmark occupations are `covered` today; `scored` after a paid
+  eval run). Same enum in per-task coverage (§2.2).
+- Detail payload includes `gdpval_benchmark_count` even when unscored, so
+  the empty-state panel can say "30 benchmark tasks exist."
+
+### 4b.3 Era-motion labelling — 🔧 naming fix (amends §2.5, brief §8.1)
+`EraSnapshot.automation_potential` is rescaled AEI usage share in a
+capability-named field. Until GDPval scores land:
+- rename/alias to `usage_share_scaled` (keep old field deprecated), and
+- add `motion_basis: "usage" | "capability"` so the UI labels the scrubber
+  "share of real AI conversations", never "automation increasing."
+UI swap to capability motion later = data + label only, no layout change.
+
+### 4b.4 Epoch ECI trendline endpoint/export — ✅→📦 (small)
+Driver: landing "rising waterline" animation (7a beat 1), group-tide module
+(9c), worked-example progress spine (9a).
+- Data is loaded (`gptval_benchmarks`, CC-BY, 6 Sonnet generations). Needs
+  only a read endpoint or static `eci-trend.json` in the CDN export set
+  (add to §4 list as item 8).
+
+### 4b.5 Worked-example era series — 📦 (reuses §2.5, no new endpoint)
+Driver: scroll-pinned role story (9a) + filmstrip fallback (9b).
+- Needs per-era matrix snapshots for a **curated set of ~3 showcase roles**
+  bundled into the landing/methodology page payload (not all 1,016).
+  Export-time selection; full per-role history stays detail-view-only.
+
+### 4b.6 Static/docs surfaces — no API
+"How this works" (8b) and "Run this yourself" (8c) render from repo docs
+(`docs/ARCHITECTURE.md`, `docs/data-sources.md`, ADR index) + `signals.json`.
+Cite-this-page strings are build-time constants.
 
 ## 5. Decisions the API team needs from design (open)
 

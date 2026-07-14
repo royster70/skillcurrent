@@ -1,5 +1,9 @@
 # Handoff: Tier 1 Waterline Explorer — Wireframe Phase
 
+> **Updated 2026-07-14 (iteration 2, turns 8–9):** aesthetic direction resolved
+> to "Warm Instrument" (8a); open-source destinations, provenance surfaces,
+> build-now honesty rules, and the Epoch worked-example module added below.
+
 ## Overview
 Design exploration for the Tier 1 (public Industry Intelligence) explorer:
 sector waterline view, occupation browser, occupation detail (task matrix +
@@ -54,15 +58,53 @@ notes for the implementer.
   identical look; search box gets an inline capability note; company lookup
   simply doesn't render in CDN builds (build-time elimination via
   `VITE_DEPLOYMENT_MODE`).
-- **Overall aesthetic direction: still open.** User is treating the nautical
-  metaphor as one direction among several (1a vs 1b vs 1c unresolved).
-  Current UI (dark sidebar / Inter / orange) is slated for full replacement.
+- **Overall aesthetic direction: "Warm Instrument" (8a)** — 1c's mono/tabular
+  rigor + 1a's palette and data-bearing devices (draft marks, soundings,
+  waterline kept; cartouche/hatching/rope dropped). Light AND dark from the
+  start; light is default. Current UI (dark sidebar / Inter / orange) is
+  slated for full replacement.
+
+### Iteration 2 (turns 8–9, open-source audience)
+- **Audience expanded for open-sourcing**: contributors, researchers/citers,
+  self-hosters, casual visitors — in addition to HR/business leaders. The
+  waterline stays the front door (7a/7b); new destinations added, landing
+  decision NOT reopened.
+- **"How this works" methodology page (8b)**: pipeline diagram (sources →
+  crosswalk → β → zones) with per-stage expansion + worked example; source
+  registry table (signal, vintage `version_key`, licence, coverage) rendered
+  from `signals.json`; Strategy B shown as designed-but-unbuilt; cite-this-page
+  (BibTeX/APA). Content seeds from `docs/ARCHITECTURE.md`,
+  `docs/data-sources.md`, ADR index.
+- **"Run this yourself" (8c)**: persistent footer strip (both builds) →
+  one-page path with three tiers: ① static mirror (the CDN build doubles as
+  the fork path), ② docker-compose full stack, ③ add-a-signal (FR-9.5
+  registry — the fingerprint is extensible, not hardcoded).
+- **Provenance (8d)**: fingerprint dots carry "as of `version_key`" on hover
+  (never `ingested_at`); GDPval dot has THREE states — scored (solid),
+  covered-not-scored (half-filled), none (hollow); global vintage stamp in
+  the header shows the SPREAD of signal vintages on a mini-timeline, never
+  one blanket date. Fingerprint = "is this signal here"; stamp = "how
+  current is it" — two devices, two jobs.
+- **Build-now honesty (8e)**: GDPval capability panels render a
+  covered-not-scored empty state ("benchmark defined, not yet measured") and
+  fill with zero frontend change when scores land; era-scrubber task motion
+  is labelled **usage share** ("attention rising"), never "automation
+  increasing", until GDPval scores exist; Epoch ECI (loaded, CC-BY, 6 Sonnet
+  generations) powers the "capability rising" trendline now.
+- **Epoch worked-example module (turn 9)**: suggested combo — 9c group-tide
+  on the landing (roles as horizontal lines the rising waterline submerges;
+  purely real time-series), 9a scroll-pinned single-role story on the
+  methodology page (pinned trendline + role matrix stepping through eras,
+  reuses the 5a scrubber component), 9b static era filmstrip as the
+  no-JS/reduced-motion fallback. Not yet final.
 
 ## Open decisions (blocking, see API doc §5)
 1. Exact 3-box boundary values on both axes.
 2. Evidence-tier rule (signal combinations → tier names).
 3. Facet-count computation: server endpoint vs client-side only.
 4. Confirmation that no cross-era sector aggregates are needed in v1.
+5. Turn-9 module placement (suggested: 9c landing / 9a methodology / 9b
+   fallback) and the ~3 curated showcase roles for the worked example.
 
 ## Interactions & Behavior (key rules)
 - Hover matrix dot ⇄ table row: bidirectional highlight (4a).
