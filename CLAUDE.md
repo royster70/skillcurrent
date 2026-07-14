@@ -191,6 +191,7 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 - Development setup: `docs/SETUP.md`
 - Data dictionary (all tables/columns/joins): `docs/DATA_DICTIONARY.md`
 - Data sources, licences & attribution: `docs/data-sources.md`
+- Open-sourcing the platform (topology, cleanup, guardrails): `docs/PUBLISHING.md`
 - Rebuild the data from scratch: `docs/INGESTION_RUNBOOK.md` / `docs/REBUILD_RUNBOOK.md`
 - Microsoft AI applicability data: `docs/MICROSOFT_AI_APPLICABILITY.md`
 - Domain rules & data contracts: `docs/domain-model.md`
