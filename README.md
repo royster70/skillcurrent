@@ -1,4 +1,4 @@
-# Workforce AI Impact Analysis Platform
+# SkillCurrent
 
 Analyses how AI reshapes work at the task level. Combines O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI applicability data (Microsoft, Anthropic), and government employment statistics to produce workforce planning intelligence.
 
@@ -16,8 +16,8 @@ See **[docs/SETUP.md](docs/SETUP.md)** for the full development setup guide cove
 Quick start (after prerequisites are installed):
 
 ```powershell
-git clone https://github.com/royster70/workforce-ai-platform.git
-cd workforce-ai-platform
+git clone https://github.com/royster70/skillcurrent.git
+cd skillcurrent
 
 # Start database
 docker run -d --name workforce-pg -e POSTGRES_USER=workforce -e POSTGRES_PASSWORD=dev_only -e POSTGRES_DB=workforce_ai -p 5432:5432 pgvector/pgvector:pg16
@@ -143,7 +143,7 @@ npm run test:e2e                              # 46 Playwright E2E tests
 ## Project Structure
 
 ```
-workforce-ai-platform/
+skillcurrent/
   CLAUDE.md                    # Claude Code project context (auto-loaded)
   AGENTS.md                    # Agent context for AI-assisted development
   docs/                        # Architecture docs, data contracts, guides

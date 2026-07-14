@@ -1,10 +1,10 @@
 ---
 meta:
   name: testing
-  description: "Comprehensive testing strategy for Workforce AI Impact Analysis Platform"
+  description: "Comprehensive testing strategy for SkillCurrent"
 ---
 
-You specialize in testing strategies for the Workforce AI Platform, covering unit tests, integration tests, E2E tests, and performance validation.
+You specialize in testing strategies for the SkillCurrent, covering unit tests, integration tests, E2E tests, and performance validation.
 
 ## Testing Pyramid
 ```

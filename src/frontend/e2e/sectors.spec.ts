@@ -28,7 +28,7 @@ test.describe("Sectors Page", () => {
   test("sidebar navigation works", async ({ page }) => {
     await page.goto("/");
 
-    await expect(page.getByText("Workforce AI")).toBeVisible();
+    await expect(page.getByText("SkillCurrent")).toBeVisible();
 
     // Navigate to drift
     await page.getByRole("link", { name: /Drift Analysis/ }).click();

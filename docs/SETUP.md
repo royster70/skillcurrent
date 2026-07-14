@@ -1,6 +1,6 @@
 # Development Setup Guide
 
-How to get the Workforce AI Impact Analysis Platform running from scratch on a new machine.
+How to get the SkillCurrent running from scratch on a new machine.
 
 ---
 
@@ -37,8 +37,8 @@ git --version       # 2+
 ## 1. Clone the repository
 
 ```powershell
-git clone https://github.com/royster70/workforce-ai-platform.git
-cd workforce-ai-platform
+git clone https://github.com/royster70/skillcurrent.git
+cd skillcurrent
 ```
 
 ---
@@ -403,7 +403,7 @@ python -m uvicorn app.main:app --reload --port 8001
 ## Project structure
 
 ```
-workforce-ai-platform/
+skillcurrent/
   CLAUDE.md              # Claude Code project instructions
   AGENTS.md              # Agent context and sub-agent definitions
   docs/                  # Architecture docs, ADRs, data contracts

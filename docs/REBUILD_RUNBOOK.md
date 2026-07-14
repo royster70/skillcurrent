@@ -1,8 +1,8 @@
-# Laptop Rebuild Runbook — Workforce AI Platform
+# Laptop Rebuild Runbook — SkillCurrent
 
-Complete instructions to rebuild the workforce-ai-platform development environment from scratch on a fresh Windows 11 machine, including PostgreSQL in Docker, all data ingestion, and Claude Code configuration.
+Complete instructions to rebuild the skillcurrent development environment from scratch on a fresh Windows 11 machine, including PostgreSQL in Docker, all data ingestion, and Claude Code configuration.
 
-**Repo**: `royster70/workforce-ai-platform` (GitHub, private)
+**Repo**: `royster70/skillcurrent` (GitHub, private)
 **Source data**: `C:\Users\royst\Projects\Data\` (outside repo)
 **Claude Code config**: Global `~\.claude\` + project `.claude\` (in repo)
 
@@ -61,7 +61,7 @@ C:\Users\royst\.claude\                 # Global Claude Code config
   .credentials.json                     # OAuth tokens (re-auth may be needed)
 
 C:\Users\royst\.claude\projects\        # Project-specific memory
-  C--Users-royst-Projects-workforce-ai-platform\memory\
+  C--Users-royst-Projects-skillcurrent\memory\
     MEMORY.md                           # Memory index
     user_preferences.md                 # Working style preferences
     project_roadmap.md                  # Feature roadmap
@@ -100,8 +100,8 @@ docker exec workforce-pg pg_dump -U workforce -d workforce_ai --data-only `
 ```powershell
 mkdir C:\Users\royst\Projects
 cd C:\Users\royst\Projects
-git clone https://github.com/royster70/workforce-ai-platform.git
-cd workforce-ai-platform
+git clone https://github.com/royster70/skillcurrent.git
+cd skillcurrent
 ```
 
 ### 3.2 Restore data directory
@@ -114,7 +114,7 @@ Copy backed-up files to `C:\Users\royst\.claude\`:
 
 ### 3.4 Restore Claude Code memory
 Copy the entire backed-up `memory\` directory to:
-`C:\Users\royst\.claude\projects\C--Users-royst-Projects-workforce-ai-platform\memory\`
+`C:\Users\royst\.claude\projects\C--Users-royst-Projects-skillcurrent\memory\`
 
 ---
 
@@ -138,7 +138,7 @@ Uses `pgvector/pgvector:pg16` which bundles PostgreSQL 16 + pgvector extension (
 ## Phase 5 — Backend Setup
 
 ```powershell
-cd C:\Users\royst\Projects\workforce-ai-platform\src\backend
+cd C:\Users\royst\Projects\skillcurrent\src\backend
 
 # Virtual environment
 python -m venv .venv
@@ -186,7 +186,7 @@ tagging every derived-computation row with a `pipeline_run_id` (ADR-007 Phase 3)
 `src/backend/.env` if your data lives elsewhere.
 
 ```powershell
-cd C:\Users\royst\Projects\workforce-ai-platform\src\backend
+cd C:\Users\royst\Projects\skillcurrent\src\backend
 
 # Point the orchestrator at your source data (skip if using the default path)
 # Add to src\backend\.env:  DATA_ROOT=C:\path\to\Data
@@ -279,7 +279,7 @@ Expected: ~602,600 total rows across 50 data tables (see `CLAUDE.md` Data Load S
 ## Phase 7 — Frontend Setup
 
 ```powershell
-cd C:\Users\royst\Projects\workforce-ai-platform\src\frontend
+cd C:\Users\royst\Projects\skillcurrent\src\frontend
 npm install
 npx playwright install   # For E2E tests
 ```
@@ -289,7 +289,7 @@ npx playwright install   # For E2E tests
 ## Phase 8 — Git Hooks
 
 ```powershell
-cd C:\Users\royst\Projects\workforce-ai-platform
+cd C:\Users\royst\Projects\skillcurrent
 
 # Install pre-commit hooks (black + ruff + mypy + standard hooks)
 pre-commit install

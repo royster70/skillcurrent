@@ -1,4 +1,4 @@
-# Workforce AI Impact Analysis Platform — PRD v1.1
+# SkillCurrent — PRD v1.1
 
 **Version:** 1.1 (consolidated)
 **Date:** 2026-03-21

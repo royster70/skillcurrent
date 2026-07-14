@@ -1,4 +1,4 @@
-# Workforce AI Impact Analysis Platform — Agent Context
+# SkillCurrent — Agent Context
 
 ## What This Platform Does
 
@@ -135,7 +135,7 @@ Invoke these explicitly or Claude Code will match by description:
 npm install -g @anthropic-ai/claude-code
 
 # In project directory
-cd workforce-ai-platform
+cd skillcurrent
 claude    # starts interactive session
 
 # Claude Code reads CLAUDE.md automatically on start

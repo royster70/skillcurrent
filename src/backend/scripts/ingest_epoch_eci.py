@@ -113,7 +113,7 @@ def _download_eci_csv() -> tuple[bytes, str]:
     logger.info("Downloading ECI benchmark data from %s", ECI_URL)
     request = urllib.request.Request(  # noqa: S310
         ECI_URL,
-        headers={"User-Agent": "Mozilla/5.0 (compatible; workforce-ai-platform/0.1)"},
+        headers={"User-Agent": "Mozilla/5.0 (compatible; skillcurrent/0.1)"},
     )
     with urllib.request.urlopen(request, timeout=30) as resp:  # noqa: S310
         csv_bytes = resp.read()
