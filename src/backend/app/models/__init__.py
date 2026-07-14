@@ -45,6 +45,9 @@ from app.models.osca import (
     OscaMainTask,
     OscaOccupation,
 )
+from app.models.signal_source import (
+    SignalSource,
+)
 from app.models.tier1 import (
     AEITaskSnapshot,
     IndustryCrosswalk,
@@ -86,6 +89,7 @@ __all__ = [
     "OscaIscoMap",
     "OscaMainTask",
     "OscaOccupation",
+    "SignalSource",
     "TaskDriftMetric",
     "TransformationLog",
 ]

@@ -155,6 +155,11 @@ def _build_pipeline_dag() -> list[PipelineStage]:
     return [
         # ── Tier 1 core (US) ──
         PipelineStage(
+            "signal_sources",
+            partial(_call, "ingest_signal_sources"),
+            description="Signal source registry (FR-9.5 redistribution gate)",
+        ),
+        PipelineStage(
             "onet", partial(_call, "ingest_onet"), description="O*NET 28.1 reference data"
         ),
         PipelineStage(

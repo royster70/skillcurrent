@@ -15,6 +15,56 @@ from sqlalchemy.ext.asyncio import AsyncSession
 from app.utils.hashing import compute_file_hash, compute_files_hash, compute_json_hash
 
 
+async def test_signal_registry_no_restricted_source_is_shippable(session: AsyncSession):
+    """FR-9.5: no citation-only / view-only / unverified source may be
+    redistribution_ok=true, every row carries a licence, and the foundational
+    sources stay shippable. Skips when the registry is not yet ingested.
+    """
+    count = (
+        await session.execute(text("SELECT COUNT(*) FROM signal_source_registry"))
+    ).scalar_one()
+    if count == 0:
+        pytest.skip("signal_source_registry not populated")
+
+    blank = (
+        await session.execute(
+            text(
+                "SELECT source_key FROM signal_source_registry "
+                "WHERE licence IS NULL OR TRIM(licence) = ''"
+            )
+        )
+    ).fetchall()
+    assert not blank, f"sources with blank licence: {[r[0] for r in blank]}"
+
+    leaks = (
+        await session.execute(
+            text(
+                """
+                SELECT source_key, licence FROM signal_source_registry
+                WHERE redistribution_ok = true AND (
+                    LOWER(licence) LIKE '%citation%' OR
+                    LOWER(licence) LIKE '%view-only%' OR
+                    LOWER(licence) LIKE '%view only%' OR
+                    LOWER(licence) LIKE '%not open%' OR
+                    LOWER(licence) LIKE '%pending%' OR
+                    LOWER(licence) LIKE '%restricted%'
+                )
+                """
+            )
+        )
+    ).fetchall()
+    assert not leaks, f"restricted sources marked shippable: {leaks}"
+
+    for key in ("onet", "eloundou"):
+        ok = (
+            await session.execute(
+                text("SELECT redistribution_ok FROM signal_source_registry WHERE source_key = :k"),
+                {"k": key},
+            )
+        ).scalar_one_or_none()
+        assert ok is True, f"foundational source '{key}' must be redistribution_ok=true (got {ok})"
+
+
 async def test_eloundou_e0_gte_max_e1_e2(session: AsyncSession):
     """E0 >= max(E1, E2) for all rows in eloundou_occ_scores (both rater types).
 

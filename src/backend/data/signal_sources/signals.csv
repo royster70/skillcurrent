@@ -1,0 +1,19 @@
+source_key,source_name,publisher,dataset,licence,redistribution_ok,native_grain,source_url,status,notes
+onet,O*NET 28.1,USDOL/ETA,Occupational taxonomy (occupations/tasks/DWAs),Public domain,true,occupation,https://www.onetcenter.org/,loaded,O*NET is a trademark of USDOL/ETA
+eloundou,Eloundou 2024 GPTs are GPTs,OpenAI,Occupation AI-exposure E0/E1/E2,MIT,true,occupation,https://github.com/openai/GPTs-are-GPTs,loaded,Foundational exposure/beta layer
+microsoft_ai,Microsoft Working with AI,Microsoft,AI applicability / Copilot usage,CC BY 4.0,true,SOC/IWA,https://www.microsoft.com/,loaded,
+aei,Anthropic Economic Index (labour + temporal),Anthropic,Claude usage by task,CC BY,true,task,https://huggingface.co/datasets/Anthropic/EconomicIndex,loaded,
+oews,BLS OEWS May 2024,US Bureau of Labor Statistics,Employment by occupation x industry,Public domain,true,SOC x NAICS,https://www.bls.gov/oes/,loaded,
+osca,OSCA 2024 v1.0,ABS,AU occupation backbone,CC BY 4.0,true,occupation,https://www.abs.gov.au/,loaded,
+asc,Australian Skills Classification v3.0,JSA,AU task/skill layer,CC BY 4.0,true,task/skill,https://www.jobsandskills.gov.au/data/australian-skills-classification,loaded,FR-9.2 exposure carrier
+abs_jsa_employment,JSA Occupation Profiles employment,JSA,AU employment by occupation x industry,CC BY 4.0,true,occupation x industry,https://www.jobsandskills.gov.au/,loaded,
+abs_census,ABS Census 2021 Working Population Profiles,ABS,Industry x occupation cross-tabs,CC BY 4.0,true,industry x occupation,https://www.abs.gov.au/,loaded,
+epoch_eci,Epoch AI Capabilities Index (ECI),Epoch AI,Capability index across model eras,CC BY,true,model-era,https://epoch.ai/,loaded,Redistributable capability trendline
+gdpval_tasks,OpenAI GDPval task set,OpenAI,Real-world knowledge tasks,MIT,true,task,https://github.com/openai/gdpval,loaded,Tasks only; leaderboard scores are not redistributable
+gdpval_evaluations,SkillCurrent GDPval evaluations,SkillCurrent,Own model-era grader scores,CC BY 4.0,true,task,,loaded,Original to this project (public grader on MIT tasks)
+jsa_genai,JSA Our Gen AI Transition,JSA,AU augmentation/automation scores,CC BY,true,occupation,https://www.jobsandskills.gov.au/,acquired,Acquired not yet ingested
+aei_geographic,AEI geographic release,Anthropic,Country-level usage incl AUS,Pending verification,false,country,https://huggingface.co/datasets/Anthropic/EconomicIndex,acquired,Per-release licence unverified - treat as not-ok until confirmed
+aioe,AIOE Felten Raj Seamans,Felten/Raj/Seamans,AI occupational exposure,Citation-only,false,occupation,,acquired,Redistribution-restricted - cite only
+gdpval_aa,GDPval-AA Artificial Analysis,Artificial Analysis,Elo leaderboard over GDPval,Not openly licensed,false,task,https://artificialanalysis.ai/,consumed_only,Cite only
+openai_gdpval_scores,OpenAI GDPval leaderboard scores,OpenAI,Official GDPval leaderboard scores,View-only,false,task,,consumed_only,Regenerate via the public grader instead
+sml_webb,SML Brynjolfsson / Webb 2020,Brynjolfsson et al. / Webb,Suitability for ML / task exposure,Citation-only,false,task/occupation,,roadmap,Academic cite-only
