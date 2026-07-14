@@ -74,22 +74,22 @@ describe("ZoneExplorer", () => {
     expect(screen.getByText(/Representative tasks, positioned by their AI exposure/)).toBeInTheDocument();
   });
 
-  it("renders the waterline as a vertical aria slider at the role's today level", () => {
+  it("renders the waterline as a vertical aria slider at the global today level", () => {
     renderExplorer();
     const slider = screen.getByRole("slider", { name: "Waterline" });
     expect(slider).toHaveAttribute("aria-orientation", "vertical");
-    // default focus = Registered Nurse, today β = 0.33
-    expect(slider).toHaveAttribute("aria-valuenow", "0.33");
+    // one global "today's capability" waterline, same for every job
+    expect(slider).toHaveAttribute("aria-valuenow", "0.65");
     expect(slider).toHaveAttribute("aria-valuemin", "0");
     expect(slider).toHaveAttribute("aria-valuemax", "1.5");
   });
 
-  it("snaps the waterline to each role's today level when browsed", () => {
+  it("keeps the waterline fixed when browsing roles (same tide for every job)", () => {
     renderExplorer();
     const slider = screen.getByRole("slider", { name: "Waterline" });
-    expect(slider).toHaveAttribute("aria-valuenow", "0.33"); // Nurse
+    expect(slider).toHaveAttribute("aria-valuenow", "0.65");
     fireEvent.click(screen.getByText("Bookkeeper"));
-    expect(slider).toHaveAttribute("aria-valuenow", "0.7"); // Bookkeeper's today
+    expect(slider).toHaveAttribute("aria-valuenow", "0.65"); // unchanged
   });
 
   it("sets the waterline when a zone card is clicked", () => {
@@ -103,17 +103,17 @@ describe("ZoneExplorer", () => {
     renderExplorer();
     const slider = screen.getByRole("slider", { name: "Waterline" });
     fireEvent.keyDown(slider, { key: "ArrowDown" });
-    expect(slider).toHaveAttribute("aria-valuenow", "0.38");
+    expect(slider).toHaveAttribute("aria-valuenow", "0.7");
     fireEvent.keyDown(slider, { key: "ArrowUp" });
-    expect(slider).toHaveAttribute("aria-valuenow", "0.33");
+    expect(slider).toHaveAttribute("aria-valuenow", "0.65");
   });
 
   it("reports the time-weighted share of the day below the waterline", () => {
     renderExplorer();
-    // default focus = Registered Nurse (β 0.88@20%, 0.47@35%, 0.13@45%), waterline 0.33
-    // → the 0.88 and 0.47 tasks are below → 20% + 35% = 55% of the day, 2 of 3 tasks
-    expect(screen.getByText(/55% of the day below/)).toBeInTheDocument();
-    expect(screen.getByText(/2\/3 tasks/)).toBeInTheDocument();
+    // default focus = Registered Nurse (β 0.88@20%, 0.47@35%, 0.13@45%), global waterline 0.65
+    // → only the 0.88 task is below → 20% of the day, 1 of 3 tasks (a human role reads LOW)
+    expect(screen.getByText(/20% of the day below/)).toBeInTheDocument();
+    expect(screen.getByText(/1\/3 tasks/)).toBeInTheDocument();
   });
 });
 

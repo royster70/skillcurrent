@@ -76,17 +76,15 @@ function zoneOf(beta: number): ZoneKey {
 // exposure. Representative (curated) — the live per-task reading is on each
 // occupation's page. Chosen to span the scale, so the spread is the lesson:
 // documentation/routine sinks, human contact stays dry. ──
-// A few — so there's always one you recognize — shown together, each with 3
-// tasks spanning the scale (a routine end, a middle, and a human end).
-// `today` = the role's occupation-level exposure — where the waterline sits for
-// this job *now*. The waterline snaps here on role switch (then stays draggable),
-// so browsing jobs visibly moves the tide: some jobs sit deep, some ride high.
+// A few — so there's always one you recognize — each with 3 tasks spanning the
+// scale (a routine end, a middle, and a human end) plus each task's `time`
+// (share of the working day). The waterline is global (same tide for all jobs);
+// browsing re-plots the tasks, so how much of each job sits under it changes.
 const ROLE_EXAMPLES = [
   {
     soc: "29-1141.00",
     title: "Registered Nurse",
     takeaway: "Charting sinks; bedside care stays human.",
-    today: 0.33,
     tasks: [
       { text: "Chart patient vitals and update records", beta: 0.88, time: 20 },
       { text: "Administer medications and treatments", beta: 0.47, time: 35 },
@@ -97,7 +95,6 @@ const ROLE_EXAMPLES = [
     soc: "41-2011.00",
     title: "Cashier",
     takeaway: "Scanning's nearly gone; defusing conflict isn't.",
-    today: 0.6,
     tasks: [
       { text: "Scan items and total the purchase", beta: 0.9, time: 55 },
       { text: "Answer questions about products and prices", beta: 0.54, time: 30 },
@@ -108,7 +105,6 @@ const ROLE_EXAMPLES = [
     soc: "43-3031.00",
     title: "Bookkeeper",
     takeaway: "Data entry automates; the judgment call doesn't.",
-    today: 0.7,
     tasks: [
       { text: "Enter transactions into the ledger", beta: 0.93, time: 50 },
       { text: "Generate monthly financial reports", beta: 0.67, time: 30 },
@@ -119,7 +115,6 @@ const ROLE_EXAMPLES = [
     soc: "25-2021.00",
     title: "Primary Teacher",
     takeaway: "Grading speeds up; mentoring stays human.",
-    today: 0.38,
     tasks: [
       { text: "Grade assignments and quizzes", beta: 0.78, time: 25 },
       { text: "Explain new concepts to the class", beta: 0.43, time: 40 },
@@ -130,7 +125,6 @@ const ROLE_EXAMPLES = [
     soc: "53-3032.00",
     title: "Truck Driver",
     takeaway: "The paperwork sinks; the driving stays.",
-    today: 0.45,
     tasks: [
       { text: "Complete delivery logs and paperwork", beta: 0.82, time: 15 },
       { text: "Plan the day's delivery route", beta: 0.58, time: 20 },
@@ -141,7 +135,6 @@ const ROLE_EXAMPLES = [
     soc: "43-4051.00",
     title: "Customer Service Rep",
     takeaway: "Looking things up automates; the hard calls don't.",
-    today: 0.55,
     tasks: [
       { text: "Look up account details and order status", beta: 0.85, time: 45 },
       { text: "Answer routine product questions", beta: 0.6, time: 30 },
@@ -162,12 +155,10 @@ function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterl
     ensureMotionStyles();
   }, []);
 
-  // Selecting a role snaps the waterline to that job's "today" exposure, so the
-  // tide visibly moves as you browse — then it stays draggable to explore.
-  const selectRole = (i: number) => {
-    setIdx(i);
-    onWaterline(ROLE_EXAMPLES[i].today);
-  };
+  // The waterline is a single global "today's capability" (owned by ZoneExplorer)
+  // — the SAME tide for every job. Browsing a role doesn't move it; it re-plots
+  // the tasks, and how much of the job sits under the fixed line changes.
+  const selectRole = (i: number) => setIdx(i);
   const go = (delta: number) => selectRole((idx + delta + count) % count);
 
   const others = ROLE_EXAMPLES.map((r, i) => ({ r, i })).filter((x) => x.i !== idx);
@@ -449,7 +440,7 @@ function WaterlineTank({
 
       <div style={{ fontSize: 10, color: t.inkMuted, marginTop: 6, fontStyle: "italic" }}>
         Bar length = share of the working day; the readout weights by it, so a small automatable task
-        counts for little. The waterline starts where AI reaches this job today — drag it up to see where the tide is heading.
+        counts for little. The waterline is today's AI capability — the same tide for every job; drag it up to see where it's heading.
       </div>
     </div>
   );
@@ -457,7 +448,8 @@ function WaterlineTank({
 
 /** The inline explorer — the landing's "READ THE SCALE" instrument. */
 export function ZoneExplorer() {
-  const [waterline, setWaterline] = useState<number>(ROLE_EXAMPLES[0].today);
+  // One global "today's AI capability" — the same tide across every job.
+  const [waterline, setWaterline] = useState<number>(0.65);
 
   return (
     <div style={{ fontFamily: TYPE.body }}>
