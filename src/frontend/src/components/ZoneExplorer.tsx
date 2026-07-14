@@ -88,9 +88,9 @@ const ROLE_EXAMPLES = [
     takeaway: "Charting sinks; bedside care stays human.",
     today: 0.33,
     tasks: [
-      { text: "Chart patient vitals and update records", beta: 0.88 },
-      { text: "Administer medications and treatments", beta: 0.47 },
-      { text: "Comfort and reassure patients and families", beta: 0.13 },
+      { text: "Chart patient vitals and update records", beta: 0.88, time: 20 },
+      { text: "Administer medications and treatments", beta: 0.47, time: 35 },
+      { text: "Comfort and reassure patients and families", beta: 0.13, time: 45 },
     ],
   },
   {
@@ -99,9 +99,9 @@ const ROLE_EXAMPLES = [
     takeaway: "Scanning's nearly gone; defusing conflict isn't.",
     today: 0.6,
     tasks: [
-      { text: "Scan items and total the purchase", beta: 0.9 },
-      { text: "Answer questions about products and prices", beta: 0.54 },
-      { text: "De-escalate an upset customer", beta: 0.22 },
+      { text: "Scan items and total the purchase", beta: 0.9, time: 55 },
+      { text: "Answer questions about products and prices", beta: 0.54, time: 30 },
+      { text: "De-escalate an upset customer", beta: 0.22, time: 15 },
     ],
   },
   {
@@ -110,9 +110,9 @@ const ROLE_EXAMPLES = [
     takeaway: "Data entry automates; the judgment call doesn't.",
     today: 0.7,
     tasks: [
-      { text: "Enter transactions into the ledger", beta: 0.93 },
-      { text: "Generate monthly financial reports", beta: 0.67 },
-      { text: "Advise on bookkeeping practices", beta: 0.27 },
+      { text: "Enter transactions into the ledger", beta: 0.93, time: 50 },
+      { text: "Generate monthly financial reports", beta: 0.67, time: 30 },
+      { text: "Advise on bookkeeping practices", beta: 0.27, time: 20 },
     ],
   },
   {
@@ -121,9 +121,9 @@ const ROLE_EXAMPLES = [
     takeaway: "Grading speeds up; mentoring stays human.",
     today: 0.38,
     tasks: [
-      { text: "Grade assignments and quizzes", beta: 0.78 },
-      { text: "Explain new concepts to the class", beta: 0.43 },
-      { text: "Encourage and mentor struggling students", beta: 0.11 },
+      { text: "Grade assignments and quizzes", beta: 0.78, time: 25 },
+      { text: "Explain new concepts to the class", beta: 0.43, time: 40 },
+      { text: "Encourage and mentor struggling students", beta: 0.11, time: 35 },
     ],
   },
   {
@@ -132,9 +132,9 @@ const ROLE_EXAMPLES = [
     takeaway: "The paperwork sinks; the driving stays.",
     today: 0.45,
     tasks: [
-      { text: "Complete delivery logs and paperwork", beta: 0.82 },
-      { text: "Plan the day's delivery route", beta: 0.58 },
-      { text: "Drive the vehicle safely in traffic", beta: 0.14 },
+      { text: "Complete delivery logs and paperwork", beta: 0.82, time: 15 },
+      { text: "Plan the day's delivery route", beta: 0.58, time: 20 },
+      { text: "Drive the vehicle safely in traffic", beta: 0.14, time: 65 },
     ],
   },
   {
@@ -143,9 +143,9 @@ const ROLE_EXAMPLES = [
     takeaway: "Looking things up automates; the hard calls don't.",
     today: 0.55,
     tasks: [
-      { text: "Look up account details and order status", beta: 0.85 },
-      { text: "Answer routine product questions", beta: 0.6 },
-      { text: "Calm a frustrated customer and find a fix", beta: 0.2 },
+      { text: "Look up account details and order status", beta: 0.85, time: 45 },
+      { text: "Answer routine product questions", beta: 0.6, time: 30 },
+      { text: "Calm a frustrated customer and find a fix", beta: 0.2, time: 25 },
     ],
   },
 ];
@@ -259,7 +259,12 @@ function WaterlineTank({
   const y40 = yOf(ZONE_THRESHOLDS.E1);
   const y85 = yOf(ZONE_THRESHOLDS.E2);
   const wlY = yOf(waterline);
-  const submerged = role.tasks.filter((task) => task.beta >= waterline).length;
+  const submergedTasks = role.tasks.filter((task) => task.beta >= waterline);
+  const submerged = submergedTasks.length;
+  // Time-weighted: the share of the working day below the line, not just a task
+  // count — a highly automatable task can still be a small slice of the day.
+  const dayTotal = role.tasks.reduce((s, task) => s + task.time, 0);
+  const timeBelow = Math.round((submergedTasks.reduce((s, task) => s + task.time, 0) / dayTotal) * 100);
   const wlZone = zoneOf(waterline);
   const animate = !prefersReducedMotion();
   const wlTrans = animate ? `top ${DUR.hover}ms ${EASE}` : undefined;
@@ -291,7 +296,8 @@ function WaterlineTank({
         <div style={{ flex: "1 1 320px", minWidth: 200, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
           <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Drag the waterline</span>
           <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[wlZone] }}>
-            β {waterline.toFixed(2)} · {submerged}/{role.tasks.length} submerged
+            β {waterline.toFixed(2)} · {timeBelow}% of the day below
+            <span style={{ fontWeight: 400, color: t.inkMuted }}> ({submerged}/{role.tasks.length} tasks)</span>
           </span>
         </div>
         <div style={{ flex: "0 1 250px", minWidth: 180, maxWidth: 290 }}>
@@ -355,6 +361,8 @@ function WaterlineTank({
             {role.tasks.map((task) => {
               const zone = zoneOf(task.beta);
               const under = task.beta >= waterline;
+              // Dot AREA ∝ share of the working day (radius ∝ √time).
+              const dotD = Math.max(9, Math.min(22, Math.sqrt(task.time) * 2.5));
               return (
                 <div
                   key={task.text}
@@ -364,11 +372,12 @@ function WaterlineTank({
                     padding: "0 10px", pointerEvents: "none",
                   }}
                 >
-                  <span style={{ width: 11, height: 11, borderRadius: "50%", background: ZONE_COLORS[zone], border: `2px solid ${t.surface}`, flexShrink: 0 }} />
+                  <span style={{ width: dotD, height: dotD, borderRadius: "50%", background: ZONE_COLORS[zone], border: `2px solid ${t.surface}`, flexShrink: 0 }} />
                   <span style={{ flex: 1, fontSize: 12, lineHeight: 1.25, color: t.ink }}>{task.text}</span>
-                  <span style={{ fontFamily: TYPE.mono, fontSize: 12, fontWeight: 700, color: ZONE_COLORS[zone], flexShrink: 0 }}>
+                  <span style={{ fontFamily: TYPE.mono, fontSize: 12, fontWeight: 700, color: ZONE_COLORS[zone], flexShrink: 0, textAlign: "right" }}>
                     {task.beta.toFixed(2)}
                     {under && <span style={{ fontWeight: 400, color: t.current, marginLeft: 5 }}>↓</span>}
+                    <span style={{ display: "block", fontSize: 9, fontWeight: 400, color: t.inkMuted }}>{task.time}% of day</span>
                   </span>
                 </div>
               );
@@ -398,13 +407,13 @@ function WaterlineTank({
                 style={{
                   position: "absolute", top: band.top, height: band.height, left: 0, right: 0,
                   display: "flex", gap: 8, alignItems: "flex-start",
-                  // Neutral reference text; the ACTIVE reading is marked in brass —
-                  // the same hue as the waterline that's "reading" this zone.
+                  // A calm, always-readable reference legend. The only reaction to
+                  // the waterline is a quiet brass tick on the current zone — no
+                  // dimming, no jumping markers; the tank does the moving.
                   borderLeft: `2px solid ${active ? t.brass : "transparent"}`,
                   paddingLeft: 9, paddingTop: 6, paddingBottom: 6, paddingRight: 2,
                   cursor: "pointer", overflow: "hidden",
-                  opacity: active ? 1 : 0.62,
-                  transition: `opacity ${DUR.hover}ms ${EASE}, border-color ${DUR.hover}ms ${EASE}`,
+                  transition: `border-color ${DUR.hover}ms ${EASE}`,
                 }}
               >
                 {/* Small zone swatch — the only colour here; it ties this entry to
@@ -413,19 +422,16 @@ function WaterlineTank({
                   style={{
                     width: 9, height: 9, borderRadius: "50%", marginTop: 4, flexShrink: 0,
                     background: ZONE_COLORS[zone.key],
-                    boxShadow: active ? `0 0 0 3px ${ZONE_COLORS[zone.key]}22` : "none",
-                    transition: `box-shadow ${DUR.hover}ms ${EASE}`,
                   }}
                 />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-                    <span style={{ fontSize: 12.5, fontWeight: active ? 700 : 600, color: t.ink }}>
+                    <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>
                       {zone.key} — {ZONE_LABELS[zone.key]}
                     </span>
                     <span style={{ fontFamily: TYPE.mono, fontSize: 10, color: t.inkMuted }}>{zone.threshold}</span>
-                    {active && <span style={{ fontSize: 9.5, fontWeight: 700, color: t.brass }}>◀ waterline</span>}
                   </div>
-                  <div style={{ fontSize: 12, fontWeight: 600, color: active ? t.ink : t.inkMuted, marginTop: 2 }}>{zone.headline}</div>
+                  <div style={{ fontSize: 12, fontWeight: 600, color: t.ink, marginTop: 2 }}>{zone.headline}</div>
                   <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 2, lineHeight: 1.35 }}>{zone.short}</div>
                 </div>
               </div>
@@ -435,7 +441,8 @@ function WaterlineTank({
       </div>
 
       <div style={{ fontSize: 10, color: t.inkMuted, marginTop: 6, fontStyle: "italic" }}>
-        The waterline starts where AI capability reaches this job today. Drag it up to see where the tide is heading — more of the job goes under.
+        Dot size = share of the working day; the readout weights by it, so a small automatable task
+        counts for little. The waterline starts where AI reaches this job today — drag it up to see where the tide is heading.
       </div>
     </div>
   );

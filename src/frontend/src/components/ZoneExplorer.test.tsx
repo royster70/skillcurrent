@@ -108,11 +108,12 @@ describe("ZoneExplorer", () => {
     expect(slider).toHaveAttribute("aria-valuenow", "0.33");
   });
 
-  it("reports how many of the focused role's tasks are submerged", () => {
+  it("reports the time-weighted share of the day below the waterline", () => {
     renderExplorer();
-    // default focus = Registered Nurse (β 0.88, 0.47, 0.13), waterline at 0.33
-    // → the 0.88 and 0.47 tasks are below the line
-    expect(screen.getByText(/2\/3 submerged/)).toBeInTheDocument();
+    // default focus = Registered Nurse (β 0.88@20%, 0.47@35%, 0.13@45%), waterline 0.33
+    // → the 0.88 and 0.47 tasks are below → 20% + 35% = 55% of the day, 2 of 3 tasks
+    expect(screen.getByText(/55% of the day below/)).toBeInTheDocument();
+    expect(screen.getByText(/2\/3 tasks/)).toBeInTheDocument();
   });
 });
 
