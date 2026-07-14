@@ -34,6 +34,9 @@ export const THEME = {
   },
 } as const;
 
+// Brass at low alpha — the shared "selected/active" tint (nav, toggles, chips).
+export const BRASS_TINT = "rgba(156, 100, 20, 0.10)";
+
 // ── Exposure zones (Warm Instrument). Fixed meaning — never decorative. ──
 export const ZONE_COLORS = {
   E0: "#b06a1a", // insulated — above the waterline

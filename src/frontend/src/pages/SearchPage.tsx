@@ -1,7 +1,21 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
 import { api, type SearchResult } from "../lib/api";
-import { ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
+import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, ZONE_LABELS, SIGNAL_COLORS } from "../lib/constants";
+import { CurrentFlow } from "../components/current/CurrentFlow";
+import { DUR, EASE } from "../components/current/motion";
+import { IconCompass, IconTextLines, IconSearch, IconWaterline } from "../components/current/icons";
+
+const t = THEME.light;
+
+// Match-quality shading — deliberately NOT ZONE_COLORS: a similarity score is
+// not an exposure zone, and reusing zone hues here would imply an automation
+// reading a text match never carries. Same warm-instrument family, own scale.
+const MATCH_COLORS = {
+  high: { bg: "#e6f2ee", fg: "#0d8f6e" },
+  mid: { bg: "#f6efe6", fg: "#9c6414" },
+  low: { bg: "#f6e9e9", fg: "#b23b3b" },
+} as const;
 
 type SearchMode = "text" | "semantic";
 
@@ -12,6 +26,7 @@ export function SearchPage() {
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
   const [mode, setMode] = useState<SearchMode>("semantic");
+  const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
 
   const handleSearch = async () => {
@@ -38,41 +53,50 @@ export function SearchPage() {
   };
 
   return (
-    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1000 }}>
+    <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1000, fontFamily: TYPE.body, color: t.ink }}>
       <div>
-        <h1 style={{ fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Role Search</h1>
-        <p style={{ fontSize: 14, color: "#71717A", margin: "4px 0 0" }}>
+        <div style={{ fontFamily: TYPE.mono, fontSize: 12, letterSpacing: 2, color: t.brass, marginBottom: 4 }}>
+          FIND YOUR ROLE
+        </div>
+        <h1 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
+          Search for a role
+        </h1>
+        <p style={{ fontSize: 14, color: t.inkMuted, margin: "6px 0 0" }}>
           Search 66,500+ job titles using {mode === "semantic" ? "AI-powered semantic matching" : "text matching"}
         </p>
       </div>
 
       {/* Mode toggle */}
-      <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-        <div style={{ display: "flex", borderRadius: 8, border: "1px solid #E4E4E7", overflow: "hidden" }}>
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexWrap: "wrap" }}>
+        <div style={{ display: "flex", borderRadius: 8, border: `1px solid ${t.line}`, overflow: "hidden" }}>
           <button
             onClick={() => setMode("semantic")}
             style={{
-              padding: "8px 16px", fontSize: 13, fontWeight: mode === "semantic" ? 600 : 400,
-              border: "none", cursor: "pointer",
-              backgroundColor: mode === "semantic" ? "#2563EB" : "#fff",
-              color: mode === "semantic" ? "#fff" : "#71717A",
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "8px 16px", fontSize: 13, fontWeight: mode === "semantic" ? 600 : 500,
+              border: "none", cursor: "pointer", fontFamily: TYPE.body,
+              backgroundColor: mode === "semantic" ? BRASS_TINT : t.surface,
+              color: mode === "semantic" ? t.brass : t.inkMuted,
+              transition: `all ${DUR.hover}ms ${EASE}`,
             }}
           >
-            🧠 Semantic Search
+            <IconCompass size={15} /> Semantic
           </button>
           <button
             onClick={() => setMode("text")}
             style={{
-              padding: "8px 16px", fontSize: 13, fontWeight: mode === "text" ? 600 : 400,
-              border: "none", cursor: "pointer",
-              backgroundColor: mode === "text" ? "#2563EB" : "#fff",
-              color: mode === "text" ? "#fff" : "#71717A",
+              display: "flex", alignItems: "center", gap: 7,
+              padding: "8px 16px", fontSize: 13, fontWeight: mode === "text" ? 600 : 500,
+              border: "none", borderLeft: `1px solid ${t.line}`, cursor: "pointer", fontFamily: TYPE.body,
+              backgroundColor: mode === "text" ? BRASS_TINT : t.surface,
+              color: mode === "text" ? t.brass : t.inkMuted,
+              transition: `all ${DUR.hover}ms ${EASE}`,
             }}
           >
-            📝 Text Search
+            <IconTextLines size={15} /> Text match
           </button>
         </div>
-        <span style={{ fontSize: 12, color: "#A1A1AA" }}>
+        <span style={{ fontSize: 12, color: t.inkMuted }}>
           {mode === "semantic"
             ? "Understands meaning — matches roles by what they do, not just keywords"
             : "Matches by text similarity — exact phrases and fuzzy matching"}
@@ -87,31 +111,43 @@ export function SearchPage() {
             value={query}
             onChange={(e) => setQuery(e.target.value)}
             onKeyDown={handleKeyDown}
+            onFocus={() => setFocused(true)}
+            onBlur={() => setFocused(false)}
             placeholder="Job title... e.g. 'DevOps Engineer', 'Clinical Psychologist', 'Data Architect'"
             style={{
-              flex: 1, padding: "12px 16px", fontSize: 16, borderRadius: 12,
-              border: "1.5px solid #E4E4E7", outline: "none",
-              fontFamily: "Inter, system-ui, sans-serif",
+              flex: 1, padding: "12px 16px", fontSize: 16, borderRadius: 10,
+              border: `1.5px solid ${focused ? t.brass : t.line}`, outline: "none",
+              fontFamily: TYPE.body, color: t.ink, background: t.surface,
+              transition: `border-color ${DUR.hover}ms ${EASE}`,
             }}
           />
           <button
             onClick={handleSearch}
             disabled={query.length < 2 || loading}
             style={{
-              padding: "12px 24px", fontSize: 14, fontWeight: 600, borderRadius: 12,
-              border: "none", backgroundColor: "#2563EB", color: "#fff", cursor: "pointer",
-              opacity: query.length < 2 ? 0.5 : 1,
-              fontFamily: "Inter, system-ui, sans-serif",
+              display: "flex", alignItems: "center", gap: 8,
+              padding: "12px 22px", fontSize: 14, fontWeight: 600, borderRadius: 10,
+              border: "none", backgroundColor: t.brass, color: "#fff", cursor: "pointer",
+              opacity: query.length < 2 ? 0.5 : 1, fontFamily: TYPE.body,
             }}
           >
-            {loading ? "Searching..." : "Search"}
+            {loading ? (
+              <>
+                <CurrentFlow direction="right" length={30} breadth={12} strokes={1} color="#fff" opacity={0.8} speed={1.6} />
+                Reading the current…
+              </>
+            ) : (
+              <>
+                <IconSearch size={15} /> Search
+              </>
+            )}
           </button>
         </div>
 
         {/* Job description input (semantic mode) */}
         {mode === "semantic" && (
           <div>
-            <label style={{ fontSize: 12, color: "#71717A", fontWeight: 500 }}>
+            <label style={{ fontSize: 12, color: t.inkMuted, fontWeight: 500 }}>
               Optional: paste a job description for more accurate matching
             </label>
             <textarea
@@ -120,9 +156,9 @@ export function SearchPage() {
               placeholder="Paste the job description here to improve matching accuracy..."
               rows={4}
               style={{
-                width: "100%", padding: "12px 16px", fontSize: 14, borderRadius: 12,
-                border: "1.5px solid #E4E4E7", outline: "none", resize: "vertical",
-                fontFamily: "Inter, system-ui, sans-serif", marginTop: 4,
+                width: "100%", padding: "12px 16px", fontSize: 14, borderRadius: 10,
+                border: `1.5px solid ${t.line}`, outline: "none", resize: "vertical",
+                fontFamily: TYPE.body, color: t.ink, background: t.surface, marginTop: 4,
               }}
             />
           </div>
@@ -131,96 +167,23 @@ export function SearchPage() {
 
       {/* Results */}
       {searched && !loading && results.length === 0 && (
-        <div style={{ padding: 32, textAlign: "center", color: "#71717A", fontSize: 15 }}>
-          No occupations found for "{query}". Try a different job title.
+        <div style={{ padding: "48px 0", textAlign: "center", color: t.inkMuted }}>
+          <div style={{ opacity: 0.35, marginBottom: 10, display: "flex", justifyContent: "center" }}>
+            <IconWaterline size={30} />
+          </div>
+          <div style={{ fontSize: 15 }}>No occupations found for "{query}". Try a different job title.</div>
         </div>
       )}
 
       {results.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 13, color: "#71717A", marginBottom: 4 }}>
+          <div style={{ fontSize: 13, color: t.inkMuted, marginBottom: 4 }}>
             {results.length} occupation{results.length !== 1 ? "s" : ""} matching "{query}"
             {mode === "semantic" && " (semantic)"}
           </div>
 
           {results.map((r) => (
-            <div
-              key={r.soc_code}
-              onClick={() => r.has_tasks ? navigate(`/occupations?selected=${r.soc_code}`) : undefined}
-              style={{
-                background: r.category ? "#F9FAFB" : "#fff",
-                borderRadius: 12, border: `1.5px solid ${r.category ? "#E4E4E7" : "#E4E4E7"}`,
-                padding: 16, cursor: r.has_tasks ? "pointer" : "default",
-                display: "flex", justifyContent: "space-between",
-                alignItems: "center", transition: "border-color 0.15s",
-                opacity: r.category ? 0.75 : 1,
-              }}
-              onMouseEnter={(e) => r.has_tasks && (e.currentTarget.style.borderColor = "#2563EB")}
-              onMouseLeave={(e) => (e.currentTarget.style.borderColor = "#E4E4E7")}
-            >
-              <div style={{ flex: 1 }}>
-                <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
-                  <span style={{ fontSize: 16, fontWeight: 600 }}>{r.occupation_title}</span>
-                  {r.category === "residual" && (
-                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, backgroundColor: "#FFF7ED", color: "#F97316", fontWeight: 600 }}>
-                      Catch-all category
-                    </span>
-                  )}
-                  {r.category === "military" && (
-                    <span style={{ fontSize: 10, padding: "2px 8px", borderRadius: 10, backgroundColor: "#EFF6FF", color: "#2563EB", fontWeight: 600 }}>
-                      Military
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 13, color: "#71717A", marginTop: 2 }}>
-                  {r.soc_code} · Matched: "{r.matched_title}"
-                  {r.similarity != null && r.similarity < 1.0 && (
-                    <span style={{
-                      marginLeft: 8, fontSize: 11, padding: "1px 6px", borderRadius: 4,
-                      backgroundColor: r.similarity > 0.5 ? "#F0FDF4" : r.similarity > 0.3 ? "#FFF7ED" : "#FEF2F2",
-                      color: r.similarity > 0.5 ? "#16A34A" : r.similarity > 0.3 ? "#F97316" : "#DC2626",
-                    }}>
-                      {Math.round(r.similarity * 100)}% match
-                    </span>
-                  )}
-                </div>
-                {r.category && (
-                  <div style={{ fontSize: 11, color: "#A1A1AA", marginTop: 4, fontStyle: "italic" }}>
-                    {r.category === "residual"
-                      ? "This is an \"All Other\" residual category — task-level data is not available in O*NET for this classification."
-                      : "Military occupation — task-level data is not collected by O*NET."}
-                  </div>
-                )}
-                {!r.category && r.total_employment && (
-                  <div style={{ fontSize: 12, color: "#A1A1AA", marginTop: 2 }}>
-                    {(r.total_employment / 1000).toFixed(0)}K workers nationally
-                  </div>
-                )}
-              </div>
-
-              {/* Scores */}
-              <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
-                {r.eloundou_beta != null && (
-                  <ScorePill label="Eloundou" value={r.eloundou_beta} color={ZONE_COLORS.E0} />
-                )}
-                {r.ms_ai_applicability != null && (
-                  <ScorePill label="Microsoft" value={r.ms_ai_applicability} color={ZONE_COLORS.E1} />
-                )}
-                {r.aei_exposure != null && (
-                  <ScorePill label="AEI" value={r.aei_exposure} color={ZONE_COLORS.E2} />
-                )}
-                {r.dominant_zone && (
-                  <span style={{
-                    fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
-                    color: ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || "#71717A",
-                    backgroundColor: (ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || "#71717A") + "15",
-                    border: `1px solid ${(ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || "#71717A")}40`,
-                  }}>
-                    {ZONE_LABELS[r.dominant_zone as keyof typeof ZONE_LABELS] || r.dominant_zone}
-                  </span>
-                )}
-              </div>
-            </div>
+            <ResultRow key={r.soc_code} r={r} onOpen={() => r.has_tasks && navigate(`/occupations?selected=${r.soc_code}`)} />
           ))}
         </div>
       )}
@@ -228,7 +191,7 @@ export function SearchPage() {
       {/* Quick suggestions */}
       {!searched && (
         <div style={{ display: "flex", flexDirection: "column", gap: 12, marginTop: 16 }}>
-          <div style={{ fontSize: 13, color: "#71717A", fontWeight: 600 }}>Try searching for:</div>
+          <div style={{ fontSize: 13, color: t.inkMuted, fontWeight: 600 }}>Try searching for:</div>
           <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
             {[
               "DevOps Engineer", "Clinical Psychologist", "Data Architect",
@@ -240,9 +203,12 @@ export function SearchPage() {
                 onClick={() => setQuery(term)}
                 style={{
                   padding: "6px 14px", fontSize: 13, borderRadius: 20,
-                  border: "1px solid #E4E4E7", backgroundColor: "#fff", cursor: "pointer",
-                  fontFamily: "Inter, system-ui, sans-serif", color: "#71717A",
+                  border: `1px solid ${t.line}`, backgroundColor: t.surface, cursor: "pointer",
+                  fontFamily: TYPE.body, color: t.inkMuted,
+                  transition: `border-color ${DUR.hover}ms ${EASE}`,
                 }}
+                onMouseEnter={(e) => (e.currentTarget.style.borderColor = t.brass)}
+                onMouseLeave={(e) => (e.currentTarget.style.borderColor = t.line)}
               >
                 {term}
               </button>
@@ -254,11 +220,97 @@ export function SearchPage() {
   );
 }
 
+function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
+  const [hovered, setHovered] = useState(false);
+  const clickable = r.has_tasks;
+
+  return (
+    <div
+      onClick={onOpen}
+      onMouseEnter={() => setHovered(true)}
+      onMouseLeave={() => setHovered(false)}
+      style={{
+        background: r.category ? t.ground : t.surface,
+        borderRadius: 10,
+        border: `1.5px solid ${clickable && hovered ? t.brass : t.line}`,
+        padding: 16, cursor: clickable ? "pointer" : "default",
+        display: "flex", justifyContent: "space-between",
+        alignItems: "center", transition: `border-color ${DUR.hover}ms ${EASE}`,
+        opacity: r.category ? 0.8 : 1,
+      }}
+    >
+      <div style={{ flex: 1 }}>
+        <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
+          <span style={{ fontSize: 16, fontWeight: 600 }}>{r.occupation_title}</span>
+          {(r.category === "residual" || r.category === "military") && (
+            <span
+              style={{
+                fontSize: 10, padding: "2px 8px", borderRadius: 10, fontWeight: 600,
+                backgroundColor: t.ground, color: t.inkMuted, border: `1px solid ${t.line}`,
+              }}
+            >
+              {r.category === "residual" ? "Catch-all category" : "Military"}
+            </span>
+          )}
+        </div>
+        <div style={{ fontSize: 13, color: t.inkMuted, marginTop: 2, fontFamily: TYPE.mono }}>
+          {r.soc_code} <span style={{ fontFamily: TYPE.body }}>· Matched: "{r.matched_title}"</span>
+          {r.similarity != null && r.similarity < 1.0 && (
+            <span
+              style={{
+                marginLeft: 8, fontSize: 11, padding: "1px 6px", borderRadius: 4,
+                backgroundColor: r.similarity > 0.5 ? MATCH_COLORS.high.bg : r.similarity > 0.3 ? MATCH_COLORS.mid.bg : MATCH_COLORS.low.bg,
+                color: r.similarity > 0.5 ? MATCH_COLORS.high.fg : r.similarity > 0.3 ? MATCH_COLORS.mid.fg : MATCH_COLORS.low.fg,
+              }}
+            >
+              {Math.round(r.similarity * 100)}% match
+            </span>
+          )}
+        </div>
+        {r.category && (
+          <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 4, fontStyle: "italic" }}>
+            {r.category === "residual"
+              ? 'This is an "All Other" residual category — task-level data is not available in O*NET for this classification.'
+              : "Military occupation — task-level data is not collected by O*NET."}
+          </div>
+        )}
+        {!r.category && r.total_employment && (
+          <div style={{ fontSize: 12, color: t.inkMuted, marginTop: 2, fontFamily: TYPE.mono }}>
+            {(r.total_employment / 1000).toFixed(0)}K workers nationally
+          </div>
+        )}
+      </div>
+
+      {/* Scores — coloured by SIGNAL (data source), never by exposure zone */}
+      <div style={{ display: "flex", gap: 12, alignItems: "center", flexShrink: 0 }}>
+        {r.eloundou_beta != null && <ScorePill label="Eloundou" value={r.eloundou_beta} color={SIGNAL_COLORS.eloundou} />}
+        {r.ms_ai_applicability != null && <ScorePill label="Microsoft" value={r.ms_ai_applicability} color={SIGNAL_COLORS.microsoft} />}
+        {r.aei_exposure != null && <ScorePill label="AEI" value={r.aei_exposure} color={SIGNAL_COLORS.aei} />}
+        {r.dominant_zone && (
+          <span
+            style={{
+              fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16, fontFamily: TYPE.body,
+              color: ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || t.inkMuted,
+              backgroundColor: (ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || t.inkMuted) + "15",
+              border: `1px solid ${(ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || t.inkMuted)}40`,
+            }}
+          >
+            {ZONE_LABELS[r.dominant_zone as keyof typeof ZONE_LABELS] || r.dominant_zone}
+          </span>
+        )}
+        {clickable && hovered && (
+          <CurrentFlow direction="right" length={26} breadth={14} strokes={1} opacity={0.5} speed={2} />
+        )}
+      </div>
+    </div>
+  );
+}
+
 function ScorePill({ label, value, color }: { label: string; value: number; color: string }) {
   return (
     <div style={{ textAlign: "center" }}>
-      <div style={{ fontSize: 10, color: "#A1A1AA", fontWeight: 500 }}>{label}</div>
-      <div style={{ fontSize: 14, fontWeight: 700, color }}>{value.toFixed(2)}</div>
+      <div style={{ fontSize: 10, color: t.inkMuted, fontWeight: 500 }}>{label}</div>
+      <div style={{ fontSize: 14, fontWeight: 700, color, fontFamily: TYPE.mono }}>{value.toFixed(2)}</div>
     </div>
   );
 }

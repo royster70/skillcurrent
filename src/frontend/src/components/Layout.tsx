@@ -2,12 +2,11 @@ import { useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
-import { THEME, TYPE } from "../lib/constants";
+import { THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { WaveUnderline } from "./current/CurrentFlow";
 import { IconWaterline, IconSectors, IconSearch, IconOccupations, IconDrift } from "./current/icons";
 
 const t = THEME.light;
-const BRASS_TINT = "rgba(156, 100, 20, 0.10)"; // brass #9c6414 @ 10%
 
 const navItems = [
   { to: "/", label: "Waterline", Icon: IconWaterline },

@@ -67,11 +67,61 @@ const sectors = {
   ],
 };
 
+const search = {
+  query: "engineer",
+  total: 3,
+  results: [
+    {
+      matched_title: "Software Developer",
+      source: "onet",
+      soc_code: "15-1252.00",
+      occupation_title: "Software Developers",
+      similarity: 0.94,
+      eloundou_beta: 0.61,
+      ms_ai_applicability: 0.38,
+      aei_exposure: 0.29,
+      dominant_zone: "E1",
+      total_employment: 1_580_000,
+      has_tasks: true,
+      category: null,
+    },
+    {
+      matched_title: "DevOps Engineer",
+      source: "onet",
+      soc_code: "15-1299.09",
+      occupation_title: "Information Technology Project Managers",
+      similarity: 0.61,
+      eloundou_beta: 0.44,
+      ms_ai_applicability: 0.22,
+      aei_exposure: 0.19,
+      dominant_zone: "E1",
+      total_employment: 620_000,
+      has_tasks: true,
+      category: null,
+    },
+    {
+      matched_title: "Engineers, All Other",
+      source: "onet",
+      soc_code: "17-2199.00",
+      occupation_title: "Engineers, All Other",
+      similarity: 0.41,
+      eloundou_beta: null,
+      ms_ai_applicability: null,
+      aei_exposure: null,
+      dominant_zone: null,
+      total_employment: null,
+      has_tasks: false,
+      category: "residual",
+    },
+  ],
+};
+
 // ── Router: base path → fixture (query string ignored) ──
 
 const TABLE: Record<string, unknown> = {
   "/datasets": datasets,
   "/sectors": sectors,
+  "/search": search,
 };
 
 export function mockResponse(path: string): unknown | undefined {

@@ -89,6 +89,27 @@ export function IconAnchor(props: IconProps) {
   );
 }
 
+/** Compass — semantic search: reads meaning the way a compass reads a bearing. */
+export function IconCompass(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <circle cx="11" cy="11" r="8" />
+      <path d="M11 6.5l2 4.5-2 4.5-2-4.5z" />
+    </svg>
+  );
+}
+
+/** Text lines — literal text matching. */
+export function IconTextLines(props: IconProps) {
+  return (
+    <svg {...base(props)}>
+      <path d="M5 7h12" />
+      <path d="M5 11h9" />
+      <path d="M5 15h12" />
+    </svg>
+  );
+}
+
 /** Open book — the "what's the data" / sources mark. */
 export function IconSources(props: IconProps) {
   return (
