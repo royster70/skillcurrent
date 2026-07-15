@@ -1,52 +1,63 @@
-import { useState, useMemo } from "react";
-import {
-  ScatterChart, Scatter, XAxis, YAxis, CartesianGrid, Tooltip,
-  ResponsiveContainer, Cell, ReferenceLine, ReferenceArea, Label,
-} from "recharts";
+/**
+ * TaskWaterline — an occupation's tasks placed on the shared exposure scale.
+ *
+ * This is the full-scale, live version of the landing page's worked example
+ * (ZoneExplorer → MiniBetaTrack): the same horizontal Beta instrument, the same
+ * E0/E1/E2 bands, the same zone colours — but every real task of the role, plus
+ * the temporal "current" (AI *usage* trend across model eras) that the static
+ * landing example can't carry.
+ *
+ * Design conventions (brand brief): zone hues (ZONE_COLORS) are FIXED meaning on
+ * the exposure axis — never decorative. `current` (teal) is reserved for motion:
+ * here it marks tasks the current is moving *into* (rising usage). Importance is
+ * the second dimension, carried by dot size, not a second axis — the whole app
+ * reads exposure left→right, and this stays consistent with that.
+ */
+
+import { useMemo, useState } from "react";
 import type { TaskMatrixResponse, TaskMatrixPoint, GDPvalTaskDetail } from "../lib/api";
-import { GDPVAL_COLORS } from "../lib/constants";
+import {
+  THEME, TYPE, ZONE_COLORS, ZONE_BG, ZONE_LABELS,
+  BETA_SCALE, ZONE_THRESHOLDS, GDPVAL_COLORS,
+} from "../lib/constants";
 
-const QUADRANT_COLORS = {
-  insulated: { fill: "#FFF7ED", stroke: "#F97316", label: "Insulated" },
-  augmented: { fill: "#EFF6FF", stroke: "#2563EB", label: "Augmented" },
-  disrupted: { fill: "#F0FDF4", stroke: "#16A34A", label: "Disrupted" },
-  routine: { fill: "#F9FAFB", stroke: "#D4D4D8", label: "Routine" },
-};
+const t = THEME.light;
 
-export const DOT_COLORS: Record<string, string> = {
-  insulated: "#F97316",
-  augmented: "#2563EB",
-  disrupted: "#16A34A",
-  routine: "#A1A1AA",
-};
+type ZoneKey = "E0" | "E1" | "E2";
+type SortKey = "exposure" | "importance" | "movement";
+type TrendKind = "rising" | "steady" | "falling" | "unknown";
 
-const QUADRANT_DESCRIPTIONS: Record<string, string> = {
-  insulated: "core human work",
-  augmented: "human + AI",
-  disrupted: "automation candidates",
-  routine: "low-priority",
-};
-
-type OverlayMode = "none" | "usage" | "trend" | "gdpval";
-type TrendType = "growing" | "declining" | "stable" | "unknown";
-
-interface PlotPoint {
-  x: number;
-  y: number;
-  displayX: number;
-  displayY: number;
-  taskId: number;
-  task: string;
-  quadrant: string;
-  drift: string | null;
-  velocity: number | null;
-  usageIntensity: number;
-  trend: TrendType;
-  eraCount: number;
-  latestPct: number | null;
-  isNotable: boolean;
-  notableReason: string | null;
+function zoneOf(beta: number): ZoneKey {
+  if (beta >= ZONE_THRESHOLDS.E2) return "E2";
+  if (beta >= ZONE_THRESHOLDS.E1) return "E1";
+  return "E0";
 }
+
+const pctOfScale = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max) * 100));
+
+interface Row {
+  taskId: number;
+  text: string;
+  beta: number;
+  zone: ZoneKey;
+  importance: number | null;
+  trend: TrendKind;
+  velocity: number | null;
+  drift: string | null;
+  latestPct: number | null;
+}
+
+function trendOf(task: TaskMatrixPoint): TrendKind {
+  const s = task.era_snapshots;
+  if (s.length < 2) return "unknown";
+  const delta = s[s.length - 1].task_pct - s[0].task_pct;
+  if (delta > 0.02) return "rising";
+  if (delta < -0.02) return "falling";
+  return "steady";
+}
+
+// Importance (1–5) → dot radius. Null importance falls to the middle.
+const dotRadius = (imp: number | null) => (imp == null ? 6 : 4 + ((imp - 1) / 4) * 5);
 
 interface TaskMatrixProps {
   data: TaskMatrixResponse;
@@ -55,526 +66,301 @@ interface TaskMatrixProps {
   onRequestGdpval?: () => void;
 }
 
-// ── Collision-aware jitter ──
-function resolveCollisions(points: PlotPoint[], minDist: number): PlotPoint[] {
-  const out = points.map(p => ({ ...p, displayX: p.x, displayY: p.y }));
-  const xThresh = 0.4;
-  const yThresh = 3.5;
+export function TaskWaterline({ data, highlightedTaskId, gdpvalTasks, onRequestGdpval }: TaskMatrixProps) {
+  const [sort, setSort] = useState<SortKey>("exposure");
+  const [showCurrent, setShowCurrent] = useState(true);
+  const [showGdpval, setShowGdpval] = useState(false);
 
-  for (let iter = 0; iter < 3; iter++) {
-    for (let i = 0; i < out.length; i++) {
-      for (let j = i + 1; j < out.length; j++) {
-        const dx = out[j].displayX - out[i].displayX;
-        const dy = out[j].displayY - out[i].displayY;
-        const dist = Math.sqrt(dx * dx + dy * dy);
-        if (dist < minDist && dist > 0) {
-          const push = (minDist - dist) / 2;
-          const nx = dx / dist;
-          const ny = dy / dist;
-          out[i].displayX -= nx * push;
-          out[i].displayY -= ny * push;
-          out[j].displayX += nx * push;
-          out[j].displayY += ny * push;
-        } else if (dist === 0) {
-          // Identical positions — nudge apart deterministically
-          out[j].displayX += minDist * 0.5;
-          out[j].displayY += minDist * 0.3;
-        }
-      }
-    }
-  }
-
-  // Clamp to stay in correct quadrant and within axis bounds
-  for (const p of out) {
-    const origHighAuto = p.x >= xThresh;
-    const origHighImp = p.y >= yThresh;
-    if (origHighAuto && p.displayX < xThresh) p.displayX = xThresh + 0.005;
-    if (!origHighAuto && p.displayX >= xThresh) p.displayX = xThresh - 0.005;
-    if (origHighImp && p.displayY < yThresh) p.displayY = yThresh + 0.02;
-    if (!origHighImp && p.displayY >= yThresh) p.displayY = yThresh - 0.02;
-    p.displayX = Math.max(0, Math.min(1, p.displayX));
-    p.displayY = Math.max(1, Math.min(5, p.displayY));
-  }
-
-  return out;
-}
-
-// ── Auto-generated narrative ──
-function generateNarrative(points: PlotPoint[], qCounts: Record<string, number>): string | null {
-  const total = points.length;
-  if (total === 0) return null;
-
-  const sorted = Object.entries(qCounts).sort((a, b) => b[1] - a[1]);
-  const [dominant, dominantCount] = sorted[0];
-  const growingCount = points.filter(p => p.trend === "growing").length;
-  const decliningCount = points.filter(p => p.trend === "declining").length;
-
-  let narrative = "";
-
-  // Dominant quadrant
-  const pct = Math.round((dominantCount / total) * 100);
-  if (pct >= 70) {
-    narrative = `${dominantCount} of ${total} tasks (${pct}%) sit in the ${dominant} zone — ${QUADRANT_DESCRIPTIONS[dominant]}`;
-  } else if (sorted.length >= 2 && sorted[0][1] === sorted[1][1]) {
-    narrative = `Tasks are evenly split between ${sorted[0][0]} and ${sorted[1][0]} zones`;
-  } else {
-    narrative = `${dominantCount} of ${total} tasks cluster in the ${dominant} zone, with the rest spread across ${sorted.filter(s => s[1] > 0).length - 1} other zones`;
-  }
-
-  // Trend context
-  if (growingCount > 0 && decliningCount > 0) {
-    narrative += `. ${growingCount} show growing AI usage while ${decliningCount} are declining`;
-  } else if (decliningCount > 0) {
-    narrative += `, with ${decliningCount} showing declining usage — adoption gaps where AI could help but isn't being used`;
-  } else if (growingCount > 0) {
-    narrative += `, with ${growingCount} showing growing AI usage`;
-  }
-
-  // Notable outlier
-  const highestAuto = points.reduce((a, b) => a.x > b.x ? a : b);
-  if (highestAuto.x > 0.35 && total > 3) {
-    const shortName = highestAuto.task.length > 50 ? highestAuto.task.slice(0, 47) + "..." : highestAuto.task;
-    narrative += `. "${shortName}" faces the highest AI capability exposure`;
-  }
-
-  return narrative + ".";
-}
-
-// ── Notable task identification ──
-function markNotableTasks(points: PlotPoint[]): PlotPoint[] {
-  if (points.length <= 3) return points; // Too few to annotate
-
-  const out = points.map(p => ({ ...p, isNotable: false, notableReason: null as string | null }));
-  let count = 0;
-  const maxNotable = 3;
-
-  // 1. Highest automation potential
-  const byAuto = [...out].sort((a, b) => b.x - a.x);
-  if (byAuto[0].x > 0.25 && count < maxNotable) {
-    byAuto[0].isNotable = true;
-    byAuto[0].notableReason = "Highest AI capability";
-    count++;
-  }
-
-  // 2. Fastest growing trend
-  const growingTasks = out.filter(p => p.trend === "growing" && !p.isNotable);
-  if (growingTasks.length > 0 && count < maxNotable) {
-    // Pick the one with highest latest usage
-    const top = growingTasks.sort((a, b) => (b.latestPct || 0) - (a.latestPct || 0))[0];
-    top.isNotable = true;
-    top.notableReason = "Growing AI usage";
-    count++;
-  }
-
-  // 3. Minority quadrant outlier
-  const qCounts: Record<string, number> = {};
-  out.forEach(p => { qCounts[p.quadrant] = (qCounts[p.quadrant] || 0) + 1; });
-  const minority = Object.entries(qCounts).filter(([, c]) => c === 1);
-  if (minority.length > 0 && count < maxNotable) {
-    const outlier = out.find(p => p.quadrant === minority[0][0] && !p.isNotable);
-    if (outlier) {
-      outlier.isNotable = true;
-      outlier.notableReason = `Only ${outlier.quadrant} task`;
-      count++;
-    }
-  }
-
-  return out;
-}
-
-export function TaskMatrix({ data, highlightedTaskId, gdpvalTasks, onRequestGdpval }: TaskMatrixProps) {
-  const [overlay, setOverlay] = useState<OverlayMode>("usage");
-
-  const plotData = useMemo(() => {
+  const rows = useMemo<Row[]>(() => {
     const raw = data.tasks
-      .filter((t) => t.importance != null && t.automation_potential != null)
-      .map((t): PlotPoint => {
-        const x = t.automation_potential || 0;
-        const y = t.importance || 0;
-
-        const high_imp = y >= 3.5;
-        const high_auto = x >= 0.4;
-        const quadrant = high_imp && !high_auto ? "insulated"
-          : high_imp && high_auto ? "augmented"
-          : !high_imp && high_auto ? "disrupted"
-          : "routine";
-
-        const latestEra = t.era_snapshots[t.era_snapshots.length - 1];
-        const usageIntensity = latestEra ? Math.min(latestEra.task_pct / 2.0, 1.0) : 0;
-
-        let trend: TrendType = "unknown";
-        if (t.era_snapshots.length >= 2) {
-          const first = t.era_snapshots[0].task_pct;
-          const last = t.era_snapshots[t.era_snapshots.length - 1].task_pct;
-          const delta = last - first;
-          if (delta > 0.005) trend = "growing";
-          else if (delta < -0.005) trend = "declining";
-          else trend = "stable";
-        }
-
+      .map((task): Row => {
+        const beta = task.eloundou_dwa_beta ?? task.automation_potential ?? 0;
+        const latest = task.era_snapshots.at(-1)?.task_pct ?? null;
         return {
-          x, y, displayX: x, displayY: y,
-          taskId: t.task_id, task: t.task_text, quadrant,
-          drift: t.drift_classification, velocity: t.drift_velocity,
-          usageIntensity, trend, eraCount: t.era_snapshots.length,
-          latestPct: latestEra?.task_pct || null,
-          isNotable: false, notableReason: null,
+          taskId: task.task_id,
+          text: task.task_text,
+          beta,
+          zone: zoneOf(beta),
+          importance: task.importance,
+          trend: trendOf(task),
+          velocity: task.drift_velocity,
+          drift: task.drift_classification,
+          latestPct: latest,
         };
       });
+    const cmp: Record<SortKey, (a: Row, b: Row) => number> = {
+      exposure: (a, b) => b.beta - a.beta,
+      importance: (a, b) => (b.importance ?? 0) - (a.importance ?? 0),
+      movement: (a, b) => (b.velocity ?? 0) - (a.velocity ?? 0),
+    };
+    return raw.sort(cmp[sort]);
+  }, [data.tasks, sort]);
 
-    // Apply notable task identification, then collision jitter
-    const notable = markNotableTasks(raw);
-    return resolveCollisions(notable, 0.04);
-  }, [data.tasks]);
+  const zoneCounts = useMemo(() => {
+    const c: Record<ZoneKey, number> = { E0: 0, E1: 0, E2: 0 };
+    rows.forEach((r) => { c[r.zone] += 1; });
+    return c;
+  }, [rows]);
 
-  const qCounts: Record<string, number> = { insulated: 0, augmented: 0, disrupted: 0, routine: 0 };
-  plotData.forEach((p) => { qCounts[p.quadrant] = (qCounts[p.quadrant] || 0) + 1; });
-
-  const growing = plotData.filter(p => p.trend === "growing").length;
-  const declining = plotData.filter(p => p.trend === "declining").length;
-  const stable = plotData.filter(p => p.trend === "stable").length;
-  const hasJitter = plotData.some(p => Math.abs(p.displayX - p.x) > 0.001 || Math.abs(p.displayY - p.y) > 0.001);
-  const narrative = useMemo(() => generateNarrative(plotData, qCounts), [plotData]);
+  const risingCount = rows.filter((r) => r.trend === "rising").length;
+  const hasEras = data.available_eras.length >= 2;
 
   return (
-    <div style={{ background: "#fff", borderRadius: 12, border: "1.5px solid #E4E4E7", padding: 20 }}>
-      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", marginBottom: 8, flexWrap: "wrap", gap: 12 }}>
+    <div style={{ background: t.surface, borderRadius: 12, border: `1.5px solid ${t.line}`, padding: 20, fontFamily: TYPE.body, color: t.ink }}>
+      {/* Header */}
+      <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
         <div>
-          <div style={{ fontSize: 16, fontWeight: 600 }}>Task Positioning Matrix</div>
-          <div style={{ fontSize: 12, color: "#71717A", marginTop: 2 }}>
-            {plotData.length} tasks · Position = AI capability (fixed) · Overlay = actual usage
+          <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>Task waterline</div>
+          <div style={{ fontSize: 12.5, color: t.inkMuted, marginTop: 2, maxWidth: 460, lineHeight: 1.4 }}>
+            Every task placed on the exposure scale. What sits below the waterline is
+            already doable by AI; the dry end stays distinctly human.
           </div>
         </div>
-
-        <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
-          <span style={{ fontSize: 11, color: "#A1A1AA" }}>Overlay:</span>
-          <div style={{ display: "flex", borderRadius: 8, border: "1px solid #E4E4E7", overflow: "hidden" }}>
-            {([
-              { mode: "none" as const, label: "None" },
-              { mode: "usage" as const, label: "Usage Level" },
-              { mode: "trend" as const, label: "Usage Trend" },
-              ...(data.gdpval_benchmark_count > 0
-                ? [{ mode: "gdpval" as const, label: "GDPval" }]
-                : []),
-            ]).map(({ mode, label }) => (
-              <button
-                key={mode}
-                onClick={() => {
-                  setOverlay(mode);
-                  if (mode === "gdpval" && onRequestGdpval) onRequestGdpval();
-                }}
-                style={{
-                  padding: "5px 12px", fontSize: 11, fontWeight: overlay === mode ? 600 : 400,
-                  border: "none", cursor: "pointer",
-                  backgroundColor: overlay === mode
-                    ? (mode === "gdpval" ? GDPVAL_COLORS.primary : "#2563EB")
-                    : "#fff",
-                  color: overlay === mode ? "#fff" : "#71717A",
-                }}
-              >
-                {label}
-              </button>
-            ))}
-          </div>
+        <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
+          <SortToggle sort={sort} onChange={setSort} />
         </div>
       </div>
 
-      {/* Narrative summary */}
-      {narrative && (
-        <div style={{
-          fontSize: 12, color: "#52525B", marginBottom: 10, padding: "8px 12px",
-          borderLeft: "3px solid #2563EB20", backgroundColor: "#F8FAFC", borderRadius: "0 6px 6px 0",
-          lineHeight: 1.5,
-        }}>
-          {narrative}
-        </div>
-      )}
-
-      {/* Legend */}
-      <div style={{ display: "flex", gap: 12, marginBottom: 8, flexWrap: "wrap" }}>
-        {Object.entries(QUADRANT_COLORS).map(([key, val]) => (
-          <div key={key} style={{ display: "flex", alignItems: "center", gap: 4 }}>
-            <div style={{ width: 8, height: 8, borderRadius: 2, backgroundColor: val.stroke }} />
-            <span style={{ fontSize: 10, color: "#71717A" }}>{val.label} ({qCounts[key] || 0})</span>
+      {/* Zone summary — the shape of the role */}
+      <div style={{ display: "flex", gap: 8, flexWrap: "wrap", marginBottom: 14 }}>
+        {(["E0", "E1", "E2"] as ZoneKey[]).map((z) => (
+          <div key={z} style={{
+            display: "flex", alignItems: "center", gap: 6,
+            padding: "4px 10px", borderRadius: 8,
+            background: ZONE_BG[z], border: `1px solid ${ZONE_COLORS[z]}33`,
+          }}>
+            <span style={{ width: 8, height: 8, borderRadius: "50%", background: ZONE_COLORS[z] }} />
+            <span style={{ fontSize: 12, fontWeight: 600, color: ZONE_COLORS[z] }}>{zoneCounts[z]}</span>
+            <span style={{ fontSize: 11.5, color: t.inkMuted }}>{ZONE_LABELS[z]}</span>
           </div>
         ))}
-        {overlay === "trend" && (
-          <>
-            <span style={{ fontSize: 10, color: "#71717A" }}>|</span>
-            <span style={{ fontSize: 10, color: "#DC2626" }}>● Growing ({growing})</span>
-            <span style={{ fontSize: 10, color: "#A1A1AA" }}>● Stable ({stable})</span>
-            <span style={{ fontSize: 10, color: "#71717A" }}>○ Declining ({declining})</span>
-          </>
-        )}
-        {overlay === "usage" && (
-          <span style={{ fontSize: 10, color: "#71717A" }}>| Dot size = current AI usage level</span>
+        {hasEras && (
+          <button
+            onClick={() => setShowCurrent((v) => !v)}
+            style={{
+              display: "flex", alignItems: "center", gap: 6, marginLeft: "auto",
+              padding: "4px 10px", borderRadius: 8, cursor: "pointer",
+              background: showCurrent ? `${t.current}18` : "transparent",
+              border: `1px solid ${showCurrent ? t.current : t.line}`,
+              color: showCurrent ? t.current : t.inkMuted, fontSize: 11.5, fontWeight: 500,
+            }}
+          >
+            <CurrentGlyph trend="rising" active={showCurrent} />
+            {showCurrent ? "Current: on" : "Current: off"}
+            {showCurrent && risingCount > 0 && (
+              <span style={{ fontFamily: TYPE.mono }}>· {risingCount} rising</span>
+            )}
+          </button>
         )}
       </div>
 
-      <ResponsiveContainer width="100%" height={380}>
-        <ScatterChart margin={{ top: 10, right: 20, bottom: 35, left: 20 }}>
-          <ReferenceArea x1={0} x2={0.4} y1={3.5} y2={5} fill={QUADRANT_COLORS.insulated.fill} fillOpacity={1}>
-            {qCounts.insulated > 0 && (
-              <Label value={`${qCounts.insulated} — ${QUADRANT_DESCRIPTIONS.insulated}`}
-                position="insideTopLeft" offset={8}
-                style={{ fontSize: 9, fill: QUADRANT_COLORS.insulated.stroke, opacity: 0.6 }} />
-            )}
-          </ReferenceArea>
-          <ReferenceArea x1={0.4} x2={1} y1={3.5} y2={5} fill={QUADRANT_COLORS.augmented.fill} fillOpacity={1}>
-            {qCounts.augmented > 0 && (
-              <Label value={`${qCounts.augmented} — ${QUADRANT_DESCRIPTIONS.augmented}`}
-                position="insideTopRight" offset={8}
-                style={{ fontSize: 9, fill: QUADRANT_COLORS.augmented.stroke, opacity: 0.6 }} />
-            )}
-          </ReferenceArea>
-          <ReferenceArea x1={0.4} x2={1} y1={1} y2={3.5} fill={QUADRANT_COLORS.disrupted.fill} fillOpacity={1}>
-            {qCounts.disrupted > 0 && (
-              <Label value={`${qCounts.disrupted} — ${QUADRANT_DESCRIPTIONS.disrupted}`}
-                position="insideBottomRight" offset={8}
-                style={{ fontSize: 9, fill: QUADRANT_COLORS.disrupted.stroke, opacity: 0.6 }} />
-            )}
-          </ReferenceArea>
-          <ReferenceArea x1={0} x2={0.4} y1={1} y2={3.5} fill={QUADRANT_COLORS.routine.fill} fillOpacity={1}>
-            {qCounts.routine > 0 && (
-              <Label value={`${qCounts.routine} — ${QUADRANT_DESCRIPTIONS.routine}`}
-                position="insideBottomLeft" offset={8}
-                style={{ fontSize: 9, fill: "#A1A1AA", opacity: 0.6 }} />
-            )}
-          </ReferenceArea>
+      {/* Scale calibration header — reads once, every row aligns to it */}
+      <ScaleHeader />
 
-          <CartesianGrid strokeDasharray="3 3" stroke="#E4E4E7" />
-          <ReferenceLine x={0.4} stroke="#D4D4D8" strokeDasharray="6 3" strokeWidth={1.5} />
-          <ReferenceLine y={3.5} stroke="#D4D4D8" strokeDasharray="6 3" strokeWidth={1.5} />
-
-          <XAxis dataKey="displayX" type="number" domain={[0, 1]} tick={{ fontSize: 11 }}
-            label={{ value: "AI Capability (Eloundou) →", position: "insideBottom", offset: -20, fontSize: 11, fill: "#71717A" }} />
-          <YAxis dataKey="displayY" type="number" domain={[1, 5]} tick={{ fontSize: 11 }}
-            label={{ value: "← Human Value", angle: -90, position: "insideLeft", offset: -5, fontSize: 11, fill: "#71717A" }} />
-
-          <Tooltip content={({ payload }) => {
-            if (!payload?.length) return null;
-            const p = payload[0].payload as PlotPoint;
-            return (
-              <div style={{ background: "#fff", border: "1px solid #E4E4E7", borderRadius: 8, padding: 10, maxWidth: 350, boxShadow: "0 2px 8px rgba(0,0,0,0.1)" }}>
-                <div style={{ fontSize: 12, fontWeight: 600, marginBottom: 3 }}>
-                  {p.task}
-                  {p.isNotable && (
-                    <span style={{ fontSize: 10, fontWeight: 500, color: "#2563EB", marginLeft: 6 }}>
-                      {p.notableReason}
-                    </span>
-                  )}
-                </div>
-                <div style={{ fontSize: 11, color: "#71717A" }}>
-                  Importance: {p.y.toFixed(1)} · AI Capability: {(p.x * 100).toFixed(0)}%
-                  · {QUADRANT_COLORS[p.quadrant as keyof typeof QUADRANT_COLORS]?.label || p.quadrant} zone
-                </div>
-                {p.latestPct != null && (
-                  <div style={{ fontSize: 11, marginTop: 2, color: p.trend === "growing" ? "#DC2626" : "#A1A1AA" }}>
-                    Current usage: {p.latestPct.toFixed(2)}%
-                    {p.trend !== "unknown" && ` · Trend: ${p.trend} (${p.eraCount} eras)`}
-                  </div>
-                )}
-              </div>
-            );
-          }} />
-
-          {/* eslint-disable-next-line @typescript-eslint/no-explicit-any */}
-          <Scatter data={plotData} shape={(props: any) => {
-            const { cx, cy, payload: p } = props;
-            const baseColor = DOT_COLORS[p.quadrant || "routine"];
-            const isHighlighted = highlightedTaskId === p.taskId;
-            const dimmed = highlightedTaskId != null && !isHighlighted;
-
-            let r = 5;
-            if (overlay === "usage") {
-              r = 3 + p.usageIntensity * 10;
-            }
-            if (p.isNotable) r = Math.max(r, 7);
-            if (isHighlighted) r = Math.max(r, 9);
-
-            const opacity = dimmed ? 0.15 : (overlay === "usage" ? 0.4 + p.usageIntensity * 0.5 : 0.75);
-
-            if (overlay === "trend") {
-              const ringColor = p.trend === "growing" ? "#DC2626"
-                : p.trend === "declining" ? "#D4D4D8"
-                : p.trend === "stable" ? "#A1A1AA"
-                : "none";
-              const ringWidth = p.trend === "growing" ? 2.5 : p.trend === "declining" ? 1.5 : 0;
-              const fillOpacity = dimmed ? 0.15 : (p.trend === "declining" ? 0.3 : 0.7);
-
-              return (
-                <g>
-                  {ringWidth > 0 && (
-                    <circle cx={cx} cy={cy} r={r + 3} fill="none"
-                      stroke={ringColor} strokeWidth={ringWidth} opacity={dimmed ? 0.1 : 0.8} />
-                  )}
-                  <circle cx={cx} cy={cy} r={r} fill={baseColor} opacity={fillOpacity}
-                    stroke={isHighlighted ? "#18181B" : "none"} strokeWidth={isHighlighted ? 2.5 : 0} />
-                  {/* Notable task marker — small diamond indicator */}
-                  {p.isNotable && !dimmed && (
-                    <text x={cx} y={cy - r - 5} textAnchor="middle" fontSize={8} fill="#52525B" fontWeight={600}>
-                      ▾
-                    </text>
-                  )}
-                </g>
-              );
-            }
-
-            return (
-              <g>
-                <circle cx={cx} cy={cy} r={r} fill={baseColor} opacity={opacity}
-                  stroke={isHighlighted ? "#18181B" : p.isNotable && !dimmed ? "#52525B" : "none"}
-                  strokeWidth={isHighlighted ? 2.5 : p.isNotable ? 1.5 : 0}
-                  strokeDasharray={p.isNotable && !isHighlighted ? "3 2" : "none"}
-                  style={{ transition: "all 0.2s ease" }} />
-                {p.isNotable && !dimmed && (
-                  <text x={cx} y={cy - r - 5} textAnchor="middle" fontSize={8} fill="#52525B" fontWeight={600}>
-                    ▾
-                  </text>
-                )}
-              </g>
-            );
-          }}>
-            {plotData.map((_, i) => <Cell key={i} />)}
-          </Scatter>
-        </ScatterChart>
-      </ResponsiveContainer>
-
-      <div style={{ display: "flex", justifyContent: "space-between", marginTop: -22, padding: "0 40px" }}>
-        <div style={{ fontSize: 10, color: "#A1A1AA", fontStyle: "italic" }}>Human Only</div>
-        <div style={{ fontSize: 10, color: "#A1A1AA", fontStyle: "italic" }}>AI Ready</div>
+      {/* Task rows */}
+      <div style={{ display: "flex", flexDirection: "column" }}>
+        {rows.map((r) => (
+          <TaskRow
+            key={r.taskId}
+            row={r}
+            showCurrent={showCurrent && hasEras}
+            highlighted={highlightedTaskId === r.taskId}
+            dimmed={highlightedTaskId != null && highlightedTaskId !== r.taskId}
+          />
+        ))}
       </div>
 
-      {hasJitter && (
-        <div style={{ fontSize: 9, color: "#A1A1AA", textAlign: "right", marginTop: 4 }}>
-          Dot positions adjusted slightly for readability · hover for exact values
+      {/* GDPval — independent benchmark signal (opt-in) */}
+      {data.gdpval_benchmark_count > 0 && (
+        <div style={{ marginTop: 14 }}>
+          <button
+            onClick={() => {
+              const next = !showGdpval;
+              setShowGdpval(next);
+              if (next && onRequestGdpval) onRequestGdpval();
+            }}
+            style={{
+              padding: "5px 12px", borderRadius: 8, cursor: "pointer",
+              background: showGdpval ? GDPVAL_COLORS.bg : "transparent",
+              border: `1px solid ${showGdpval ? GDPVAL_COLORS.border : t.line}`,
+              color: GDPVAL_COLORS.primary, fontSize: 11.5, fontWeight: 500,
+            }}
+          >
+            {showGdpval ? "Hide" : "Show"} GDPval benchmark ({data.gdpval_benchmark_count})
+          </button>
+          {showGdpval && <GDPvalOverlayStrip benchmarkCount={data.gdpval_benchmark_count} tasks={gdpvalTasks ?? null} />}
         </div>
-      )}
-
-      {overlay === "trend" && (
-        <div style={{ marginTop: 12, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 8, fontSize: 12, color: "#71717A" }}>
-          Position is fixed (AI capability doesn't go backward). Rings show empirical usage trend across {data.available_eras.length} model eras.
-          <span style={{ color: "#DC2626" }}> Red ring</span> = growing AI usage.
-          <span style={{ color: "#A1A1AA" }}> Grey</span> = stable.
-          <span style={{ color: "#D4D4D8" }}> Faded</span> = declining usage (adoption gap — AI can do it but isn't being used).
-        </div>
-      )}
-      {overlay === "usage" && (
-        <div style={{ marginTop: 12, padding: 10, backgroundColor: "#F9FAFB", borderRadius: 8, fontSize: 12, color: "#71717A" }}>
-          Dot size and opacity = current AI usage level. Large bright = heavily used with AI.
-          Small faded = AI-capable but low adoption. The gap between position and size reveals adoption opportunities.
-        </div>
-      )}
-      {overlay === "gdpval" && (
-        <GDPvalOverlayStrip
-          benchmarkCount={data.gdpval_benchmark_count}
-          tasks={gdpvalTasks ?? null}
-        />
       )}
     </div>
   );
 }
 
-// ── GDPval Overlay Strip ──
+// Keep the old name as an alias so existing imports keep working.
+export const TaskMatrix = TaskWaterline;
+
+// ── Sort control ──
+
+function SortToggle({ sort, onChange }: { sort: SortKey; onChange: (s: SortKey) => void }) {
+  const opts: { key: SortKey; label: string }[] = [
+    { key: "exposure", label: "Exposure" },
+    { key: "importance", label: "Importance" },
+    { key: "movement", label: "Movement" },
+  ];
+  return (
+    <div style={{ display: "flex", alignItems: "center", gap: 6 }}>
+      <span style={{ fontSize: 11, color: t.inkMuted }}>Sort</span>
+      <div style={{ display: "flex", borderRadius: 8, border: `1px solid ${t.line}`, overflow: "hidden" }}>
+        {opts.map((o) => (
+          <button
+            key={o.key}
+            onClick={() => onChange(o.key)}
+            style={{
+              padding: "5px 11px", fontSize: 11, border: "none", cursor: "pointer",
+              fontWeight: sort === o.key ? 600 : 400,
+              background: sort === o.key ? t.brass : t.surface,
+              color: sort === o.key ? "#fff" : t.inkMuted,
+            }}
+          >
+            {o.label}
+          </button>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Shared geometry: task text | track | value ──
+const GRID = "1fr clamp(140px, 34%, 260px) 52px";
+
+function ScaleHeader() {
+  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
+  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
+  return (
+    <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, alignItems: "end", paddingBottom: 6, marginBottom: 4, borderBottom: `1px solid ${t.line}` }}>
+      <div style={{ fontSize: 10.5, color: t.inkMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Task</div>
+      <div style={{ position: "relative", height: 26 }}>
+        {/* band labels */}
+        <div style={{ position: "absolute", inset: 0, display: "flex", fontSize: 9.5, fontWeight: 600 }}>
+          <div style={{ width: `${e1}%`, color: ZONE_COLORS.E0 }}>{ZONE_LABELS.E0}</div>
+          <div style={{ width: `${e2 - e1}%`, color: ZONE_COLORS.E1, textAlign: "center" }}>{ZONE_LABELS.E1}</div>
+          <div style={{ width: `${100 - e2}%`, color: ZONE_COLORS.E2, textAlign: "right" }}>{ZONE_LABELS.E2}</div>
+        </div>
+        {/* threshold ticks */}
+        <div style={{ position: "absolute", left: `${e1}%`, bottom: 0, fontSize: 9, color: t.inkMuted, transform: "translateX(-50%)", fontFamily: TYPE.mono }}>
+          {ZONE_THRESHOLDS.E1.toFixed(2)}
+        </div>
+        <div style={{ position: "absolute", left: `${e2}%`, bottom: 0, fontSize: 9, color: t.inkMuted, transform: "translateX(-50%)", fontFamily: TYPE.mono }}>
+          {ZONE_THRESHOLDS.E2.toFixed(2)}
+        </div>
+      </div>
+      <div style={{ fontSize: 10.5, color: t.inkMuted, textAlign: "right", textTransform: "uppercase", letterSpacing: 0.4 }}>β</div>
+    </div>
+  );
+}
+
+function TaskRow({ row, showCurrent, highlighted, dimmed }: { row: Row; showCurrent: boolean; highlighted: boolean; dimmed: boolean }) {
+  const zoneColor = ZONE_COLORS[row.zone];
+  return (
+    <div style={{
+      display: "grid", gridTemplateColumns: GRID, gap: 12, alignItems: "center",
+      padding: "9px 6px", borderBottom: `1px solid ${t.line}`,
+      borderRadius: 6, background: highlighted ? `${zoneColor}12` : "transparent",
+      opacity: dimmed ? 0.4 : 1, transition: "opacity 0.15s, background 0.15s",
+    }}>
+      <div style={{ display: "flex", alignItems: "center", gap: 8, minWidth: 0 }}>
+        <span style={{ fontSize: 12.5, lineHeight: 1.35, fontWeight: highlighted ? 600 : 400 }}>{row.text}</span>
+        {showCurrent && row.trend !== "steady" && row.trend !== "unknown" && (
+          <CurrentGlyph trend={row.trend} active />
+        )}
+        {row.drift === "departing" && (
+          <span
+            title="AI usage of this task is rising across model eras"
+            style={{ fontSize: 9, fontFamily: TYPE.mono, color: t.current, whiteSpace: "nowrap" }}
+          >
+            rising
+          </span>
+        )}
+      </div>
+      <BetaTrack beta={row.beta} zone={row.zone} importance={row.importance} highlighted={highlighted} />
+      <span style={{ textAlign: "right", fontFamily: TYPE.mono, fontSize: 12.5, fontWeight: 600, color: zoneColor }}>
+        {row.beta.toFixed(2)}
+      </span>
+    </div>
+  );
+}
+
+function BetaTrack({ beta, zone, importance, highlighted }: { beta: number; zone: ZoneKey; importance: number | null; highlighted: boolean }) {
+  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
+  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
+  const r = dotRadius(importance) + (highlighted ? 2 : 0);
+  const zoneColor = ZONE_COLORS[zone];
+  return (
+    <div style={{ position: "relative", height: 12, borderRadius: 6, display: "flex", overflow: "visible", border: `1px solid ${t.line}` }}>
+      <div style={{ width: `${e1}%`, background: ZONE_BG.E0, borderRadius: "5px 0 0 5px" }} />
+      <div style={{ width: `${e2 - e1}%`, background: ZONE_BG.E1 }} />
+      <div style={{ width: `${100 - e2}%`, background: ZONE_BG.E2, borderRadius: "0 5px 5px 0" }} />
+      <div
+        title={importance != null ? `importance ${importance.toFixed(1)} / 5` : undefined}
+        style={{
+          position: "absolute", left: `${pctOfScale(beta)}%`, top: "50%",
+          width: r * 2, height: r * 2, borderRadius: "50%",
+          background: zoneColor, border: `2px solid ${t.surface}`,
+          transform: "translate(-50%, -50%)",
+          boxShadow: highlighted ? `0 0 0 2px ${zoneColor}` : "none",
+        }}
+      />
+    </div>
+  );
+}
+
+// ── The "current" glyph — teal, reserved for motion (rising/falling usage) ──
+
+function CurrentGlyph({ trend, active }: { trend: TrendKind; active: boolean }) {
+  const color = active ? t.current : t.inkMuted;
+  if (trend === "falling") {
+    // adoption gap — AI can do it, usage is receding: hollow, downstream
+    return (
+      <svg width={12} height={12} viewBox="0 0 12 12" aria-label="usage falling" style={{ flexShrink: 0 }}>
+        <path d="M6 2 v6 M3.5 6 L6 8.5 L8.5 6" fill="none" stroke={color} strokeWidth={1.4} opacity={0.6} />
+      </svg>
+    );
+  }
+  // rising / default — the current moving into the task
+  return (
+    <svg width={12} height={12} viewBox="0 0 12 12" aria-label="usage rising" style={{ flexShrink: 0 }}>
+      <path d="M6 10 v-6 M3.5 6 L6 3.5 L8.5 6" fill="none" stroke={color} strokeWidth={1.6} />
+    </svg>
+  );
+}
+
+// ── GDPval Benchmark Strip (independent signal — palette kept until §10 redesign) ──
 
 function GDPvalOverlayStrip({ benchmarkCount, tasks }: { benchmarkCount: number; tasks: GDPvalTaskDetail[] | null }) {
   if (benchmarkCount === 0) return null;
-
   return (
-    <div style={{
-      marginTop: 12, padding: 12, borderRadius: 8,
-      backgroundColor: GDPVAL_COLORS.bg,
-      border: `1px solid ${GDPVAL_COLORS.border}`,
-    }}>
-      <div style={{ fontSize: 12, color: GDPVAL_COLORS.primary, fontWeight: 600, marginBottom: 4, fontFamily: "Inter, system-ui, sans-serif" }}>
-        GDPval Benchmark — {benchmarkCount} real-world tasks
+    <div style={{ marginTop: 10, padding: 12, borderRadius: 8, backgroundColor: GDPVAL_COLORS.bg, border: `1px solid ${GDPVAL_COLORS.border}` }}>
+      <div style={{ fontSize: 12, color: GDPVAL_COLORS.primary, fontWeight: 600, marginBottom: 4 }}>
+        GDPval benchmark — {benchmarkCount} real-world tasks
       </div>
-      <div style={{ fontSize: 11, color: GDPVAL_COLORS.dark, marginBottom: 8, lineHeight: 1.4, fontFamily: "Inter, system-ui, sans-serif" }}>
-        Independent evaluation prompts graded against rubric criteria.
-        These are NOT O*NET task statements — they represent real-world deliverables that test AI capability for this occupation.
+      <div style={{ fontSize: 11, color: GDPVAL_COLORS.dark, marginBottom: 8, lineHeight: 1.4 }}>
+        Independent, rubric-graded deliverables — not O*NET task statements. These test AI capability on real work products for this occupation.
       </div>
-
       {!tasks ? (
-        <div style={{ fontSize: 11, color: "#A1A1AA", fontStyle: "italic" }}>Loading benchmark tasks…</div>
+        <div style={{ fontSize: 11, color: t.inkMuted, fontStyle: "italic" }}>Loading benchmark tasks…</div>
       ) : (
-        <div style={{ display: "flex", flexDirection: "column", gap: 3 }}>
-          {tasks.map(task => {
-            const maxScore = task.max_score ?? 0;
-            const minScore = task.min_score ?? 0;
-            const range = maxScore - minScore;
-            // Normalize to chart width (0 = center, positive right, negative left)
-            const chartW = 200;
-            const zeroX = range > 0 ? Math.max((-minScore / range) * chartW, 0) : chartW / 2;
-
-            return (
-              <div key={task.task_id} style={{ display: "flex", alignItems: "center", gap: 8, height: 26 }}>
-                <div style={{
-                  width: 240, flexShrink: 0, fontSize: 11, color: "#52525B",
-                  fontFamily: "Inter, system-ui, sans-serif",
-                  overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap",
-                }}>
-                  {task.prompt_summary}
-                </div>
-                <svg width={chartW} height={16} style={{ flexShrink: 0 }}>
-                  {/* Zero line */}
-                  <line x1={zeroX} y1={0} x2={zeroX} y2={16} stroke="#D4D4D8" strokeWidth={1} strokeDasharray="2,2" />
-                  {/* Range line */}
-                  <line x1={0} y1={8} x2={chartW} y2={8} stroke={GDPVAL_COLORS.border} strokeWidth={2} />
-                  {/* Min endpoint (penalty) */}
-                  <circle cx={0} cy={8} r={4} fill={GDPVAL_COLORS.penalty} />
-                  {/* Max endpoint (reward) */}
-                  <circle cx={chartW} cy={8} r={5} fill={GDPVAL_COLORS.reward} />
-                </svg>
-                <div style={{ display: "flex", gap: 6, alignItems: "center", flexShrink: 0 }}>
-                  <span style={{ fontSize: 10, color: GDPVAL_COLORS.penalty, fontWeight: 500 }}>
-                    {minScore > 0 ? `+${minScore}` : minScore}
-                  </span>
-                  <span style={{ fontSize: 10, color: "#D4D4D8" }}>→</span>
-                  <span style={{ fontSize: 10, color: GDPVAL_COLORS.reward, fontWeight: 600 }}>
-                    +{maxScore}
-                  </span>
-                  <span style={{
-                    fontSize: 9, color: GDPVAL_COLORS.primary, backgroundColor: `${GDPVAL_COLORS.primary}10`,
-                    padding: "1px 5px", borderRadius: 4,
-                  }}>
-                    {task.rubric_item_count} criteria
-                  </span>
-                </div>
-              </div>
-            );
-          })}
+        <div style={{ display: "flex", flexDirection: "column", gap: 4 }}>
+          {tasks.map((task) => (
+            <div key={task.task_id} style={{ display: "flex", alignItems: "center", gap: 8, fontSize: 11 }}>
+              <span style={{ flex: 1, color: "#52525B", overflow: "hidden", textOverflow: "ellipsis", whiteSpace: "nowrap" }}>
+                {task.prompt_summary}
+              </span>
+              <span style={{ fontSize: 9, color: GDPVAL_COLORS.primary, background: `${GDPVAL_COLORS.primary}12`, padding: "1px 5px", borderRadius: 4, flexShrink: 0 }}>
+                {task.rubric_item_count} criteria
+              </span>
+            </div>
+          ))}
         </div>
       )}
     </div>
-  );
-}
-
-/** Mini sparkline for task list — shows usage across model eras. */
-export function TaskSparkline({ task }: { task: TaskMatrixPoint }) {
-  if (task.era_snapshots.length < 2) return null;
-
-  const values = task.era_snapshots.map(s => s.task_pct);
-  const max = Math.max(...values, 0.01);
-  const width = 60;
-  const height = 18;
-
-  const points = values.map((v, i) => {
-    const x = (i / (values.length - 1)) * width;
-    const y = height - (v / max) * height;
-    return `${x},${y}`;
-  }).join(" ");
-
-  const isGrowing = values[values.length - 1] > values[0] + 0.005;
-  const color = isGrowing ? "#DC2626" : "#A1A1AA";
-
-  return (
-    <svg width={width} height={height} style={{ flexShrink: 0 }}>
-      <polyline points={points} fill="none" stroke={color} strokeWidth={1.5} />
-      <circle
-        cx={width}
-        cy={height - (values[values.length - 1] / max) * height}
-        r={2} fill={color}
-      />
-    </svg>
   );
 }

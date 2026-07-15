@@ -106,8 +106,11 @@ E2 #16A34A — do not mix old and new). Light is default; dark is first-class.
 | Ink | `#0e1f27` | `#e7f1ef` |
 | Brass (instrument accent) | `#9c6414` | `#e3a344` |
 | Zone E0 — insulated (above water) | `#b06a1a` | `#b5793a` |
-| Zone E1 — augmented (at the line) | `#146f9e` | `#3f8fc2` |
-| Zone E2 — automated (submerged) | `#0d8f6e` | `#3fa98d` |
+| Zone E1 — augmented (at the line) | `#1663ab` | `#4b93cc` |
+| Zone E2 — automated (submerged) | `#2c9a5f` | `#52b078` |
+
+_(E1/E2 hues widened 2026-07 from the original cyan-blue `#146f9e` / teal-green
+`#0d8f6e` — they read too alike as bands; meaning unchanged.)_
 
 Signal hues (per source): eloundou `#a02f5c` · microsoft `#1f6fd6` ·
 aei `#0e9a72` · gdpval `#9c3f14` · jsa-au `#4a9440`.

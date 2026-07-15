@@ -1,8 +1,12 @@
 /** API client for Tier 1 endpoints. All calls go through Vite proxy (/api -> localhost:8000). */
 
+import { mockResponse } from "./mocks";
+
 const BASE = "/api/v1";
 
 async function get<T>(path: string): Promise<T> {
+  const mocked = mockResponse(path); // dev-only fixtures; undefined -> real fetch
+  if (mocked !== undefined) return mocked as T;
   const res = await fetch(`${BASE}${path}`);
   if (!res.ok) throw new Error(`API error ${res.status}: ${res.statusText}`);
   return res.json();
@@ -163,6 +167,10 @@ export interface DriftTask {
   peak_task_pct: number | null;
   classification: string | null;
   snapshot_count: number | null;
+  // Job families (SOC major-group display names) this task appears in. Many-to-
+  // many. PLANNED backend field (AEI task → O*NET task → onet_soc → major group);
+  // representative in dev fixtures until the /drift join lands.
+  families?: string[] | null;
 }
 
 export interface DriftListResponse {
