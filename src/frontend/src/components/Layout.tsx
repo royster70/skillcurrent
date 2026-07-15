@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
@@ -16,6 +16,11 @@ import {
 } from "./current/icons";
 
 const t = THEME.light;
+
+// Below this viewport width the expanded 264px rail crowds the content (and, in
+// very narrow embeds/previews, overflows the page). Force the collapsed icon
+// rail there; above it, the user's manual toggle wins.
+const NARROW_BREAKPOINT = 768;
 
 // Two groups for the open-source audiences: EXPLORE = the data views;
 // UNDERSTAND = methodology + sources (primary destinations for researchers
@@ -42,8 +47,24 @@ const NAV_GROUPS = [
 
 export function Layout() {
   const { data: datasets } = useApi(() => api.datasets(), []);
-  const [collapsed, setCollapsed] = useState(false);
+  const [userCollapsed, setUserCollapsed] = useState(false);
+  const [isNarrow, setIsNarrow] = useState(
+    () => typeof window !== "undefined" && window.innerWidth < NARROW_BREAKPOINT,
+  );
 
+  // Track the breakpoint via matchMedia — fires only when the line is crossed,
+  // not on every resize pixel.
+  useEffect(() => {
+    if (typeof window === "undefined" || !window.matchMedia) return;
+    const mq = window.matchMedia(`(max-width: ${NARROW_BREAKPOINT - 1}px)`);
+    const onChange = (e: MediaQueryListEvent) => setIsNarrow(e.matches);
+    setIsNarrow(mq.matches);
+    mq.addEventListener("change", onChange);
+    return () => mq.removeEventListener("change", onChange);
+  }, []);
+
+  // Narrow viewports force the collapsed rail; otherwise honour the manual toggle.
+  const collapsed = userCollapsed || isNarrow;
   const sidebarWidth = collapsed ? 64 : 264;
 
   return (
@@ -82,25 +103,30 @@ export function Layout() {
               </span>
             </div>
           )}
-          <button
-            onClick={() => setCollapsed(!collapsed)}
-            title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
-            style={{
-              background: "none",
-              border: "none",
-              cursor: "pointer",
-              color: t.inkMuted,
-              fontSize: 15,
-              padding: 4,
-              borderRadius: 4,
-              display: "flex",
-              alignItems: "center",
-              justifyContent: "center",
-              width: collapsed ? "100%" : "auto",
-            }}
-          >
-            {collapsed ? "▶" : "◀"}
-          </button>
+          {/* Manual toggle only when there's room to expand — on narrow
+              viewports the rail is forced collapsed, so the control would be
+              a no-op. */}
+          {!isNarrow && (
+            <button
+              onClick={() => setUserCollapsed((v) => !v)}
+              title={collapsed ? "Expand sidebar" : "Collapse sidebar"}
+              style={{
+                background: "none",
+                border: "none",
+                cursor: "pointer",
+                color: t.inkMuted,
+                fontSize: 15,
+                padding: 4,
+                borderRadius: 4,
+                display: "flex",
+                alignItems: "center",
+                justifyContent: "center",
+                width: collapsed ? "100%" : "auto",
+              }}
+            >
+              {collapsed ? "▶" : "◀"}
+            </button>
+          )}
         </div>
 
         {!collapsed && (
