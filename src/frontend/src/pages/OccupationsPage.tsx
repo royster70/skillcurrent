@@ -3,7 +3,7 @@ import { useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type GDPvalTaskDetail } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { GDPvalBenchmarkPanel } from "../components/GDPvalBenchmarkPanel";
@@ -11,6 +11,39 @@ import { AEITaskDetailPanel } from "../components/AEITaskDetailPanel";
 import { GDPVAL_COLORS } from "../lib/constants";
 
 const theme = THEME.light;
+
+type ZoneKey = "E0" | "E1" | "E2";
+
+function zoneOf(beta: number): ZoneKey {
+  if (beta >= ZONE_THRESHOLDS.E2) return "E2";
+  if (beta >= ZONE_THRESHOLDS.E1) return "E1";
+  return "E0";
+}
+
+const pctOfScale = (v: number) => Math.max(0, Math.min(100, (v / BETA_SCALE.max) * 100));
+
+/** A slim banded β track with one dot — the hierarchy rail reads on the same
+ * scale as every waterline in the app, instead of quoting β as bare text. */
+function MiniBetaTrack({ beta, width = 64 }: { beta: number; width?: number }) {
+  const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
+  const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
+  const zone = zoneOf(beta);
+  return (
+    <span style={{ position: "relative", width, height: 8, borderRadius: 4, display: "inline-flex", flexShrink: 0, overflow: "visible", border: `1px solid ${theme.line}` }}>
+      <span style={{ width: `${e1}%`, background: ZONE_BG.E0, borderRadius: "3px 0 0 3px" }} />
+      <span style={{ width: `${e2 - e1}%`, background: ZONE_BG.E1 }} />
+      <span style={{ width: `${100 - e2}%`, background: ZONE_BG.E2, borderRadius: "0 3px 3px 0" }} />
+      <span
+        style={{
+          position: "absolute", left: `${pctOfScale(beta)}%`, top: "50%",
+          width: 9, height: 9, borderRadius: "50%",
+          background: ZONE_COLORS[zone], border: `1.5px solid ${theme.surface}`,
+          transform: "translate(-50%, -50%)",
+        }}
+      />
+    </span>
+  );
+}
 
 export function OccupationsPage() {
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
@@ -45,9 +78,9 @@ export function OccupationsPage() {
   if (!hierarchy) return null;
 
   return (
-    <div style={{ display: "flex", gap: 24, fontFamily: TYPE.body, color: theme.ink }}>
-      {/* Hierarchy panel */}
-      <div style={{ width: 420, minWidth: 420, display: "flex", flexDirection: "column", gap: 8 }}>
+    <div style={{ display: "flex", flexWrap: "wrap", gap: 24, fontFamily: TYPE.body, color: theme.ink }}>
+      {/* Hierarchy panel — wraps above the detail on narrow viewports */}
+      <div style={{ flex: "1 1 340px", maxWidth: 480, minWidth: 0, display: "flex", flexDirection: "column", gap: 8 }}>
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
             <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Occupations</h1>
@@ -97,13 +130,15 @@ export function OccupationsPage() {
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {group.avg_eloundou_beta != null && (
-                    <span style={{
-                      fontSize: 12, fontWeight: 600, padding: "2px 8px", borderRadius: 12,
-                      backgroundColor: group.avg_eloundou_beta >= 0.85 ? ZONE_BG.E2 : group.avg_eloundou_beta >= 0.40 ? ZONE_BG.E1 : ZONE_BG.E0,
-                      color: group.avg_eloundou_beta >= 0.85 ? ZONE_COLORS.E2 : group.avg_eloundou_beta >= 0.40 ? ZONE_COLORS.E1 : ZONE_COLORS.E0,
-                    }}>
-                      β {group.avg_eloundou_beta.toFixed(2)}
-                    </span>
+                    <>
+                      <MiniBetaTrack beta={group.avg_eloundou_beta} />
+                      <span style={{
+                        fontFamily: TYPE.mono, fontSize: 11.5, fontWeight: 600, width: 30, textAlign: "right",
+                        color: ZONE_COLORS[zoneOf(group.avg_eloundou_beta)],
+                      }}>
+                        {group.avg_eloundou_beta.toFixed(2)}
+                      </span>
+                    </>
                   )}
                   <span style={{ fontSize: 14, color: theme.inkMuted }}>{expandedGroup === group.code ? "▼" : "▶"}</span>
                 </div>
@@ -127,8 +162,14 @@ export function OccupationsPage() {
                     <div style={{ fontSize: 11, color: theme.inkMuted }}>{occ.code}</div>
                   </div>
                   {occ.avg_eloundou_beta != null && (
-                    <span style={{ fontSize: 11, color: theme.inkMuted }}>
-                      β {occ.avg_eloundou_beta.toFixed(2)}
+                    <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                      <MiniBetaTrack beta={occ.avg_eloundou_beta} />
+                      <span style={{
+                        fontFamily: TYPE.mono, fontSize: 11, fontWeight: 600, width: 30, textAlign: "right",
+                        color: ZONE_COLORS[zoneOf(occ.avg_eloundou_beta)],
+                      }}>
+                        {occ.avg_eloundou_beta.toFixed(2)}
+                      </span>
                     </span>
                   )}
                 </div>
@@ -139,15 +180,25 @@ export function OccupationsPage() {
       </div>
 
       {/* Detail panel */}
-      <div style={{ flex: 1 }}>
+      <div style={{ flex: "1 1 360px", minWidth: 0 }}>
         {selectedSoc ? (
           <OccupationDetailPanel soc={selectedSoc} />
         ) : (
           <div style={{
-            display: "flex", alignItems: "center", justifyContent: "center",
-            height: "100%", color: theme.inkMuted, fontSize: 16,
+            display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
+            height: "100%", minHeight: 320, textAlign: "center", padding: 24,
           }}>
-            Select an occupation from the hierarchy
+            <div style={{ fontFamily: TYPE.display, fontSize: 22, fontWeight: 600, color: theme.ink }}>
+              The live per-task reading
+            </div>
+            <p style={{ fontSize: 13.5, color: theme.inkMuted, lineHeight: 1.6, maxWidth: 400, margin: "10px 0 0" }}>
+              Pick an occupation family on the left, then a role — every one of its
+              tasks is placed on the same dry→submerged scale the whole platform reads on,
+              with the current marking where AI usage is rising.
+            </p>
+            <a href="/#read-the-scale" style={{ fontSize: 12.5, fontWeight: 600, color: theme.brass, textDecoration: "none", marginTop: 12 }}>
+              Learn to read the scale →
+            </a>
           </div>
         )}
       </div>
