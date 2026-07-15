@@ -11,7 +11,8 @@ vi.mock("../lib/api", () => ({
   },
 }));
 
-// Mock useNavigate (CompanyLookup doesn't use it, but React Router context may be needed)
+// CompanyLookup navigates directly for single-sector results; the navigate
+// call itself isn't asserted here, just stubbed so it doesn't throw.
 vi.mock("react-router-dom", () => ({
   useNavigate: () => vi.fn(),
   useSearchParams: () => [new URLSearchParams(), vi.fn()],
@@ -109,7 +110,10 @@ describe("CompanyLookup", () => {
     });
   });
 
-  it("calls onSectorsSelected when result clicked", async () => {
+  it("calls onSectorsSelected when a multi-sector result is clicked", async () => {
+    // Single-sector results (e.g. "TELSTRA GROUP LIMITED", codes: ["J"]) navigate
+    // straight to the sector page instead — only multi-sector results populate
+    // the chip selector via onSectorsSelected.
     const onSelect = vi.fn();
     render(<CompanyLookup region="AU" onSectorsSelected={onSelect} />);
     fireEvent.click(screen.getByText("Look up a company"));
@@ -119,11 +123,11 @@ describe("CompanyLookup", () => {
     });
 
     await waitFor(() => {
-      expect(screen.getByText("TELSTRA GROUP LIMITED")).toBeInTheDocument();
+      expect(screen.getByText("TELSTRA HEALTH LIMITED")).toBeInTheDocument();
     });
 
-    fireEvent.click(screen.getByText("TELSTRA GROUP LIMITED"));
-    expect(onSelect).toHaveBeenCalledWith(["J"]);
+    fireEvent.click(screen.getByText("TELSTRA HEALTH LIMITED"));
+    expect(onSelect).toHaveBeenCalledWith(["Q", "J"], "TELSTRA HEALTH LIMITED");
   });
 
   it("shows AI classification result", async () => {
@@ -180,7 +184,7 @@ describe("CompanyLookup", () => {
     });
 
     fireEvent.click(screen.getByText("Use these sectors"));
-    expect(onSelect).toHaveBeenCalledWith(["D", "E"]);
+    expect(onSelect).toHaveBeenCalledWith(["D", "E"], "Jemena");
   });
 
   it("dismiss button clears classification", async () => {
