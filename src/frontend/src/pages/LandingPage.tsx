@@ -12,6 +12,7 @@ import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
 import { CurrentFlow, BackgroundCurrent, WaveUnderline } from "../components/current/CurrentFlow";
 import { Waypoint } from "../components/Waypoint";
+import { ReadingPrimer } from "../components/ReadingPrimer";
 import { ZoneExplorer } from "../components/ZoneExplorer";
 import { EraTide } from "../components/EraTide";
 import { useReveal } from "../components/current/useReveal";
@@ -267,13 +268,14 @@ export function LandingPage() {
       <section id="read-the-scale" style={{ maxWidth: 900, margin: "0 auto", padding: "12px 32px 48px", scrollMarginTop: 24 }}>
         <Waypoint>READ THE SCALE</Waypoint>
         <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px" }}>
-          The instrument: Beta
+          Every task gets a reading
         </h2>
-        <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 18 }}>
-          Every task gets one exposure reading — Beta, from the Eloundou 2024
-          research. Where it falls on the scale decides the zone: still dry,
-          at the line, or submerged. Drag the handle and try it.
+        <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 20 }}>
+          SkillCurrent measures work at the task level: one exposure reading —
+          <strong style={{ color: t.brass }}> β</strong>, beta — places each task on
+          a shared scale. Three things to know, then read it yourself.
         </p>
+        <ReadingPrimer />
         <ZoneExplorer />
       </section>
 

@@ -23,7 +23,7 @@ Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
 
 ## P1 — Comprehension blockers (a first visit stumbles on these)
 
-1. **The 0–1.5 scale is never explained anywhere in the UI.**
+1. ✅ **[DONE — read-the-scale-primer] The 0–1.5 scale is never explained anywhere in the UI.**
    Every waterline runs 0→1.5 with ticks at 0.40/0.85, but no surface says what the number *is*
    or why it can exceed 1 (β = E1 + 0.5·E2, so the ceiling is 1.5). A first-timer assumes broken
    percentages. Fix: one sentence in the ZoneExplorer honesty footer ("β runs 0–1.5 because…")
@@ -46,7 +46,7 @@ Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
    namesake). Rebalance to: Find your role · Explore sectors · Rising tide · How this works.
    *(LandingPage.tsx `PATHS`.)*
 
-5. **Source names appear as bare labels outside the score cards.**
+5. **Source names appear as bare labels outside the score cards.** *(Partial: the landing primer now carries the provenance line + methodology link; the tooltip sweep on Search pills + GDPval surfaces is still open.)*
    `ContextualScoreCard` explains Eloundou/Microsoft/AEI beautifully — but SearchPage score
    pills, the GDPval button/badges/panels, and SectorDetail's three-tier chart present
    "Eloundou", "GDPval" with no explanation in reach. Minimum: `title` tooltips reusing
