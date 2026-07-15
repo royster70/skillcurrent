@@ -400,8 +400,8 @@ export function TidePage() {
           model generations; the tide steps up with each one. */}
       <div style={{ background: theme.surface, border: `1px solid ${theme.line}`, borderRadius: 10, padding: "12px 16px" }}>
         <div style={{ fontSize: 12, color: theme.inkMuted, marginBottom: 6, lineHeight: 1.4 }}>
-          <strong style={{ color: theme.brass }}>An era is a model generation.</strong> Pace below is measured
-          between them — how much a task's AI-usage share climbs from one era to the next.
+          <strong style={{ color: theme.brass }}>An era is a model generation</strong> — now months apart,
+          not decades. Pace below is measured between them: how much a task's AI-usage share climbs from one to the next.
         </div>
         <EraTide compact />
       </div>

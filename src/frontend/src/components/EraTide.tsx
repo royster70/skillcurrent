@@ -52,6 +52,10 @@ const ERAS = [
   { label: "next", sub: "→", level: 0.8, projected: true },
 ];
 
+// Cadence — months between consecutive generations (one entry per interval).
+// The point: months, not the decades a shift this size used to take.
+const GAPS = ["~4 mo", "~9 mo", "~7 mo", "months?"];
+
 // A few kinds of work, by how hard they are for AI — the tide reaches each in turn.
 const WORK = [
   { label: "Data entry & lookup", level: 0.38 },
@@ -76,7 +80,7 @@ export function EraTide({ compact = false }: { compact?: boolean }) {
   const padL = 14;
   const padR = 14;
   const padT = compact ? 14 : 22;
-  const padB = compact ? 26 : 34;
+  const padB = compact ? 26 : 52; // full leaves room for the cadence (months) row
   const innerW = W - padL - padR;
   const innerH = H - padT - padB;
 
@@ -159,11 +163,28 @@ export function EraTide({ compact = false }: { compact?: boolean }) {
         {!compact && pts.map((p, i) => (
           <text key={`s${i}`} x={p.x} y={H - padB + 25} textAnchor="middle" fontSize={8.5} fontFamily={TYPE.mono} fill={t.inkMuted}>{p.e.sub}</text>
         ))}
+
+        {/* Cadence row — the gap between generations, in MONTHS (the whole point:
+            months, not decades). Brackets sit under each interval. */}
+        {!compact && pts.slice(0, -1).map((p, i) => {
+          const next = pts[i + 1];
+          const midX = (p.x + next.x) / 2;
+          const y = H - padB + 40;
+          const proj = i === pts.length - 2;
+          const col = proj ? t.brass : t.inkMuted;
+          return (
+            <g key={`gap${i}`}>
+              <path d={`M${p.x + 8},${y - 8} v3 h${next.x - p.x - 16} v-3`} fill="none" stroke={col} strokeWidth={1} opacity={0.5} strokeDasharray={proj ? "3 3" : undefined} />
+              <text x={midX} y={y + 4} textAnchor="middle" fontSize={9} fontFamily={TYPE.mono} fontWeight={proj ? 700 : 400} fill={col}>{GAPS[i]}</text>
+            </g>
+          );
+        })}
       </svg>
 
       {!compact && (
         <div style={{ display: "flex", justifyContent: "space-between", fontFamily: TYPE.mono, fontSize: 9.5, color: t.inkMuted, marginTop: 2, padding: "0 4px" }}>
           <span>← earlier generations</span>
+          <span>a generation every few months — not decades</span>
           <span style={{ color: t.brass }}>the tide only rises →</span>
         </div>
       )}

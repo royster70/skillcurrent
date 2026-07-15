@@ -287,9 +287,11 @@ export function LandingPage() {
             Why the waterline keeps rising
           </h2>
           <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 18 }}>
-            An <strong style={{ color: t.brass }}>era</strong> is a model generation — GPT-3.5, GPT-4,
-            Claude 3.5, Claude 4. Each one lifts the waterline: work that sat safely above it slips under.
-            That rising is the current these pages measure — and it doesn't run backward.
+            An <strong style={{ color: t.brass }}>era</strong> is a model generation — and they now
+            arrive in <strong>months, not decades</strong>. GPT-3.5, GPT-4, Claude 3.5, Claude 4: each
+            one lifts the waterline, and work that sat safely above it slips under. That's the current
+            these pages measure — rising an order of magnitude faster than past technological shifts,
+            and never backward.
           </p>
           <div style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 10, padding: "18px 20px 14px" }}>
             <EraTide />
