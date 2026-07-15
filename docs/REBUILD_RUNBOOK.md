@@ -3,7 +3,7 @@
 Complete instructions to rebuild the skillcurrent development environment from scratch on a fresh Windows 11 machine, including PostgreSQL in Docker, all data ingestion, and Claude Code configuration.
 
 **Repo**: `royster70/skillcurrent` (GitHub, private)
-**Source data**: `C:\Users\royst\Projects\Data\` (outside repo)
+**Source data**: `$DATA_ROOT\` (outside repo)
 **Claude Code config**: Global `~\.claude\` + project `.claude\` (in repo)
 
 ---
@@ -40,7 +40,7 @@ claude --version
 ### Critical files to save (NOT in the git repo)
 
 ```
-C:\Users\royst\Projects\Data\           # All source data (13 directories)
+$DATA_ROOT\           # All source data (13 directories)
   ABS\
   ABS-2021-Census\
   AEI\                                  # includes AEI\geographic\ (acquired, not yet ingested)
@@ -105,7 +105,7 @@ cd skillcurrent
 ```
 
 ### 3.2 Restore data directory
-Copy the backed-up `Data\` folder to `C:\Users\royst\Projects\Data\`
+Copy the backed-up `Data\` folder to `$DATA_ROOT\`
 
 ### 3.3 Restore Claude Code global config
 Copy backed-up files to `C:\Users\royst\.claude\`:
@@ -182,7 +182,7 @@ python -m alembic upgrade head
 stages (Tier 1 + AU/Census/ASX + the FR-9 OSCA/ASC AU-native layer) invokes the
 corresponding ingest script's shared `run()` entry point in dependency order,
 tagging every derived-computation row with a `pipeline_run_id` (ADR-007 Phase 3). Source-data locations are resolved from `settings.data_root`
-(env `DATA_ROOT`, default `C:\Users\royst\Projects\Data`) — set `DATA_ROOT` in
+(env `DATA_ROOT`, default `$DATA_ROOT`) — set `DATA_ROOT` in
 `src/backend/.env` if your data lives elsewhere.
 
 ```powershell
@@ -216,17 +216,17 @@ Notes:
 
 **Stage 1 — O*NET (MUST be first):**
 ```powershell
-python -m scripts.ingest_onet --path "C:\Users\royst\Projects\Data\ONet" --version 28.1
+python -m scripts.ingest_onet --path "$DATA_ROOT\ONet" --version 28.1
 ```
 
 **Stage 2 — Independent datasets (any order):**
 ```powershell
-python -m scripts.ingest_eloundou --path "C:\Users\royst\Projects\Data\OpenAI-Exposure-Score"
-python -m scripts.ingest_microsoft_ai --path "C:\Users\royst\Projects\Data\microsoft-working-with-ai"
-python -m scripts.ingest_aei --path "C:\Users\royst\Projects\Data\AEI"
-python -m scripts.ingest_aei_temporal --path "C:\Users\royst\Projects\Data\AEI\AEI-full"
-python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4"
-python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
+python -m scripts.ingest_eloundou --path "$DATA_ROOT\OpenAI-Exposure-Score"
+python -m scripts.ingest_microsoft_ai --path "$DATA_ROOT\microsoft-working-with-ai"
+python -m scripts.ingest_aei --path "$DATA_ROOT\AEI"
+python -m scripts.ingest_aei_temporal --path "$DATA_ROOT\AEI\AEI-full"
+python -m scripts.ingest_oews --path "$DATA_ROOT\BLS\oesm24in4"
+python -m scripts.ingest_gdpval --path "$DATA_ROOT\GDPval"
 python -m scripts.ingest_epoch_eci
 ```
 
@@ -453,7 +453,7 @@ docker start workforce-pg
 | Variable | Required | Where | Purpose |
 |----------|----------|-------|---------|
 | `DATABASE_URL` | Yes | `src/backend/.env` | PostgreSQL connection string |
-| `DATA_ROOT` | Optional | `src/backend/.env` | Root of external source data (default `C:\Users\royst\Projects\Data`). All ingest scripts + the pipeline derive dataset paths from this. |
+| `DATA_ROOT` | Optional | `src/backend/.env` | Root of external source data (default `$DATA_ROOT`). All ingest scripts + the pipeline derive dataset paths from this. |
 | `ANTHROPIC_AUTH_TOKEN` | Optional | `src/backend/.env` | Claude API for company classification + GDPval evals |
 | `PYTHONPATH` | Auto | `.claude/settings.json` | Set to `src/backend` by Claude Code |
 

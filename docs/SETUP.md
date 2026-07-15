@@ -269,14 +269,14 @@ See `docs/INGESTION_RUNBOOK.md` for the full data loading procedure. Summary:
 
 ```powershell
 # 1. O*NET (must be first - other datasets FK to this)
-python -m scripts.ingest_onet --path "C:\Users\royst\Projects\Data\ONet"
+python -m scripts.ingest_onet --path "$DATA_ROOT\ONet"
 
 # 2-5. These can run in any order
-python -m scripts.ingest_eloundou --path "C:\Users\royst\Projects\Data\OpenAI-Exposure-Score"
-python -m scripts.ingest_microsoft_ai --path "C:\Users\royst\Projects\Data\microsoft-working-with-ai"
-python -m scripts.ingest_aei --path "C:\Users\royst\Projects\Data\AEI"
-python -m scripts.ingest_aei_temporal --path "C:\Users\royst\Projects\Data\AEI\AEI-full"
-python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4"
+python -m scripts.ingest_eloundou --path "$DATA_ROOT\OpenAI-Exposure-Score"
+python -m scripts.ingest_microsoft_ai --path "$DATA_ROOT\microsoft-working-with-ai"
+python -m scripts.ingest_aei --path "$DATA_ROOT\AEI"
+python -m scripts.ingest_aei_temporal --path "$DATA_ROOT\AEI\AEI-full"
+python -m scripts.ingest_oews --path "$DATA_ROOT\BLS\oesm24in4"
 
 # 6. Derived computations (must be after ingestion)
 python -m scripts.derive_eloundou_dwas

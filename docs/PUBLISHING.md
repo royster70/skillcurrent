@@ -108,8 +108,9 @@ others may have cloned.
 3. **Re-run the §0 secret scan before every publish** — cheap insurance.
 4. **Redistribution gate for data** — never push a table derived from a
    `redistribution_ok = false` source (AIOE, SML, GDPval-AA, OpenAI leaderboard
-   scores). Enforced structurally once the FR-9.5 `signal_source_registry`
-   lands; until then, honour `docs/data-sources.md` Tier-3.
+   scores). Enforced structurally by the FR-9.5 `signal_source_registry`
+   (migration 032) + `scripts/check_redistribution.py` — run the check before
+   every publish (exit 1 on violation).
 
 ---
 
@@ -119,17 +120,19 @@ Apply on the `public` branch before the first push. None of it is wasted
 regardless of topology.
 
 **Legal foundation (blocks first public push):**
-- [ ] `LICENSE` — MIT
-- [ ] `DATA_LICENSE` — CC-BY-4.0 (data compilation)
-- [ ] `NOTICE` / `SOURCES.md` — per-source attribution for every TIER-1 source
-      (see `docs/data-sources.md`; auto-generatable once FR-9.5 registry exists)
+- [x] `LICENSE` — MIT (2026-07-14)
+- [x] `DATA_LICENSE` — CC-BY-4.0 (data compilation) (2026-07-14)
+- [x] `NOTICE` — per-source attribution for every TIER-1 source (2026-07-14;
+      hand-maintained until auto-generated from the FR-9.5 registry)
 
 **Instance-specific → externalize:**
-- [ ] Replace hardcoded `C:\Users\...` defaults with `DATA_ROOT` env in
+- [x] Replace hardcoded `C:\Users\...` defaults with `DATA_ROOT` env in
       `src/backend/app/core/config.py` and the ingest scripts
       (`ingest_abs.py`, `ingest_asc.py`, `ingest_osca.py`,
-      `build_anzsco_concordance.py`)
-- [ ] Confirm `.env.example` documents every required var with safe placeholders
+      `build_anzsco_concordance.py`) (2026-07-16 — config default now `./data`,
+      docstring examples use `$DATA_ROOT/...`)
+- [x] Confirm `.env.example` documents every required var with safe placeholders
+      (2026-07-16 — all config vars + the `*_PATH` os.environ-only caveat)
 
 **Framing for a public audience:**
 - [ ] Rewrite `README.md` for the four OSS audiences (contributors,
@@ -137,12 +140,13 @@ regardless of topology.
       run-paths (static mirror / docker full stack / add-a-signal)
 - [ ] Reframe `CLAUDE.md` from consulting-accelerator voice to public project
       context (the data-model invariants are an asset — keep them, re-voice)
-- [ ] `CONTRIBUTING.md` — dev setup, the green gate (black + ruff + mypy
-      `--strict`), test + invariant expectations
+- [x] `CONTRIBUTING.md` — dev setup, the green gate (black + ruff + mypy
+      `--strict`), test + invariant expectations (2026-07-16)
 
 **Hygiene:**
-- [ ] Delete the stray `docs/data-sources.md.txt` (chat-transcript artifact)
-- [ ] Confirm `*.zip` gitignored (done) and no design-tool bundles tracked
+- [x] Delete the stray `docs/data-sources.md.txt` (chat-transcript artifact)
+      (2026-07-16)
+- [x] Confirm `*.zip` gitignored (done) and no design-tool bundles tracked
 
 **Decision already made:** internal working notes (`ai_working/`, design
 handoffs) stay **public** — labelled a development journal, not product docs.
@@ -167,6 +171,7 @@ Either way, the two-repo dance ends and you develop in the open.
 
 ## Related
 
+- `ai_working/release-1.0-backlog.md` — the prioritised first-release backlog (P0–P5)
 - `ai_working/open-source-prep-plan.md` — full licensing analysis + phased plan
 - `docs/data-sources.md` — per-source licence + redistribution classification
 - `docs/REBUILD_RUNBOOK.md` — rebuild the environment + data from scratch

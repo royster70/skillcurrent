@@ -36,7 +36,7 @@ Create `src/backend/.env`:
 ```env
 DATABASE_URL=postgresql+asyncpg://workforce_user:CHANGE_ME_TO_A_REAL_PASSWORD@localhost:5432/workforce_ai
 ONET_VERSION=28.1
-ONET_DATA_PATH=C:\Users\royst\Projects\Data\ONet
+ONET_DATA_PATH=$DATA_ROOT\ONet
 ```
 
 Replace `CHANGE_ME_TO_A_REAL_PASSWORD` with actual credentials. Do not commit `.env` to source control.
@@ -118,7 +118,7 @@ All CLI commands run from `src/backend/`.
 
 **Source**: https://www.onetcenter.org/database.html (O*NET 28.1 Database download)
 
-**Local path**: `C:\Users\royst\Projects\Data\ONet`
+**Local path**: `$DATA_ROOT\ONet`
 
 **Files** (9 tab-delimited .txt files):
 - `Occupation Data.txt`
@@ -133,7 +133,7 @@ All CLI commands run from `src/backend/`.
 
 **Command**:
 ```bash
-python -m scripts.ingest_onet --path "C:\Users\royst\Projects\Data\ONet" --version 28.1
+python -m scripts.ingest_onet --path "$DATA_ROOT\ONet" --version 28.1
 ```
 
 **Expected row counts**:
@@ -168,13 +168,13 @@ UNION ALL SELECT 'onet_emerging_tasks', COUNT(*) FROM onet_emerging_tasks;
 
 **Source**: OpenAI supplementary data, mirrored at https://github.com/EIG-Research/AI-unemployment
 
-**Local path**: `C:\Users\royst\Projects\Data\OpenAI-Exposure-Score`
+**Local path**: `$DATA_ROOT\OpenAI-Exposure-Score`
 
 **Files**: `occ_level.csv`
 
 **Command**:
 ```bash
-python -m scripts.ingest_eloundou --path "C:\Users\royst\Projects\Data\OpenAI-Exposure-Score"
+python -m scripts.ingest_eloundou --path "$DATA_ROOT\OpenAI-Exposure-Score"
 ```
 
 **Expected row counts**:
@@ -195,7 +195,7 @@ SELECT AVG(dv_beta_derived) FROM eloundou_occ_scores;
 
 **Source**: https://github.com/microsoft/working-with-ai (CC-BY 4.0)
 
-**Local path**: `C:\Users\royst\Projects\Data\microsoft-working-with-ai`
+**Local path**: `$DATA_ROOT\microsoft-working-with-ai`
 
 **Files** (6 CSV files):
 - SOC-level applicability scores
@@ -207,7 +207,7 @@ SELECT AVG(dv_beta_derived) FROM eloundou_occ_scores;
 
 **Command**:
 ```bash
-python -m scripts.ingest_microsoft_ai --path "C:\Users\royst\Projects\Data\microsoft-working-with-ai"
+python -m scripts.ingest_microsoft_ai --path "$DATA_ROOT\microsoft-working-with-ai"
 ```
 
 **Expected row counts**:
@@ -234,13 +234,13 @@ UNION ALL SELECT 'ms_ai_physical_tasks', COUNT(*) FROM ms_ai_physical_tasks;
 
 **Source**: https://huggingface.co/datasets/Anthropic/EconomicIndex (CC-BY)
 
-**Local path**: `C:\Users\royst\Projects\Data\AEI`
+**Local path**: `$DATA_ROOT\AEI`
 
 **Files**: `job_exposure.csv`, `task_penetration.csv`
 
 **Command**:
 ```bash
-python -m scripts.ingest_aei --path "C:\Users\royst\Projects\Data\AEI"
+python -m scripts.ingest_aei --path "$DATA_ROOT\AEI"
 ```
 
 **Expected row counts**:
@@ -261,13 +261,13 @@ UNION ALL SELECT 'aei_task_penetration', COUNT(*) FROM aei_task_penetration;
 
 **Source**: https://huggingface.co/datasets/Anthropic/EconomicIndex (CC-BY), all releases
 
-**Local path**: `C:\Users\royst\Projects\Data\AEI\AEI-full`
+**Local path**: `$DATA_ROOT\AEI\AEI-full`
 
 **Structure**: 4 release directories within AEI-full, each containing task-level CSV files with snapshot dates and model era metadata.
 
 **Command**:
 ```bash
-python -m scripts.ingest_aei_temporal --path "C:\Users\royst\Projects\Data\AEI\AEI-full"
+python -m scripts.ingest_aei_temporal --path "$DATA_ROOT\AEI\AEI-full"
 ```
 
 **Expected row counts**:
@@ -289,13 +289,13 @@ GROUP BY release_version, model_era ORDER BY release_version;
 
 **Source**: https://www.bls.gov/oes/current/oes_dl.htm (May 2024 release)
 
-**Local path**: `C:\Users\royst\Projects\Data\BLS\oesm24in4`
+**Local path**: `$DATA_ROOT\BLS\oesm24in4`
 
 **Files**: `natsector_M2024_dl.xlsx`
 
 **Command**:
 ```bash
-python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4"
+python -m scripts.ingest_oews --path "$DATA_ROOT\BLS\oesm24in4"
 ```
 
 **Expected row counts**:
@@ -395,13 +395,13 @@ SELECT COUNT(*) FROM industry_occupation_profiles WHERE eloundou_beta IS NOT NUL
 
 **Source**: https://huggingface.co/datasets/openai/gdpval (MIT license)
 
-**Local path**: `C:\Users\royst\Projects\Data\GDPval`
+**Local path**: `$DATA_ROOT\GDPval`
 
 **Files**: `data/train-00000-of-00001.parquet`
 
 **Command**:
 ```bash
-python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
+python -m scripts.ingest_gdpval --path "$DATA_ROOT\GDPval"
 ```
 
 **Expected row counts**:
@@ -514,7 +514,7 @@ SELECT source_code, target_code, match_type, weight FROM industry_crosswalk ORDE
 
 **Source**: https://www.jobsandskills.gov.au/data/occupation-and-industry-profiles
 
-**Local path**: `C:\Users\royst\Projects\Data\ABS`
+**Local path**: `$DATA_ROOT\ABS`
 
 **Files**: `Occupation profiles data - November 2025 (Revised).xlsx`
 
@@ -545,7 +545,7 @@ GROUP BY anzsic_code, anzsic_title ORDER BY total_emp DESC;
 
 **Source**: Derived from ABS ANZSCO 2022 structure + title index Excel files (no separate download — uses the same data directory as ABS employment). Requires `onet_title_embeddings` to be loaded first.
 
-**Local path**: `C:\Users\royst\Projects\Data\ANZSCO`
+**Local path**: `$DATA_ROOT\ANZSCO`
 
 **Files**:
 - `anzsco 2022 structure 062023.xlsx`
@@ -675,14 +675,14 @@ SELECT anzsic_division_code, count(*) FROM anzsic_subdivisions GROUP BY 1 ORDER 
 
 **Source**: ABS Occupation Standard Classification for Australia (OSCA) 2024 v1.0, released 6 Dec 2024 (CC BY 4.0). Establishes OSCA as the canonical AU occupation entity, replacing the retired ANZSCO (kept as a legacy dual key). See ADR-010 (`ai_working/decisions/ADR-010-anzsco-osca-employment-apportionment.md`) for the design.
 
-**Local path**: `C:\Users\royst\Projects\Data\OSCA`
+**Local path**: `$DATA_ROOT\OSCA`
 
 **Files**: `OSCA structure.xlsx`, `OSCA Category Descriptions.xlsx`, `OSCA correspondence tables v2.xlsx` (the fourth acquired file, the index-of-titles workbook, is not read by this script)
 
 **Command**:
 ```bash
 python -m scripts.ingest_osca
-python -m scripts.ingest_osca --path "C:\Users\royst\Projects\Data\OSCA" --version 2024.1.0
+python -m scripts.ingest_osca --path "$DATA_ROOT\OSCA" --version 2024.1.0
 ```
 
 **Expected row counts**:
@@ -818,14 +818,14 @@ Three steps that **must run in order**: ASC ingest → semantic bridge → AU ta
 
 **Source**: Australian Skills Classification (ASC) v3.0, Jobs and Skills Australia (CC BY 4.0). Acquired via the `runapp-aus/strayr` R package's `.rda` files rather than a direct CSV/Excel download — read with `pyreadr` (declared dependency, `pyreadr>=0.5`).
 
-**Local path**: `C:\Users\royst\Projects\Data\ASC`
+**Local path**: `$DATA_ROOT\ASC`
 
 **Files**: `asc_specialist_tasks.rda`, `asc_core_competencies.rda`, `asc_technology_tools.rda`
 
 **Command**:
 ```bash
 python -m scripts.ingest_asc
-python -m scripts.ingest_asc --path "C:\Users\royst\Projects\Data\ASC" --version 3.0
+python -m scripts.ingest_asc --path "$DATA_ROOT\ASC" --version 3.0
 ```
 
 **Expected row counts**:
@@ -920,14 +920,14 @@ alembic downgrade base
 alembic upgrade head
 
 # Step 1: O*NET (must be first)
-python -m scripts.ingest_onet --path "C:\Users\royst\Projects\Data\ONet" --version 28.1
+python -m scripts.ingest_onet --path "$DATA_ROOT\ONet" --version 28.1
 
 # Step 2: Independent datasets (any order)
-python -m scripts.ingest_eloundou --path "C:\Users\royst\Projects\Data\OpenAI-Exposure-Score"
-python -m scripts.ingest_microsoft_ai --path "C:\Users\royst\Projects\Data\microsoft-working-with-ai"
-python -m scripts.ingest_aei --path "C:\Users\royst\Projects\Data\AEI"
-python -m scripts.ingest_aei_temporal --path "C:\Users\royst\Projects\Data\AEI\AEI-full"
-python -m scripts.ingest_oews --path "C:\Users\royst\Projects\Data\BLS\oesm24in4"
+python -m scripts.ingest_eloundou --path "$DATA_ROOT\OpenAI-Exposure-Score"
+python -m scripts.ingest_microsoft_ai --path "$DATA_ROOT\microsoft-working-with-ai"
+python -m scripts.ingest_aei --path "$DATA_ROOT\AEI"
+python -m scripts.ingest_aei_temporal --path "$DATA_ROOT\AEI\AEI-full"
+python -m scripts.ingest_oews --path "$DATA_ROOT\BLS\oesm24in4"
 
 # Step 3: Derived data (must be after ingestion, in this order)
 python -m scripts.derive_eloundou_dwas
@@ -938,7 +938,7 @@ python -m scripts.compute_industry_profiles
 python -m scripts.embed_titles
 
 # Step 5: GDPval (independent — can run at any point after migrations)
-python -m scripts.ingest_gdpval --path "C:\Users\royst\Projects\Data\GDPval"
+python -m scripts.ingest_gdpval --path "$DATA_ROOT\GDPval"
 
 # Step 5b: Epoch ECI benchmarks (P0a — runtime download, no local file required)
 python -m scripts.ingest_epoch_eci

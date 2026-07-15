@@ -11,7 +11,7 @@ Usage:
     python -m scripts.ingest_abs
 
 Data files:
-    C:/Users/royst/Projects/Data/ABS/Occupation profiles data - November 2025 (Revised).xlsx
+    $DATA_ROOT/ABS/Occupation profiles data - November 2025 (Revised).xlsx
 """
 
 import asyncio

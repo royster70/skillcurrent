@@ -4,7 +4,7 @@ Reads the three ASC layers from `strayr` .rda files.
 
 Usage:
     python -m scripts.ingest_asc
-    python -m scripts.ingest_asc --path "C:/Users/royst/Projects/Data/ASC" --version 3.0
+    python -m scripts.ingest_asc --path "$DATA_ROOT/ASC" --version 3.0
 """
 
 import argparse
