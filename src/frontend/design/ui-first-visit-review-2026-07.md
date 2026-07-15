@@ -4,6 +4,8 @@
 **Lens:** someone seeing SkillCurrent for the first time — readability, calls to action,
 and whether the app teaches what it's actually about before asking the visitor to read it.
 
+**Progress:** items 2, 3, 6, 10, 16 DONE in phase 3.18 (commit a0b6d13) — the quick-wins sitting.
+
 ## What already works (don't touch)
 
 - The landing narrative arc (hero → four beats → tank → eras → chart → courses) is a genuinely
@@ -26,13 +28,13 @@ and whether the app teaches what it's actually about before asking the visitor t
    percentages. Fix: one sentence in the ZoneExplorer honesty footer ("β runs 0–1.5 because…")
    + a line in Methodology. *(ZoneExplorer.tsx footer; MethodologyPage stage 3.)*
 
-2. **The landing sector chart reads in the OPPOSITE direction to the rest of the app.**
+2. ✅ **[DONE 3.18] The landing sector chart reads in the OPPOSITE direction to the rest of the app.**
    `WaterlineBar` (LandingPage) stacks segments E2|E1|E0 — submerged on the LEFT. The Sectors
    page depth bars (phase 3.13), the tank, and every β track read dry→submerged LEFT→RIGHT.
    The very first chart a visitor sees teaches the axis backwards. Fix: flip the landing
    segment order to E0|E1|E2 (keep the fill animation). *(LandingPage.tsx `WaterlineBar`.)*
 
-3. **"FOLLOW THE CURRENT" looks like a button but does nothing.**
+3. ✅ **[DONE 3.18] "FOLLOW THE CURRENT" looks like a button but does nothing.**
    Brass + bold + wave underline is exactly the app's interactive language; clicking it is a
    no-op (it's a scroll cue). Make it scroll smoothly to the first beat (respect
    prefers-reduced-motion). *(LandingPage.tsx hero.)*
@@ -52,7 +54,7 @@ and whether the app teaches what it's actually about before asking the visitor t
 
 ## P2 — CTA and journey gaps
 
-6. **Search suggestion chips don't search.** Clicking "DevOps Engineer" only fills the input
+6. ✅ **[DONE 3.18] Search suggestion chips don't search.** Clicking "DevOps Engineer" only fills the input
    (`setQuery(term)`); the visitor must still hit Enter. Chips should trigger the search.
    *(SearchPage.tsx suggestions.)*
 
@@ -69,7 +71,7 @@ and whether the app teaches what it's actually about before asking the visitor t
    the summary numbers and the story. Move SectorWaterline directly under the metric cards;
    utilities after. *(SectorsPage.tsx section order.)*
 
-10. **"BELOW THRESHOLD" card is unexplained jargon on Sectors.** The other three cards are
+10. ✅ **[DONE 3.18] "BELOW THRESHOLD" card is unexplained jargon on Sectors.** The other three cards are
     zones the landing teaches; this one is Rising-Tide vocabulary with no bridge. Make the
     card click through to `/tide` (it's also the only non-interactive concept on the row).
 
@@ -100,7 +102,7 @@ and whether the app teaches what it's actually about before asking the visitor t
 
 ## P4 — Consistency polish
 
-16. **Waypoint is triplicated at three sizes.** Landing 14px/600 (3.17), TidePage local 11px,
+16. ✅ **[DONE 3.18] Waypoint is triplicated at three sizes.** Landing 14px/600 (3.17), TidePage local 11px,
     SearchPage inline 12px eyebrow. Export one shared `Waypoint` (e.g. `components/current/`)
     and reuse — the 3.17 sizing decision should propagate.
 
