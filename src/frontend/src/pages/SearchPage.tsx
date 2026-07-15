@@ -3,6 +3,7 @@ import { useNavigate } from "react-router-dom";
 import { api, type SearchResult } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, ZONE_LABELS, SIGNAL_COLORS } from "../lib/constants";
 import { CurrentFlow } from "../components/current/CurrentFlow";
+import { Waypoint } from "../components/Waypoint";
 import { DUR, EASE } from "../components/current/motion";
 import { IconCompass, IconTextLines, IconSearch, IconWaterline } from "../components/current/icons";
 
@@ -29,16 +30,18 @@ export function SearchPage() {
   const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
 
-  const handleSearch = async () => {
-    if (query.length < 2) return;
+  // Accepts an explicit term so the suggestion chips can search immediately —
+  // setQuery() is async, so a chip can't set state then read it back this tick.
+  const handleSearch = async (q: string = query) => {
+    if (q.length < 2) return;
     setLoading(true);
     setSearched(true);
     try {
       if (mode === "semantic") {
-        const data = await api.semanticSearch(query, description || undefined);
+        const data = await api.semanticSearch(q, description || undefined);
         setResults(data.results);
       } else {
-        const data = await api.search(query);
+        const data = await api.search(q);
         setResults(data.results);
       }
     } catch {
@@ -55,9 +58,7 @@ export function SearchPage() {
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1000, fontFamily: TYPE.body, color: t.ink }}>
       <div>
-        <div style={{ fontFamily: TYPE.mono, fontSize: 12, letterSpacing: 2, color: t.brass, marginBottom: 4 }}>
-          FIND YOUR ROLE
-        </div>
+        <Waypoint>FIND YOUR ROLE</Waypoint>
         <h1 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>
           Search for a role
         </h1>
@@ -122,7 +123,7 @@ export function SearchPage() {
             }}
           />
           <button
-            onClick={handleSearch}
+            onClick={() => handleSearch()}
             disabled={query.length < 2 || loading}
             style={{
               display: "flex", alignItems: "center", gap: 8,
@@ -200,7 +201,7 @@ export function SearchPage() {
             ].map((term) => (
               <button
                 key={term}
-                onClick={() => setQuery(term)}
+                onClick={() => { setQuery(term); handleSearch(term); }}
                 style={{
                   padding: "6px 14px", fontSize: 13, borderRadius: 20,
                   border: `1px solid ${t.line}`, backgroundColor: t.surface, cursor: "pointer",

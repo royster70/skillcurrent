@@ -19,6 +19,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type DriftTask } from "../lib/api";
 import { MOVEMENT_COLORS, MOVEMENT_LABELS, ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
 import { ZoneLegend } from "../components/ZoneExplorer";
+import { Waypoint } from "../components/Waypoint";
 import { EraTide } from "../components/EraTide";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE, ensureMotionStyles } from "../components/current/motion";
@@ -51,15 +52,7 @@ function erasToLine(t: DriftTask): number | null {
   return (FLIP_THRESHOLD - usageOf(t)) / v;
 }
 
-// ── Small house-style helpers (match the landing's Waypoint/Reveal rhythm) ──
-
-function Waypoint({ children }: { children: ReactNode }) {
-  return (
-    <div style={{ fontFamily: TYPE.mono, fontSize: 11, letterSpacing: 2, color: theme.brass, marginBottom: 6 }}>
-      {children}
-    </div>
-  );
-}
+// ── Small house-style helper (Waypoint is the shared component now) ──
 
 function Reveal({ children, delay = 0 }: { children: ReactNode; delay?: number }) {
   const { ref, shown } = useReveal();

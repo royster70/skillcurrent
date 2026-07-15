@@ -11,6 +11,7 @@ import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
 import { CurrentFlow, BackgroundCurrent, WaveUnderline } from "../components/current/CurrentFlow";
+import { Waypoint } from "../components/Waypoint";
 import { ZoneExplorer } from "../components/ZoneExplorer";
 import { EraTide } from "../components/EraTide";
 import { useReveal } from "../components/current/useReveal";
@@ -38,27 +39,6 @@ function Reveal({ children, delay = 0, style }: { children: ReactNode; delay?: n
   );
 }
 
-// ── Waypoint eyebrow (mono, brass — the page's nautical wayfinding labels) ──
-// Sized to sit just under the hero's "FOLLOW THE CURRENT" CTA (17px/700/3.5):
-// a clear section marker, still subordinate to the one call to action.
-function Waypoint({ children, center }: { children: ReactNode; center?: boolean }) {
-  return (
-    <div
-      style={{
-        fontFamily: TYPE.mono,
-        fontSize: 14,
-        fontWeight: 600,
-        letterSpacing: 2.5,
-        color: t.brass,
-        textAlign: center ? "center" : "left",
-        marginBottom: 8,
-      }}
-    >
-      {children}
-    </div>
-  );
-}
-
 interface Sector {
   naics_code: string;
   naics_title: string;
@@ -72,7 +52,9 @@ interface Sector {
 function WaterlineBar({ s, shown, index }: { s: Sector; shown: boolean; index: number }) {
   const total = Math.max(1, s.workers_e0 + s.workers_e1 + s.workers_e2);
   const pct = (n: number) => (n / total) * 100;
-  // Submerged fills first, then the line, then the dry ground.
+  // Fills left→right, dry to submerged — the same axis every other view reads
+  // on (E0 insulated → E2 automated). `order` staggers the reveal in that
+  // direction so the bar builds the way the eye scans it.
   const seg = (n: number, order: number): CSSProperties => ({
     width: shown ? `${pct(n)}%` : "0%",
     transition: `width ${DUR.rise}ms ${EASE} ${index * 60 + order * 120}ms`,
@@ -96,9 +78,9 @@ function WaterlineBar({ s, shown, index }: { s: Sector; shown: boolean; index: n
         {s.naics_title}
       </div>
       <div style={{ flex: 1, minWidth: 60, display: "flex", height: 26, borderRadius: 4, overflow: "hidden", border: `1px solid ${t.line}` }}>
-        <div style={{ background: ZONE_COLORS.E2, ...seg(s.workers_e2, 0) }} title={`${ZONE_LABELS.E2} (automated)`} />
+        <div style={{ background: ZONE_COLORS.E0, ...seg(s.workers_e0, 0) }} title={`${ZONE_LABELS.E0} (insulated)`} />
         <div style={{ background: ZONE_COLORS.E1, ...seg(s.workers_e1, 1) }} title={`${ZONE_LABELS.E1} (augmented)`} />
-        <div style={{ background: ZONE_COLORS.E0, ...seg(s.workers_e0, 2) }} title={`${ZONE_LABELS.E0} (insulated)`} />
+        <div style={{ background: ZONE_COLORS.E2, ...seg(s.workers_e2, 2) }} title={`${ZONE_LABELS.E2} (automated)`} />
       </div>
       <div style={{ width: 52, fontFamily: TYPE.mono, fontSize: 13, color: t.inkMuted, fontVariantNumeric: "tabular-nums" }}>
         β{(s.avg_eloundou_beta ?? 0).toFixed(2)}
@@ -218,19 +200,30 @@ export function LandingPage() {
               AI capability is rising like a waterline across the work we do. See where
               it sits today, where it's heading — and the skills that keep you above it.
             </p>
-            <div style={{ marginTop: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 12 }}>
-              <div style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
+            <button
+              onClick={() =>
+                document.getElementById("the-current")?.scrollIntoView({
+                  behavior: prefersReducedMotion() ? "auto" : "smooth",
+                  block: "start",
+                })
+              }
+              style={{
+                marginTop: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+                background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit",
+              }}
+            >
+              <span style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
                 <span style={{ color: t.brass, fontSize: 17, fontWeight: 700, fontFamily: TYPE.mono, letterSpacing: 3.5 }}>
                   FOLLOW THE CURRENT
                 </span>
                 <WaveUnderline color={t.brass} />
-              </div>
+              </span>
               <span aria-hidden="true" style={{ color: t.inkMuted, fontSize: 15, opacity: 0.6 }}>⌄</span>
-            </div>
+            </button>
           </section>
 
           {/* ── Narrative beats — float on the current, don't interrupt it ── */}
-          <section style={{ maxWidth: 720, margin: "0 auto", padding: "20px 32px 60px" }}>
+          <section id="the-current" style={{ maxWidth: 720, margin: "0 auto", padding: "20px 32px 60px", scrollMarginTop: 24 }}>
             {BEATS.map((beat, i) => (
               <Reveal key={i} delay={i * 60}>
                 <div style={{ padding: "56px 0", textAlign: "center" }}>
@@ -327,9 +320,9 @@ export function LandingPage() {
             {sectors.map((s, i) => (
               <WaterlineBar key={s.naics_code} s={s} shown={chart.shown} index={i} />
             ))}
-            {/* Legend */}
+            {/* Legend — dry → submerged, matching the bars' left→right order */}
             <div style={{ display: "flex", gap: 18, marginTop: 14, fontSize: 12.5, color: t.inkMuted }}>
-              {(["E2", "E1", "E0"] as const).map((z) => (
+              {(["E0", "E1", "E2"] as const).map((z) => (
                 <span key={z} style={{ display: "flex", alignItems: "center", gap: 6 }}>
                   <span style={{ width: 11, height: 11, borderRadius: 2, background: ZONE_COLORS[z] }} />
                   {ZONE_LABELS[z]}

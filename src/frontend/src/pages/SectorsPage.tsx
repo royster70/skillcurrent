@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
@@ -69,9 +69,13 @@ export function SectorsPage() {
           subtitle={`workers in ${totalE1} occupations with Beta 0.40–0.85`} color={ZONE_COLORS.E1} />
         <MetricCard label="AUTOMATED (E2)" value={fmtEmp(workersE2)}
           subtitle={`workers in ${totalE2} occupations with Beta ≥ 0.85`} color={ZONE_COLORS.E2} />
-        <MetricCard label="BELOW THRESHOLD" value={String(drift?.below_threshold || 0)}
-          subtitle="Tasks approaching zone flip" color={ZONE_COLORS.alert}
-          bgColor={ZONE_BG.alert} borderColor={`${ZONE_COLORS.alert}40`} />
+        {/* Unlike the three zone cards, this is Rising-Tide vocabulary — so it
+            links there (and uses that page's own label, not raw jargon). */}
+        <Link to="/tide" title="See these tasks on Rising Tide →" style={{ flex: 1, display: "flex", textDecoration: "none" }}>
+          <MetricCard label="AT THE WATERLINE" value={String(drift?.below_threshold || 0)}
+            subtitle="the next tasks to flip zones →" color={ZONE_COLORS.alert}
+            bgColor={ZONE_BG.alert} borderColor={`${ZONE_COLORS.alert}40`} />
+        </Link>
       </div>
 
       {/* Company lookup — auto-selects sectors */}
