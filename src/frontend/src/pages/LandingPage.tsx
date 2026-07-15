@@ -16,7 +16,7 @@ import { ZoneExplorer } from "../components/ZoneExplorer";
 import { EraTide } from "../components/EraTide";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE, prefersReducedMotion } from "../components/current/motion";
-import { IconOccupations, IconAnchor, IconSources } from "../components/current/icons";
+import { IconSearch, IconSectors, IconTide } from "../components/current/icons";
 import type { ComponentType, SVGProps } from "react";
 
 const t = THEME.light;
@@ -89,24 +89,28 @@ function WaterlineBar({ s, shown, index }: { s: Sector; shown: boolean; index: n
   );
 }
 
+// The three currents = the three questions a first-time visitor actually
+// arrives with (my role · my industry · where it's heading). This makes
+// "Three currents to follow" literal, and answers the reader's own question
+// before pointing at the documentation (which moves to a quiet link row below).
 const PATHS: { to: string; Icon: ComponentType<SVGProps<SVGSVGElement> & { size?: number }>; title: string; blurb: string }[] = [
   {
-    to: "/occupations",
-    Icon: IconOccupations,
-    title: "Explore skills",
-    blurb: "Find the high ground — the skills that stay above the line.",
+    to: "/search",
+    Icon: IconSearch,
+    title: "Find your role",
+    blurb: "Search 66,500+ job titles and see where yours sits on the scale.",
   },
   {
-    to: "/methodology",
-    Icon: IconAnchor,
-    title: "How this works",
-    blurb: "From public data to a single, honest exposure signal.",
+    to: "/sectors",
+    Icon: IconSectors,
+    title: "Scan your sector",
+    blurb: "See which industries sit deepest — and which are still on dry ground.",
   },
   {
-    to: "/sources",
-    Icon: IconSources,
-    title: "What's the data",
-    blurb: "Every signal, its vintage and licence — open by design.",
+    to: "/tide",
+    Icon: IconTide,
+    title: "Watch the tide",
+    blurb: "Which tasks are rising fastest, era over era — the reading this site is named for.",
   },
 ];
 
@@ -345,6 +349,9 @@ export function LandingPage() {
           <div style={{ textAlign: "center", fontFamily: TYPE.display, fontSize: 24, fontWeight: 600, marginBottom: 4 }}>
             Three currents to follow
           </div>
+          <div style={{ textAlign: "center", fontSize: 14.5, color: t.inkMuted, marginBottom: 8, maxWidth: 540, marginLeft: "auto", marginRight: "auto", lineHeight: 1.5 }}>
+            Three ways to read the water — start wherever your question is.
+          </div>
           <div style={{ textAlign: "center", marginBottom: 8 }}>
             <CurrentFlow direction="right" length={200} breadth={54} strokes={3} opacity={0.3} bearing={pathsBearing} />
           </div>
@@ -384,6 +391,15 @@ export function LandingPage() {
                 </div>
               </Link>
             ))}
+          </div>
+
+          {/* Secondary — the "understand" audience (how it's built, what's in
+              the data). Kept quiet so it doesn't compete with the three currents. */}
+          <div style={{ textAlign: "center", marginTop: 22, fontSize: 13.5, color: t.inkMuted }}>
+            New here?{" "}
+            <Link to="/methodology" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>How it works</Link>
+            {" · "}
+            <Link to="/sources" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>the data behind it</Link>
           </div>
         </Reveal>
       </section>
