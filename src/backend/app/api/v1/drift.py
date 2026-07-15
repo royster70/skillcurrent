@@ -5,6 +5,7 @@ from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
 from app.api.v1.schemas import DriftListResponse, DriftSummaryResponse, DriftTaskSummary
+from app.api.v1.soc_groups import families_for_soc_codes
 from app.db.session import get_db
 
 router = APIRouter(prefix="/drift", tags=["drift"])
@@ -108,10 +109,8 @@ async def _get_drift_tasks(
     )
     total = count_r.scalar() or 0
 
-    order = (
-        "velocity DESC"
-        if classification in ("departing", "below_threshold")
-        else "latest_task_pct DESC"
+    order_col = (
+        "velocity" if classification in ("departing", "below_threshold") else "latest_task_pct"
     )
 
     r = await db.execute(
@@ -122,12 +121,15 @@ async def _get_drift_tasks(
         FROM task_drift_metrics
         WHERE classification = :classification
           AND snapshot_count >= :min_snapshots
-        ORDER BY {order}
+        ORDER BY {order_col} DESC
         LIMIT :limit OFFSET :offset
     """
         ),
         params,
     )
+    rows = r.fetchall()
+
+    families_by_text = await _families_by_task_text(db, [row[0] for row in rows])
 
     tasks = [
         DriftTaskSummary(
@@ -138,8 +140,41 @@ async def _get_drift_tasks(
             peak_task_pct=round(row[4], 4) if row[4] else None,
             classification=row[5],
             snapshot_count=row[6],
+            families=families_by_text.get((row[0] or "").lower()),
         )
-        for row in r.fetchall()
+        for row in rows
     ]
 
     return DriftListResponse(tasks=tasks, total=total, page=page, page_size=page_size)
+
+
+async def _families_by_task_text(db: AsyncSession, task_texts: list[str]) -> dict[str, list[str]]:
+    """Map each task_text (lowercased) to its SOC major-group names.
+
+    The AEI drift task text IS its O*NET task text (case-insensitively;
+    task_drift_metrics stores it lowercased). `aei_task_snapshots.onet_soc_codes`
+    is unpopulated in the loaded data, so O*NET's own task → onet_soc is the live
+    bridge — ~83% of drift tasks match. One grouped scan for the whole page (not
+    a per-row correlated subquery), merged in Python; there is no functional
+    index on lower(task), so a single pass is the cheap shape.
+    """
+    texts = [t.lower() for t in task_texts if t]
+    if not texts:
+        return {}
+    r = await db.execute(
+        text(
+            """
+        SELECT lower(o.task) AS lt, ARRAY_AGG(DISTINCT LEFT(o.onet_soc, 2)) AS codes
+        FROM onet_task_statements o
+        WHERE lower(o.task) = ANY(:texts)
+        GROUP BY lower(o.task)
+    """
+        ),
+        {"texts": texts},
+    )
+    out: dict[str, list[str]] = {}
+    for lt, codes in r.fetchall():
+        fam = families_for_soc_codes(codes)
+        if fam:
+            out[lt] = fam
+    return out

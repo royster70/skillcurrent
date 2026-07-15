@@ -219,6 +219,10 @@ class DriftTaskSummary(BaseModel):
     peak_task_pct: float | None = None
     classification: str | None = None
     snapshot_count: int | None = None
+    # SOC major-group names this task rolls up to (AEI task → onet_soc_codes →
+    # major group). Many-to-many + imperfect text match; None when the task has
+    # no SOC linkage (reads as "unassigned" on the Rising Tide family grouping).
+    families: list[str] | None = None
 
 
 class DriftSummaryResponse(BaseModel):
