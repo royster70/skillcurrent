@@ -5,6 +5,7 @@
 and whether the app teaches what it's actually about before asking the visitor to read it.
 
 **Progress:** items 2, 3, 6, 10, 16 DONE in phase 3.18 (commit a0b6d13) — the quick-wins sitting.
+Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
 
 ## What already works (don't touch)
 
@@ -39,7 +40,7 @@ and whether the app teaches what it's actually about before asking the visitor t
    no-op (it's a scroll cue). Make it scroll smoothly to the first beat (respect
    prefers-reduced-motion). *(LandingPage.tsx hero.)*
 
-4. **"CHOOSE YOUR COURSE" skips the product's core views — and the visitor's actual question.**
+4. ✅ **[DONE 3.19] "CHOOSE YOUR COURSE" skips the product's core views — and the visitor's actual question.**
    The three courses are Occupations + two documentation pages. Missing: Role Search ("what
    about MY job?" — the single most likely first-visit intent), Sectors, and Rising Tide (the
    namesake). Rebalance to: Find your role · Explore sectors · Rising tide · How this works.
