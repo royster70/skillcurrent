@@ -78,7 +78,7 @@ Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
 
 ## P3 — Education and honesty
 
-11. **EraTide presents representative data as measured.** The era levels/gaps are curated
+11. ✅ **[DONE — eratide-waterline] EraTide presents representative data as measured.** The era levels/gaps are curated
     (real per-era series is a backend follow-on), but nothing on the chart says so — the app's
     honesty rule applied everywhere else. Add a small "representative curve — measured series
     coming from Epoch ECI" caption. *(EraTide.tsx, both variants.)*

@@ -300,6 +300,32 @@ export interface GDPvalSummaryResponse {
   occupations: GDPvalOccupationSummary[];
 }
 
+// ── Capability waterline (Epoch AI ECI, /gdpval/waterline) ──
+
+export interface WaterlineEraScore {
+  model_era: string;
+  avg_score: number;
+  benchmark_count: number;
+  measurement_date: string | null;
+}
+
+export interface WaterlineBenchmark {
+  benchmark: string;
+  is_math: boolean | null;
+  is_coding: boolean | null;
+  eras: WaterlineEraScore[];
+  velocity: number | null;
+}
+
+export interface WaterlineResponse {
+  total_eras: number;
+  total_benchmarks: number;
+  eras_in_order: string[];
+  by_benchmark: WaterlineBenchmark[];
+  overall_velocity: number | null;
+  source: string;
+}
+
 // ── Composite Sector ──
 
 export interface CompositeOccupation {
@@ -409,6 +435,7 @@ export const api = {
   driftEnduring: (page = 1, size = 20) => get<DriftListResponse>(`/drift/enduring?page=${page}&page_size=${size}`),
   gdpvalSummary: () => get<GDPvalSummaryResponse>("/gdpval/summary"),
   gdpvalOccupation: (soc: string) => get<GDPvalOccupationResponse>(`/gdpval/occupations/${soc}`),
+  waterline: () => get<WaterlineResponse>("/gdpval/waterline"),
   compositeAnalysis: (codes: string[], region = "US", company?: string) =>
     get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}${company ? `&company=${encodeURIComponent(company)}` : ""}`),
   sectorSubdivisions: (code: string) => get<SubdivisionEntry[]>(`/sectors/${code}/subdivisions`),
