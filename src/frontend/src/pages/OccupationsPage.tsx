@@ -5,6 +5,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type GDPvalTaskDetail } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
 import { TaskWaterline } from "../components/TaskMatrix";
+import { BearingsPanel } from "../components/BearingsPanel";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { GDPvalBenchmarkPanel } from "../components/GDPvalBenchmarkPanel";
 import { AEITaskDetailPanel } from "../components/AEITaskDetailPanel";
@@ -318,6 +319,9 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           onRequestGdpval={loadGdpvalTasks}
         />
       )}
+
+      {/* Your bearings — the action layer: high ground, direction, tooling */}
+      {matrixData && <BearingsPanel soc={soc} matrixData={matrixData} />}
 
       {/* Description (if available) */}
       {occ.description && (

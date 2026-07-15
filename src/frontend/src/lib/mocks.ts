@@ -381,6 +381,40 @@ const gdpvalSummary = {
   ],
 };
 
+// Bearings — real live-endpoint output for Software Developers (trimmed), so
+// the preview mirrors production shape: dry DWA skills + drier adjacent roles.
+function occBearings(soc: string) {
+  return {
+    soc_code: soc,
+    title: OCC_TITLES[soc] ?? "Occupation",
+    source_beta: 1.2237,
+    high_ground: [
+      { dwa_id: "4.A.2.b.2-01", dwa_title: "Analyze project data to determine specifications or requirements.", beta: 0.31, importance_weight: 0.062 },
+      { dwa_id: "4.A.3.b.1-02", dwa_title: "Supervise information technology personnel.", beta: 0.28, importance_weight: 0.051 },
+      { dwa_id: "4.A.4.a.2-11", dwa_title: "Collaborate with others to determine design specifications.", beta: 0.33, importance_weight: 0.048 },
+      { dwa_id: "4.A.4.b.4-05", dwa_title: "Communicate project information to others.", beta: 0.26, importance_weight: 0.041 },
+      { dwa_id: "4.A.2.b.1-07", dwa_title: "Manage information technology projects or system activities.", beta: 0.35, importance_weight: 0.038 },
+    ],
+    adjacent: [
+      {
+        soc_code: "15-1299.09", title: "Information Technology Project Managers", beta: 0.43, drier_by: 0.8,
+        shared_count: 4, shared_titles: ["Manage information technology projects or system activities.", "Supervise information technology personnel.", "Collaborate with others to resolve information technology issues."],
+        total_employment: 437000, score: 0.26,
+      },
+      {
+        soc_code: "15-1255.01", title: "Video Game Designers", beta: 0.67, drier_by: 0.56,
+        shared_count: 5, shared_titles: ["Collaborate with others to determine design specifications.", "Communicate project information to others.", "Manage information technology projects or system activities."],
+        total_employment: 111000, score: 0.22,
+      },
+      {
+        soc_code: "15-1299.02", title: "Geographic Information Systems Technologists", beta: 0.48, drier_by: 0.74,
+        shared_count: 5, shared_titles: ["Provide technical support for software maintenance or use.", "Design software applications.", "Prepare data for analysis."],
+        total_employment: 437000, score: 0.17,
+      },
+    ],
+  };
+}
+
 // ── Router: base path → fixture. Most fixtures ignore the query string; a few
 // (region-sensitive endpoints) read it — see the special cases below. ──
 
@@ -408,9 +442,11 @@ export function mockResponse(path: string): unknown | undefined {
   }
 
   // Per-SOC occupation routes (checked before the static TABLE catches the
-  // literal /occupations/hierarchy above). Matrix must match before detail.
+  // literal /occupations/hierarchy above). Sub-routes must match before detail.
   const matrixMatch = base.match(/^\/occupations\/([^/]+)\/matrix$/);
   if (matrixMatch) return occMatrix(matrixMatch[1]);
+  const bearingsMatch = base.match(/^\/occupations\/([^/]+)\/bearings$/);
+  if (bearingsMatch) return occBearings(bearingsMatch[1]);
   const detailMatch = base.match(/^\/occupations\/([^/]+)$/);
   if (detailMatch && detailMatch[1] !== "hierarchy") return occDetail(detailMatch[1]);
 

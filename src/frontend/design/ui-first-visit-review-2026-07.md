@@ -59,7 +59,7 @@ Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
    (`setQuery(term)`); the visitor must still hit Enter. Chips should trigger the search.
    *(SearchPage.tsx suggestions.)*
 
-7. **The occupation detail is a dead end.** Richest page in the app, no onward links: the
+7. **The occupation detail is a dead end.** *(Substantially addressed by the BearingsPanel — adjacent-role links + tide cross-link; remaining: sector links on the employment bars, item 20.)* Richest page in the app, no onward links: the
    employment-by-sector bars aren't clickable (→ `/sectors/:code`), and there's no "see how
    these tasks are moving → /tide" cross-link. Every EXPLORE page should hand off somewhere.
 

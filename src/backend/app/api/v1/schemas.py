@@ -244,6 +244,35 @@ class DriftListResponse(BaseModel):
     page_size: int
 
 
+# ── Bearings (high ground + direction) ──
+
+
+class HighGroundSkill(BaseModel):
+    dwa_id: str
+    dwa_title: str
+    beta: float
+    importance_weight: float | None = None
+
+
+class AdjacentRole(BaseModel):
+    soc_code: str
+    title: str
+    beta: float
+    drier_by: float  # source β − target β (always > 0 by construction)
+    shared_count: int
+    shared_titles: list[str]  # the bridge skills — top shared dry DWAs
+    total_employment: float | None = None
+    score: float  # shared_importance × drier_by — transparent, not blended
+
+
+class BearingsResponse(BaseModel):
+    soc_code: str
+    title: str
+    source_beta: float | None = None
+    high_ground: list[HighGroundSkill]
+    adjacent: list[AdjacentRole]
+
+
 # ── GDPval Benchmarks ──
 
 
