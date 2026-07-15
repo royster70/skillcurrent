@@ -266,21 +266,26 @@ async def get_occupation(
     if beta is not None:
         zone = "E2" if beta >= 0.85 else ("E1" if beta >= 0.40 else "E0")
 
-    # Drift (aggregate from task_drift_metrics via AEI task matching)
+    # Drift (aggregate from task_drift_metrics via O*NET's own task -> SOC bridge).
+    # `aei_task_snapshots.onet_soc_codes` is 100% NULL in the loaded data, so an
+    # EXISTS on that array always failed and both drift fields returned None for
+    # every occupation. The live bridge is O*NET's task text: task_drift_metrics
+    # .task_text is the O*NET task text (lowercased) and onet_task_statements
+    # carries onet_soc. Same pattern as drift._families_by_task_text.
     r = await db.execute(
         text(
             """
-        SELECT AVG(velocity), MODE() WITHIN GROUP (ORDER BY classification)
+        SELECT AVG(tdm.velocity), MODE() WITHIN GROUP (ORDER BY tdm.classification)
         FROM task_drift_metrics tdm
-        WHERE velocity IS NOT NULL
+        WHERE tdm.velocity IS NOT NULL
           AND EXISTS (
-              SELECT 1 FROM aei_task_snapshots ats
-              WHERE ats.task_text = tdm.task_text
-                AND ats.onet_soc_codes @> ARRAY[:soc]
+              SELECT 1 FROM onet_task_statements o
+              WHERE lower(o.task) = lower(tdm.task_text)
+                AND o.onet_soc LIKE :soc_6 || '%'
           )
     """
         ),
-        {"soc": soc_6},
+        {"soc_6": soc_6},
     )
     drift_row = r.fetchone()
 
@@ -387,7 +392,7 @@ async def get_occupation(
         dominant_zone=zone,
         total_employment=total_emp,
         top_sectors=sectors,
-        drift_velocity=round(drift_row[0], 6) if drift_row and drift_row[0] else None,
+        drift_velocity=round(drift_row[0], 6) if drift_row and drift_row[0] is not None else None,
         drift_classification=drift_row[1] if drift_row else None,
         # Percentile context
         eloundou_percentile=round(pct_row[0] * 100) if pct_row and pct_row[0] is not None else None,

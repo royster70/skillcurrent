@@ -201,6 +201,42 @@ async def _insert_snapshot(
     return total
 
 
+# Bridge SQL: populate the (otherwise NULL) onet_soc_codes array from O*NET's own
+# task -> SOC mapping. The AEI source carries only task_text (the O*NET task
+# description), never a SOC column, so the array must be materialised here. Codes
+# are stored 6-digit (LEFT(onet_soc, 7), e.g. "15-1252") to match the consumers:
+# occupations.py's drift join and industry_profiles.py's `@> ARRAY[...]` lateral
+# joins both key on 6-digit SOC. Only fills NULLs, so it never overwrites an
+# already-ingested measurement (AEI-immutability invariant). Kept identical to the
+# one-time backfill in migration 033.
+_POPULATE_ONET_SOC_CODES_SQL = text(
+    """
+    UPDATE aei_task_snapshots ats
+    SET onet_soc_codes = sub.codes
+    FROM (
+        SELECT lower(task) AS lt,
+               array_agg(DISTINCT left(onet_soc, 7)) AS codes
+        FROM onet_task_statements
+        WHERE task IS NOT NULL AND onet_soc IS NOT NULL
+        GROUP BY lower(task)
+    ) sub
+    WHERE lower(ats.task_text) = sub.lt
+      AND ats.onet_soc_codes IS NULL
+    """
+)
+
+
+async def _populate_onet_soc_codes(session: AsyncSession) -> int:
+    """Materialise onet_soc_codes on freshly-inserted snapshots via the O*NET bridge.
+
+    Returns the number of snapshot rows populated. Rows whose task_text has no
+    matching O*NET task (~17% per the drift bridge) stay NULL, which is correct.
+    """
+    result = await session.execute(_POPULATE_ONET_SOC_CODES_SQL)
+    # rowcount lives on the underlying CursorResult; Result[Any] doesn't type it.
+    return int(getattr(result, "rowcount", 0) or 0)
+
+
 async def ingest_aei_temporal(
     session: AsyncSession,
     data_path: str,
@@ -329,6 +365,13 @@ async def ingest_aei_temporal(
     counts["2026-01-15_1p_api"] = r4_api_count
     total_rows += r4_api_count
     logger.info("  1P API: %d tasks", r4_api_count)
+
+    # ── Materialise onet_soc_codes via the O*NET task -> SOC bridge ──
+    # The array column is the intended (indexed, GIN) key for `@> ARRAY[soc]`
+    # containment queries in industry_profiles.py; without this it stays NULL
+    # and those aggregates silently return nothing.
+    populated = await _populate_onet_soc_codes(session)
+    logger.info("  onet_soc_codes populated on %d snapshot rows", populated)
 
     # ── Register dataset version (ADR-002) ──
     # Use the hash computed at the start of the function (early_hash)

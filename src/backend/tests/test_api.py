@@ -207,6 +207,16 @@ class TestOccupations:
         assert data["dominant_zone"] in ("E0", "E1", "E2")
         assert data["top_sectors"] is not None
         assert len(data["top_sectors"]) > 0
+        # Drift comes from the O*NET task -> SOC bridge, NOT the unpopulated
+        # aei_task_snapshots.onet_soc_codes array (which is 100% NULL and made
+        # both fields silently None for every occupation). Guard the regression.
+        assert data["drift_velocity"] is not None
+        assert data["drift_classification"] in (
+            "departing",
+            "enduring",
+            "emerging",
+            "below_threshold",
+        )
 
     @pytest.mark.asyncio
     async def test_get_occupation_by_6digit(self, client):
