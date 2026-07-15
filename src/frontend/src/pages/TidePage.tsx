@@ -19,6 +19,7 @@ import { useApi } from "../hooks/useApi";
 import { api, type DriftTask } from "../lib/api";
 import { MOVEMENT_COLORS, MOVEMENT_LABELS, ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
 import { ZoneLegend } from "../components/ZoneExplorer";
+import { EraTide } from "../components/EraTide";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE, ensureMotionStyles } from "../components/current/motion";
 
@@ -394,6 +395,16 @@ export function TidePage() {
       </div>
 
       <ZoneLegend />
+
+      {/* Era reminder — the "+X pts/era" pace below is measured between these
+          model generations; the tide steps up with each one. */}
+      <div style={{ background: theme.surface, border: `1px solid ${theme.line}`, borderRadius: 10, padding: "12px 16px" }}>
+        <div style={{ fontSize: 12, color: theme.inkMuted, marginBottom: 6, lineHeight: 1.4 }}>
+          <strong style={{ color: theme.brass }}>An era is a model generation.</strong> Pace below is measured
+          between them — how much a task's AI-usage share climbs from one era to the next.
+        </div>
+        <EraTide compact />
+      </div>
 
       {/* Stat row — the tiles ARE the navigation: click one to focus the list */}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>

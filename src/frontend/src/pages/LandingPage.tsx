@@ -12,6 +12,7 @@ import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
 import { CurrentFlow, BackgroundCurrent, WaveUnderline } from "../components/current/CurrentFlow";
 import { ZoneExplorer } from "../components/ZoneExplorer";
+import { EraTide } from "../components/EraTide";
 import { useReveal } from "../components/current/useReveal";
 import { DUR, EASE, prefersReducedMotion } from "../components/current/motion";
 import { IconOccupations, IconAnchor, IconSources } from "../components/current/icons";
@@ -274,6 +275,31 @@ export function LandingPage() {
           at the line, or submerged. Drag the handle and try it.
         </p>
         <ZoneExplorer />
+      </section>
+
+      {/* ── THE TIDE OVER TIME: the temporal dimension — what an "era" is and
+          why the waterline keeps climbing. The spatial views (tank, sectors)
+          show one frame; this shows the motion between frames. ── */}
+      <section style={{ maxWidth: 900, margin: "0 auto", padding: "12px 32px 48px" }}>
+        <Reveal>
+          <Waypoint>THE TIDE OVER TIME</Waypoint>
+          <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px" }}>
+            Why the waterline keeps rising
+          </h2>
+          <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0, marginBottom: 18 }}>
+            An <strong style={{ color: t.brass }}>era</strong> is a model generation — GPT-3.5, GPT-4,
+            Claude 3.5, Claude 4. Each one lifts the waterline: work that sat safely above it slips under.
+            That rising is the current these pages measure — and it doesn't run backward.
+          </p>
+          <div style={{ background: t.surface, border: `1px solid ${t.line}`, borderRadius: 10, padding: "18px 20px 14px" }}>
+            <EraTide />
+          </div>
+          <div style={{ marginTop: 12 }}>
+            <Link to="/tide" style={{ color: t.brass, fontSize: 14, fontWeight: 600, textDecoration: "none" }}>
+              See which tasks are rising now, era over era →
+            </Link>
+          </div>
+        </Reveal>
       </section>
 
       {/* ── The live waterline chart ── */}
