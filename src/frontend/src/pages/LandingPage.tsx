@@ -39,16 +39,19 @@ function Reveal({ children, delay = 0, style }: { children: ReactNode; delay?: n
 }
 
 // ── Waypoint eyebrow (mono, brass — the page's nautical wayfinding labels) ──
+// Sized to sit just under the hero's "FOLLOW THE CURRENT" CTA (17px/700/3.5):
+// a clear section marker, still subordinate to the one call to action.
 function Waypoint({ children, center }: { children: ReactNode; center?: boolean }) {
   return (
     <div
       style={{
         fontFamily: TYPE.mono,
-        fontSize: 12,
-        letterSpacing: 2,
+        fontSize: 14,
+        fontWeight: 600,
+        letterSpacing: 2.5,
         color: t.brass,
         textAlign: center ? "center" : "left",
-        marginBottom: 6,
+        marginBottom: 8,
       }}
     >
       {children}
