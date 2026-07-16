@@ -14,7 +14,30 @@
 
 AI capability is rising like a waterline across the work we do — not evenly, and not all at once. SkillCurrent reads where that line sits today, where it's heading, and which skills stay above it — at the level of individual **tasks**, not whole jobs. It combines the O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI-applicability data (Microsoft, Anthropic), and government employment statistics into workforce-planning intelligence.
 
-**Core insight**: AI capability follows a compounding, directional trajectory — a rising waterline across task landscapes. The platform tracks where the waterline sits today and where it's heading.
+## How to read it
+
+A **current** is something you read and navigate — read it well, and it carries you forward. SkillCurrent measures where AI capability sits across the work we do, task by task, so you can read the waterline and choose your course.
+
+[![Read the scale — every task gets a reading](docs/images/skillcurrent-read-the-scale.png)](https://royster70.github.io/skillcurrent/#read-the-scale)
+
+Three things to know, then [read it yourself](https://royster70.github.io/skillcurrent/#read-the-scale):
+
+1. **A job is a bundle of tasks.** AI doesn't take jobs whole — it reaches the tasks inside them, one by one. Some sink early; others barely feel it. So the unit of measure is the *task*, not the job.
+2. **Two questions make the reading.** Could today's AI meaningfully do this task by itself? Could it with purpose-built tools on top? A task can score on both — which is why the exposure reading, **β** (beta), runs 0 to 1.5, not 0 to 1:
+   > `β = E1 + 0.5·E2` — direct AI exposure (E1) plus half-weighted tool-assisted exposure (E2). From the Eloundou et al. 2024 task-exposure study ("GPTs are GPTs"), cross-checked against measured AI usage from Microsoft and Anthropic.
+3. **The reading is a depth.** Low readings hold the high ground; high readings sit deeper. The waterline is today's AI capability — one tide, every job.
+
+Each task's β sorts it into one of three **zones** — above the line, at it, or below:
+
+| Zone | β range | What it means | What to do |
+|------|---------|---------------|------------|
+| 🟠 **E0 — Insulated** *(dry)* | β < 0.40 | Human-only work | Preserve and invest in these distinctly human skills |
+| 🔵 **E1 — Augmented** *(at the line)* | 0.40 – 0.85 | AI assists, human leads | Upskill people to work alongside AI on the routine parts |
+| 🟢 **E2 — Automated** *(submerged)* | β ≥ 0.85 | AI performs, human validates | Redesign the role around oversight and exceptions |
+
+**Why the waterline keeps rising.** An *era* is a model generation — and they now arrive in months, not decades. Each new frontier model lifts the waterline, and work that sat safely above it slips under. That's the current these pages measure — rising an order of magnitude faster than past technological shifts, and never backward. → [See which tasks are rising, era over era](https://royster70.github.io/skillcurrent/tide).
+
+> The skills that stay dry — judgment, care, direction — are the high ground. That's where you're headed.
 
 ## Who this is for
 
