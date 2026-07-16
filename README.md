@@ -1,12 +1,18 @@
 # SkillCurrent
 
-<!-- Badges resolve once the public repo (royster70/skillcurrent) is live with CI + Pages;
-     add the Pages badge/link after the first deploy. -->
+*Open intelligence for the changing world of work.*
+
+[![Live demo](https://img.shields.io/badge/live%20demo-royster70.github.io%2Fskillcurrent-C2410C.svg)](https://royster70.github.io/skillcurrent/)
 [![CI](https://github.com/royster70/skillcurrent/actions/workflows/ci.yml/badge.svg)](https://github.com/royster70/skillcurrent/actions/workflows/ci.yml)
+[![Deploy static site](https://github.com/royster70/skillcurrent/actions/workflows/deploy-static.yml/badge.svg)](https://github.com/royster70/skillcurrent/actions/workflows/deploy-static.yml)
 [![Code licence: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
 [![Data licence: CC BY 4.0](https://img.shields.io/badge/data-CC%20BY%204.0-brightgreen.svg)](DATA_LICENSE)
 
-Analyses how AI reshapes work at the task level. Combines O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI applicability data (Microsoft, Anthropic), and government employment statistics to produce workforce planning intelligence.
+**[▶ Explore the live site →](https://royster70.github.io/skillcurrent/)** — the full dashboard runs in your browser, no install and no backend.
+
+[![SkillCurrent — the waterline across sectors](docs/images/skillcurrent-hero.png)](https://royster70.github.io/skillcurrent/)
+
+AI capability is rising like a waterline across the work we do — not evenly, and not all at once. SkillCurrent reads where that line sits today, where it's heading, and which skills stay above it — at the level of individual **tasks**, not whole jobs. It combines the O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI-applicability data (Microsoft, Anthropic), and government employment statistics into workforce-planning intelligence.
 
 **Core insight**: AI capability follows a compounding, directional trajectory — a rising waterline across task landscapes. The platform tracks where the waterline sits today and where it's heading.
 
@@ -15,7 +21,7 @@ Analyses how AI reshapes work at the task level. Combines O\*NET occupational ta
 - **Contributors** — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and the quality gate.
 - **Researchers / citers** — the data compilation is CC BY 4.0; see [Licence](#licence) and [docs/data-sources.md](docs/data-sources.md) for per-source attribution.
 - **Self-hosters** — run the full stack locally with one command (below); no external API keys required for the core dashboard.
-- **Visitors** — a hosted static demo is planned but not built yet; for now, `docker compose up` is the fastest way to see it running.
+- **Visitors** — [explore the live demo](https://royster70.github.io/skillcurrent/): the whole Tier 1 dashboard as a static build on GitHub Pages, no install and no backend. Prefer to run it yourself? See below.
 
 ## Running it
 
@@ -59,11 +65,12 @@ Every external data source is registered in `signal_source_registry` with a lice
 ### Static mirror (no backend, no database)
 
 The whole Tier 1 dashboard also runs as a **static site** — a visitor loads it
-in a browser with no server. It reaches near-full parity with the Docker build
-(sectors, occupations, composite analysis, drift, task matrix, search, plus a
-"similar occupations" bonus); only the LLM-backed CompanyLookup is dropped. It's
-deployed to GitHub Pages by `.github/workflows/deploy-static.yml`. To build it
-locally:
+in a browser with no server. **It's live at
+[royster70.github.io/skillcurrent](https://royster70.github.io/skillcurrent/).**
+It reaches near-full parity with the Docker build (sectors, occupations,
+composite analysis, drift, task matrix, search, plus a "similar occupations"
+bonus); only the LLM-backed CompanyLookup is dropped. It's deployed to GitHub
+Pages by `.github/workflows/deploy-static.yml`. To build it locally:
 
 ```bash
 cd src/backend && python -m scripts.restore_seed && python -m scripts.build_static_site
@@ -122,9 +129,15 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 
 OpenAPI docs: http://localhost:8000/docs
 
-### Tier 1 Dashboard (6 pages, functional)
+### Tier 1 Dashboard
 
-Built with React 18, React Router, and Recharts. Dark sidebar design system with zone colours (orange E0, blue E1, green E2). Collapsible sidebar toggles between 260px expanded (full labels, data sources) and 64px collapsed (icons only) with smooth CSS transition.
+Built with React 18, React Router, and Recharts, in the "warm instrument" design system — a light, brass-accented interface organised around the waterline metaphor, with zone colours (E0 insulated, E1 augmented, E2 automated) and a collapsible sidebar (Waterline · Sectors · Role Search · Occupations · Rising Tide).
+
+[![Industry Sectors — the waterline across sectors](docs/images/skillcurrent-sectors.png)](https://royster70.github.io/skillcurrent/sectors)
+
+<sub>*Each sector's workforce split across the exposure scale — the further right, the deeper its people already sit. [See it live →](https://royster70.github.io/skillcurrent/sectors)*</sub>
+
+> **Note:** the detailed endpoint and page tables below describe the build as first shipped; some page names and routes have since evolved with the "warm instrument" redesign — the landing **Waterline** view now lives at `/`, with **Sectors** at `/sectors`. See the [live site](https://royster70.github.io/skillcurrent/) for the current navigation.
 
 | Page | Route | Visualisations |
 |------|-------|----------------|
