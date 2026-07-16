@@ -73,6 +73,7 @@ def _sample_paths(data_dir: Path) -> list[str]:
         "/drift/below-threshold",
         "/drift/enduring?page=1&page_size=10",
         "/gdpval/summary",
+        "/gdpval/waterline",
         "/occupations/hierarchy",
         "/sectors?region=US",
         "/sectors?region=AU",
