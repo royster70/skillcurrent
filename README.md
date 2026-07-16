@@ -1,41 +1,76 @@
 # SkillCurrent
 
+<!-- Badges resolve once the public repo (royster70/skillcurrent) is live with CI + Pages;
+     add the Pages badge/link after the first deploy. -->
+[![CI](https://github.com/royster70/skillcurrent/actions/workflows/ci.yml/badge.svg)](https://github.com/royster70/skillcurrent/actions/workflows/ci.yml)
+[![Code licence: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Data licence: CC BY 4.0](https://img.shields.io/badge/data-CC%20BY%204.0-brightgreen.svg)](DATA_LICENSE)
+
 Analyses how AI reshapes work at the task level. Combines O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI applicability data (Microsoft, Anthropic), and government employment statistics to produce workforce planning intelligence.
 
 **Core insight**: AI capability follows a compounding, directional trajectory — a rising waterline across task landscapes. The platform tracks where the waterline sits today and where it's heading.
 
-## Getting Started
+## Who this is for
 
-See **[docs/SETUP.md](docs/SETUP.md)** for the full development setup guide covering:
-- Prerequisites (Python 3.12+, Node 18+, Docker Desktop, Git)
-- PostgreSQL + pgvector setup via Docker
-- Backend and frontend installation
-- Data loading and verification
-- Common issues and troubleshooting
+- **Contributors** — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and the quality gate.
+- **Researchers / citers** — the data compilation is CC BY 4.0; see [Licence](#licence) and [docs/data-sources.md](docs/data-sources.md) for per-source attribution.
+- **Self-hosters** — run the full stack locally with one command (below); no external API keys required for the core dashboard.
+- **Visitors** — a hosted static demo is planned but not built yet; for now, `docker compose up` is the fastest way to see it running.
 
-Quick start (after prerequisites are installed):
+## Running it
 
-```powershell
+Three ways to run this, depending on how much you want to touch:
+
+### 1. Docker (fastest — recommended)
+
+Builds the backend, frontend, and a pgvector Postgres, and restores the committed [seed dataset](docs/SEED_DATASET.md) (40 tables, 240k rows) automatically on first boot — no data downloads required.
+
+```bash
 git clone https://github.com/royster70/skillcurrent.git
 cd skillcurrent
+docker compose up
+```
 
-# Start database
-docker run -d --name workforce-pg -e POSTGRES_USER=workforce -e POSTGRES_PASSWORD=dev_only -e POSTGRES_DB=workforce_ai -p 5432:5432 pgvector/pgvector:pg16
+- Frontend: http://localhost:3000
+- API + docs: http://localhost:8000/docs
 
-# Backend
+### 2. Native setup (for backend/frontend development)
+
+See **[CONTRIBUTING.md](CONTRIBUTING.md)** for the full dev setup (Python 3.12, Node 20+, pgvector Postgres, pre-commit hooks). Once your `.env` and database are set up:
+
+```bash
 cd src/backend
-python -m venv .venv && .venv/Scripts/Activate.ps1
-pip install -e ".[dev]"
-python -c "open('.env','w',encoding='utf-8').write('DATABASE_URL=postgresql+asyncpg://workforce:dev_only@localhost:5432/workforce_ai\n')"
-python -m alembic upgrade head
-
-# Start API
+alembic upgrade head
+python -m scripts.doctor           # preflight check — reports what's missing
+python -m scripts.restore_seed     # loads the same seed dataset the Docker image uses
 python -m uvicorn app.main:app --reload --port 8000
 
-# Frontend (separate terminal)
+# separate terminal
 cd src/frontend
 npm install && npm run dev
 ```
+
+Prefer the full, real dataset instead of the seed? See [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) — downloads and ingests every public source from scratch (~602k rows, takes longer, no API keys needed either).
+
+### 3. Add a signal (contributing a new data source)
+
+Every external data source is registered in `signal_source_registry` with a licence and a `redistribution_ok` flag — see [docs/data-sources.md](docs/data-sources.md) for the classification rules and [CONTRIBUTING.md](CONTRIBUTING.md#data-licensing-matters-for-any-new-data-source) for what's required before a new source can ship in the seed or a published export.
+
+### Static mirror (no backend, no database)
+
+The whole Tier 1 dashboard also runs as a **static site** — a visitor loads it
+in a browser with no server. It reaches near-full parity with the Docker build
+(sectors, occupations, composite analysis, drift, task matrix, search, plus a
+"similar occupations" bonus); only the LLM-backed CompanyLookup is dropped. It's
+deployed to GitHub Pages by `.github/workflows/deploy-static.yml`. To build it
+locally:
+
+```bash
+cd src/backend && python -m scripts.restore_seed && python -m scripts.build_static_site
+cd ../frontend && VITE_DEPLOYMENT_MODE=cdn npm run build && npm run preview
+```
+
+See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 
 ## Architecture
 
@@ -122,7 +157,9 @@ npm run test:e2e                              # 46 Playwright E2E tests
 | [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here** — functional (data-funnel) + solution architecture, with the DWA-pivot crosswalk diagram |
 | [docs/SETUP.md](docs/SETUP.md) | Development environment setup |
 | [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) | Data loading procedure and verification |
-| [docs/REBUILD_RUNBOOK.md](docs/REBUILD_RUNBOOK.md) | Full environment rebuild from scratch (fresh machine) |
+| [docs/SEED_DATASET.md](docs/SEED_DATASET.md) | Committed seed dataset — clone and run without the full ingest pipeline |
+| [docs/STATIC_SITE.md](docs/STATIC_SITE.md) | The no-database static build (P4) — architecture + how to build it |
+| [ai_working/REBUILD_RUNBOOK.md](ai_working/REBUILD_RUNBOOK.md) | Personal-machine disaster-recovery checklist (not a generic setup guide — see CONTRIBUTING.md for that) |
 | [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | All database tables, columns, join paths |
 | [docs/data-sources.md](docs/data-sources.md) | Data sources, licences & attribution |
 | [ai_working/decisions/README.md](ai_working/decisions/README.md) | Architecture Decision Records (index) |
@@ -139,6 +176,7 @@ npm run test:e2e                              # 46 Playwright E2E tests
 - **Data/NLP**: pandas, scipy, sentence-transformers (all-MiniLM-L6-v2)
 - **Frontend**: TypeScript, React 18, Vite, Recharts/D3
 - **Dev**: black, ruff, mypy --strict, pytest, vitest, Playwright (E2E)
+- **Deployment**: Docker Compose (pgvector Postgres + backend + nginx-served frontend)
 
 ## Project Structure
 
@@ -146,6 +184,7 @@ npm run test:e2e                              # 46 Playwright E2E tests
 skillcurrent/
   CLAUDE.md                    # Claude Code project context (auto-loaded)
   AGENTS.md                    # Agent context for AI-assisted development
+  docker-compose.yml           # Full stack: pgvector Postgres + backend + frontend
   docs/                        # Architecture docs, data contracts, guides
   ai_working/decisions/        # Architecture Decision Records (ADRs)
   src/
@@ -154,9 +193,11 @@ skillcurrent/
         api/v1/                # FastAPI endpoints + Pydantic schemas
         models/                # SQLAlchemy ORM models (25+ tables)
         services/              # Ingestion, computation, transformations
-      migrations/versions/     # Alembic migrations (001-015)
-      scripts/                 # CLI tools for ingestion + computation
-      tests/                   # pytest suite (144 tests)
+      data/seed/               # Committed seed dataset (docs/SEED_DATASET.md)
+      migrations/versions/     # Alembic migrations
+      scripts/                 # CLI tools: ingestion, doctor.py, build_seed.py/restore_seed.py
+      tests/                   # pytest suite
+      Dockerfile                # API image — migrates + restores the seed on first boot
     frontend/
       src/
         pages/               # SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
@@ -165,6 +206,7 @@ skillcurrent/
         lib/                 # api client, constants
       e2e/                   # Playwright E2E tests (6 suites, 46 tests)
       playwright.config.ts   # Playwright configuration
+      Dockerfile             # Static build served behind nginx, proxies /api to the backend
 ```
 
 ## Licence

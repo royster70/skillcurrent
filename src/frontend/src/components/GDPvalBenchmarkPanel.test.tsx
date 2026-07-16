@@ -55,7 +55,7 @@ const mockGDPvalData: GDPvalOccupationResponse = {
 };
 
 vi.mock("../hooks/useApi", () => ({
-  useApi: vi.fn((fetcher: () => Promise<unknown>, deps: unknown[]) => {
+  useApi: vi.fn((_fetcher: () => Promise<unknown>, deps: unknown[]) => {
     // When expanded (second dep is true), return mock data; otherwise null
     const expanded = deps?.[1];
     if (expanded) {

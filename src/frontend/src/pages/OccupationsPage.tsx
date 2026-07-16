@@ -2,7 +2,8 @@ import { useState, useEffect, useMemo, useCallback } from "react";
 import { useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
-import { api, type GDPvalTaskDetail } from "../lib/api";
+import { api, IS_STATIC, type GDPvalTaskDetail } from "../lib/api";
+import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch";
 import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
@@ -345,6 +346,56 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           </ResponsiveContainer>
         </div>
       )}
+
+      {/* Similar occupations — a static-build bonus: nearest roles by task/skill
+          profile, from the precomputed embedding neighbours (neighbours.json). */}
+      {IS_STATIC && <SimilarOccupations soc={occ.soc_code} />}
+    </div>
+  );
+}
+
+function SimilarOccupations({ soc }: { soc: string }) {
+  const [items, setItems] = useState<SimilarOccupation[] | null>(null);
+  const [, setSearchParams] = useSearchParams();
+  useEffect(() => {
+    let cancelled = false;
+    similarOccupations(soc)
+      .then((r) => { if (!cancelled) setItems(r); })
+      .catch(() => { if (!cancelled) setItems([]); });
+    return () => { cancelled = true; };
+  }, [soc]);
+
+  if (!items || items.length === 0) return null;
+  return (
+    <div style={{ background: theme.surface, borderRadius: 12, border: `1.5px solid ${theme.line}`, padding: 20 }}>
+      <div style={{ fontSize: 14, fontWeight: 600, marginBottom: 4 }}>Similar occupations</div>
+      <div style={{ fontSize: 12, color: theme.inkMuted, marginBottom: 12 }}>
+        Nearest roles by task and skill profile
+      </div>
+      <div style={{ display: "flex", flexWrap: "wrap", gap: 8 }}>
+        {items.map((it) => {
+          const zc = it.dominant_zone ? ZONE_COLORS[it.dominant_zone as keyof typeof ZONE_COLORS] : theme.inkMuted;
+          return (
+            <button
+              key={it.soc_code}
+              onClick={() => setSearchParams({ selected: it.soc_code })}
+              style={{
+                display: "flex", alignItems: "center", gap: 8, padding: "8px 12px", borderRadius: 10,
+                background: theme.ground, border: `1.5px solid ${theme.line}`, cursor: "pointer",
+                fontSize: 12.5, textAlign: "left",
+              }}
+            >
+              <span style={{ width: 8, height: 8, borderRadius: 4, background: zc, flexShrink: 0 }} />
+              <span style={{ fontWeight: 500, color: theme.ink }}>{it.title}</span>
+              {it.eloundou_beta != null && (
+                <span style={{ color: theme.inkMuted, fontVariantNumeric: "tabular-nums" }}>
+                  {it.eloundou_beta.toFixed(2)}
+                </span>
+              )}
+            </button>
+          );
+        })}
+      </div>
     </div>
   );
 }

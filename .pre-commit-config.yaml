@@ -37,7 +37,10 @@ repos:
       - id: check-yaml
       - id: check-merge-conflict
       - id: check-added-large-files
-        args: ["--maxkb=500"]
+        # 2000 KB comfortably covers the committed seed dataset's largest table
+        # (src/backend/data/seed/*.parquet, ~1.4 MB) while still guarding
+        # against a genuinely huge accidental commit.
+        args: ["--maxkb=2000"]
 
   - repo: local
     hooks:

@@ -70,13 +70,8 @@ describe("SectorChipSelector", () => {
     render(
       <SectorChipSelector sectors={sectors} selected={["62", "54"]} onChange={onChange} />
     );
-    // Click the × button on first chip (Health Care)
-    const removeButtons = screen.getAllByRole("button").filter(
-      (btn) => btn.querySelector("svg") && btn.closest("[style]")
-    );
-    // The × buttons are the small ones inside chips
-    const chipCloseButtons = document.querySelectorAll("button");
-    // Find the close button by its SVG content — they're the small ones inside chips
+    // Click the × button on first chip (Health Care) — find the close button by
+    // its SVG content, they're the small ones inside chips
     const chips = screen.getByText("Health Care and Social Assistance").closest("div");
     const closeBtn = chips?.querySelector("button");
     if (closeBtn) {

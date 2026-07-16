@@ -159,7 +159,7 @@ flowchart LR
 | 011 | AU task exposure via a **DWA-pivot decision ladder** (semantic bridge is the live measured rung; availability ≠ confidence; headline uses measured tiers only) |
 
 ### Runtime & the three "run paths"
-Postgres runs in Docker (`pgvector/pgvector:pg16`); backend and frontend are dev servers. A fresh environment reaches "running" by one of three paths, each with its own (layered) prereqs: **seed restore** (fastest — core deps only), **acquire + pipeline** (full/live — adds the `[ingest]`/`[ml]` deps + source acquisition), or **code-only** (contribute — `[dev]` only). See `docs/REBUILD_RUNBOOK.md`.
+Postgres runs in Docker (`pgvector/pgvector:pg16`); backend and frontend are dev servers. A fresh environment reaches "running" by one of three paths, each with its own (layered) prereqs: **seed restore** (fastest — core deps only), **acquire + pipeline** (full/live — adds the `[ingest]`/`[ml]` deps + source acquisition), or **code-only** (contribute — `[dev]` only). See `ai_working/REBUILD_RUNBOOK.md`.
 
 ### Extensibility — how new things plug in
 - **New dataset** → a source-registry entry + one ingest script on the shared pattern; its reader joins the `[ingest]` extra.
@@ -172,5 +172,5 @@ Postgres runs in Docker (`pgvector/pgvector:pg16`); backend and frontend are dev
 - `CLAUDE.md` — data model invariants, data-load status, build dependency chain (roadmap).
 - `docs/domain-model.md` — data contracts & invariants in depth.
 - `docs/DATA_DICTIONARY.md` — every table & column.
-- `docs/INGESTION_RUNBOOK.md` / `docs/REBUILD_RUNBOOK.md` — how to build the data from scratch.
+- `docs/INGESTION_RUNBOOK.md` / `ai_working/REBUILD_RUNBOOK.md` — how to build the data from scratch.
 - `ai_working/decisions/` — the ADRs behind the decisions above.

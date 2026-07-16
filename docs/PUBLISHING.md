@@ -105,11 +105,14 @@ others may have cloned.
    - `.claude/*` (except `agents/`, `commands/`, `skills/`)
 2. **Forward-only `public` branch** is the gate against publishing a WIP commit
    you didn't mean to — you choose what fast-forwards onto it.
-3. **Re-run the §0 secret scan before every publish** — cheap insurance.
+3. **Secret scan — now automated.** The §0 history scan runs as the CI
+   `secret-scan` job (`.github/workflows/ci.yml`) on every push/PR, so it can't
+   be forgotten. Still safe to run §0 by hand before a first publish.
 4. **Redistribution gate for data** — never push a table derived from a
    `redistribution_ok = false` source (AIOE, SML, GDPval-AA, OpenAI leaderboard
-   scores). Enforced structurally once the FR-9.5 `signal_source_registry`
-   lands; until then, honour `docs/data-sources.md` Tier-3.
+   scores). Enforced structurally by the FR-9.5 `signal_source_registry`
+   (migration 032) + `scripts/check_redistribution.py` — run the check before
+   every publish (exit 1 on violation).
 
 ---
 
@@ -119,30 +122,41 @@ Apply on the `public` branch before the first push. None of it is wasted
 regardless of topology.
 
 **Legal foundation (blocks first public push):**
-- [ ] `LICENSE` — MIT
-- [ ] `DATA_LICENSE` — CC-BY-4.0 (data compilation)
-- [ ] `NOTICE` / `SOURCES.md` — per-source attribution for every TIER-1 source
-      (see `docs/data-sources.md`; auto-generatable once FR-9.5 registry exists)
+- [x] `LICENSE` — MIT (2026-07-14)
+- [x] `DATA_LICENSE` — CC-BY-4.0 (data compilation) (2026-07-14)
+- [x] `NOTICE` — per-source attribution for every TIER-1 source (2026-07-14;
+      hand-maintained until auto-generated from the FR-9.5 registry)
 
 **Instance-specific → externalize:**
-- [ ] Replace hardcoded `C:\Users\...` defaults with `DATA_ROOT` env in
+- [x] Replace hardcoded `C:\Users\...` defaults with `DATA_ROOT` env in
       `src/backend/app/core/config.py` and the ingest scripts
       (`ingest_abs.py`, `ingest_asc.py`, `ingest_osca.py`,
-      `build_anzsco_concordance.py`)
-- [ ] Confirm `.env.example` documents every required var with safe placeholders
+      `build_anzsco_concordance.py`) (2026-07-16 — config default now `./data`,
+      docstring examples use `$DATA_ROOT/...`)
+- [x] Confirm `.env.example` documents every required var with safe placeholders
+      (2026-07-16 — all config vars + the `*_PATH` os.environ-only caveat)
 
 **Framing for a public audience:**
-- [ ] Rewrite `README.md` for the four OSS audiences (contributors,
-      researchers/citers, self-hosters, casual visitors) with the three
-      run-paths (static mirror / docker full stack / add-a-signal)
-- [ ] Reframe `CLAUDE.md` from consulting-accelerator voice to public project
-      context (the data-model invariants are an asset — keep them, re-voice)
-- [ ] `CONTRIBUTING.md` — dev setup, the green gate (black + ruff + mypy
-      `--strict`), test + invariant expectations
+- [x] Rewrite `README.md` for the four OSS audiences with the three run-paths
+      (2026-07-16, P3 — static mirror now live, P4)
+- [x] Reframe `CLAUDE.md` — moved the session-log build history to
+      `ai_working/build-history.md`, kept invariants (2026-07-16, P3)
+- [x] `CONTRIBUTING.md` — dev setup, the green gate (black + ruff + mypy
+      `--strict`), test + invariant expectations (2026-07-16)
 
 **Hygiene:**
-- [ ] Delete the stray `docs/data-sources.md.txt` (chat-transcript artifact)
-- [ ] Confirm `*.zip` gitignored (done) and no design-tool bundles tracked
+- [x] Delete the stray `docs/data-sources.md.txt` (chat-transcript artifact)
+      (2026-07-16)
+- [x] Confirm `*.zip` gitignored (done) and no design-tool bundles tracked
+
+**Community & OSS hygiene (2026-07-16):**
+- [x] `SECURITY.md` (private reporting incl. redistribution leaks),
+      `CODE_OF_CONDUCT.md` (Contributor Covenant 2.1), `CITATION.cff`
+- [x] `.github/` PR + issue templates (PR carries the redistribution/secret
+      checklist), `dependabot.yml` (pip + npm + actions)
+- [x] `secret-scan` CI job (automates the §0 scan); `check_redistribution` CI
+      job already live
+- [x] `docs/data-sources.md` documents the restricted `asx_gics` source
 
 **Decision already made:** internal working notes (`ai_working/`, design
 handoffs) stay **public** — labelled a development journal, not product docs.
@@ -150,24 +164,37 @@ ADRs (`ai_working/decisions/`) are a deliberate public asset.
 
 ---
 
-## 5. Phase B — converge at launch
+## 5. Phase B — converge at launch **(DECIDED 2026-07-16: converge, develop in the open)**
 
-When the public repo reflects a state you're happy to develop against:
+Roy chose to **develop in the open** rather than run a permanent private→public
+mirror — for a solo maintainer the bidirectional-sync tax isn't worth it, and
+history is clean so there's no dirty-history reason for two repos. So at first
+release there is one home.
 
-- **Option 1 (retire the mirror):** make the public repo your working clone;
-  archive or keep the private repo as a personal scratch. Contributor PRs and
-  your work now share one home.
-- **Option 2 (flip the original):** if you'd rather keep the original repo,
-  re-run the §0 scan, then GitHub → Settings → Visibility → make public, and
-  retire the separate mirror.
+Chosen path — **flip the original** (simplest; keeps issues/history/CI):
+1. Re-run the §0 secret scan (or rely on the now-automated `secret-scan` CI job) —
+   confirm CLEAN.
+2. GitHub → **Settings → Visibility → make public** (the repo is
+   `royster70/skillcurrent`; rename first if the working repo differs).
+3. **Enable Pages**: Settings → Pages → Source = "GitHub Actions". Then run the
+   `Deploy static site` workflow (dispatch or push a `v*` tag). Add the Pages
+   badge/link to the README once the URL is live.
+4. Turn on branch protection for `master` (require the CI checks) and enable
+   **private vulnerability reporting** (Settings → Security).
 
-Either way, the two-repo dance ends and you develop in the open.
+**Ongoing process (develop-in-the-open):** work on branches → PR into `master`.
+CI (lint, redistribution gate, secret scan, tests, frontend build) runs on every
+PR — that IS the pre-publish test gate; there is **no separate private→public
+apply step and no extra testing** to run. A release = tag `v*` → the static site
+redeploys. If you ever need a private spike, do it in a throwaway private repo or
+an unpublished local branch, not a permanent mirror.
 
 ---
 
 ## Related
 
+- `ai_working/release-1.0-backlog.md` — the prioritised first-release backlog (P0–P5)
 - `ai_working/open-source-prep-plan.md` — full licensing analysis + phased plan
 - `docs/data-sources.md` — per-source licence + redistribution classification
-- `docs/REBUILD_RUNBOOK.md` — rebuild the environment + data from scratch
+- `ai_working/REBUILD_RUNBOOK.md` — rebuild the environment + data from scratch
 - `docs/SETUP.md` — development setup

@@ -415,6 +415,43 @@ function occBearings(soc: string) {
   };
 }
 
+// Capability waterline — a slice of the real Epoch ECI shape (GPQA diamond,
+// the best-covered benchmark) so the preview exercises EraTide's real-data
+// frontier transform rather than only its representative fallback.
+const waterline = {
+  total_eras: 12,
+  total_benchmarks: 1,
+  eras_in_order: [
+    "claude-2", "claude-3-sonnet", "claude-3-opus", "claude-3.5-sonnet",
+    "o1-mini", "o1", "o3", "claude-3.7-sonnet", "claude-4-sonnet",
+    "claude-4.5-sonnet", "claude-4.5-opus", "claude-4.6-opus",
+  ],
+  overall_velocity: 0.0238,
+  source: "Epoch AI Capabilities Index (ECI) — epoch.ai/data/eci_benchmarks.csv",
+  by_benchmark: [
+    {
+      benchmark: "GPQA diamond",
+      is_math: null,
+      is_coding: null,
+      velocity: 0.0238,
+      eras: [
+        { model_era: "claude-2", avg_score: 0.1174, benchmark_count: 1, measurement_date: "2023-07-11" },
+        { model_era: "claude-3-sonnet", avg_score: 0.2079, benchmark_count: 1, measurement_date: "2024-03-04" },
+        { model_era: "claude-3-opus", avg_score: 0.2955, benchmark_count: 1, measurement_date: "2024-03-04" },
+        { model_era: "claude-3.5-sonnet", avg_score: 0.3956, benchmark_count: 1, measurement_date: "2024-06-20" },
+        { model_era: "o1-mini", avg_score: 0.4983, benchmark_count: 1, measurement_date: "2024-09-12" },
+        { model_era: "o1", avg_score: 0.6902, benchmark_count: 1, measurement_date: "2024-12-05" },
+        { model_era: "o3", avg_score: 0.7576, benchmark_count: 1, measurement_date: "2024-12-20" },
+        { model_era: "claude-3.7-sonnet", avg_score: 0.7298, benchmark_count: 1, measurement_date: "2025-02-24" },
+        { model_era: "claude-4-sonnet", avg_score: 0.7225, benchmark_count: 1, measurement_date: "2025-05-22" },
+        { model_era: "claude-4.5-sonnet", avg_score: 0.7643, benchmark_count: 1, measurement_date: "2025-09-29" },
+        { model_era: "claude-4.5-opus", avg_score: 0.814, benchmark_count: 1, measurement_date: "2025-11-24" },
+        { model_era: "claude-4.6-opus", avg_score: 0.8737, benchmark_count: 1, measurement_date: "2026-02-05" },
+      ],
+    },
+  ],
+};
+
 // ── Router: base path → fixture. Most fixtures ignore the query string; a few
 // (region-sensitive endpoints) read it — see the special cases below. ──
 
@@ -427,6 +464,7 @@ const TABLE: Record<string, unknown> = {
   "/drift/enduring": driftEnduring,
   "/occupations/hierarchy": hierarchy,
   "/gdpval/summary": gdpvalSummary,
+  "/gdpval/waterline": waterline,
 };
 
 export function mockResponse(path: string): unknown | undefined {

@@ -33,9 +33,12 @@ describe("ZoneExplorer", () => {
     expect(screen.getByText("AI performs, human validates")).toBeInTheDocument();
   });
 
-  it("shows Beta formula text", () => {
+  it("shows the Beta formula and the 0–1.5 scale gloss", () => {
     renderExplorer();
-    expect(screen.getByText(/Beta = E1 \+ 0\.5×E2/)).toBeInTheDocument();
+    // The footer both states the formula and explains the scale ceiling in
+    // plain words (review item 1 — the 1.5 max is derived, not arbitrary).
+    expect(screen.getByText(/β = E1 \+ 0\.5×E2/)).toBeInTheDocument();
+    expect(screen.getByText(/tops out at 1\.5/)).toBeInTheDocument();
   });
 
   it("offers every recognizable role to browse, but focuses one at a time", () => {

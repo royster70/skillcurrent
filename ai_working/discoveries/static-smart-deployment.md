@@ -75,6 +75,23 @@ no-server.
 Outcome → real numbers on JSON-vs-DuckDB for our data shapes before committing
 the static pipeline to either.
 
+## Spike result (2026-07-16) — JSON-in-JS wins decisively, DuckDB not needed
+
+Ran the spike against the live seed DB. The single cross-cutting table
+`industry_occupation_profiles` (9,025 rows, both regions):
+
+- **357 KB gzipped** (3.2 MB raw JSON) — ships as one file, loaded once.
+- **11 ms** to fetch + `JSON.parse` the whole thing.
+- **0.30 ms** per composite `GROUP BY onet_soc` weighted rollup (100 random
+  3-sector combos in 30 ms total), in plain JS with a `Map` reduce mirroring
+  `composite_sector.py`.
+
+At this scale DuckDB-WASM (~3–11 MB WASM + cold start) buys nothing — the
+combinatorial composite endpoint runs in sub-millisecond JS over a 357 KB
+payload. **Decision: JSON/Arrow-in-JS substrate, no DuckDB-WASM, GitHub Pages**
+(Cloudflare was only needed for DuckDB range-requests). Revisit only if the
+dataset grows ~100× or arbitrary in-browser SQL becomes a product requirement.
+
 ## Related
 - `docs/PUBLISHING.md` — open-source topology + static-build functionality tiering
 - `ai_working/open-source-prep-plan.md` — Phase 3 (seed) + Phase 4 (static site)
