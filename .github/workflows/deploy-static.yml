@@ -77,7 +77,7 @@ jobs:
           # Skip Jekyll (the data tree has files Jekyll would ignore).
           touch dist/.nojekyll
 
-      - uses: actions/upload-pages-artifact@v3
+      - uses: actions/upload-pages-artifact@v5
         with:
           path: src/frontend/dist
       - id: deploy
