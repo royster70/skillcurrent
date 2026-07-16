@@ -99,6 +99,7 @@ def _sample_paths(data_dir: Path) -> list[str]:
     for soc in socs[:: max(1, len(socs) // 12)][:12]:
         paths.append(f"/occupations/{soc}")
         paths.append(f"/occupations/{soc}/matrix")
+        paths.append(f"/occupations/{soc}/bearings")
     # A few GDPval benchmark occupations.
     gdpval = json.loads((data_dir / "gdpval" / "summary.json").read_text())
     for occ in gdpval["occupations"][:6]:

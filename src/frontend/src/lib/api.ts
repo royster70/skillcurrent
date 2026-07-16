@@ -314,6 +314,34 @@ export interface GDPvalSummaryResponse {
   occupations: GDPvalOccupationSummary[];
 }
 
+// ── Bearings (high ground + direction, /occupations/{soc}/bearings) ──
+
+export interface HighGroundSkill {
+  dwa_id: string;
+  dwa_title: string;
+  beta: number;
+  importance_weight: number | null;
+}
+
+export interface AdjacentRole {
+  soc_code: string;
+  title: string;
+  beta: number;
+  drier_by: number; // source β − target β
+  shared_count: number;
+  shared_titles: string[]; // the bridge skills
+  total_employment: number | null;
+  score: number;
+}
+
+export interface BearingsResponse {
+  soc_code: string;
+  title: string;
+  source_beta: number | null;
+  high_ground: HighGroundSkill[];
+  adjacent: AdjacentRole[];
+}
+
 // ── Capability waterline (Epoch AI ECI, /gdpval/waterline) ──
 
 export interface WaterlineEraScore {
@@ -442,6 +470,7 @@ export const api = {
   occupations: (params?: string) => get<{ occupations: OccupationSummary[]; total: number }>(`/occupations${params ? `?${params}` : ""}`),
   hierarchy: () => get<SocHierarchyResponse>("/occupations/hierarchy"),
   occupation: (soc: string) => get<OccupationDetail>(`/occupations/${soc}`),
+  bearings: (soc: string) => get<BearingsResponse>(`/occupations/${soc}/bearings`),
   occupationTasks: (soc: string) => get<OccupationTasksResponse>(`/occupations/${soc}/tasks`),
   taskMatrix: (soc: string) => get<TaskMatrixResponse>(`/occupations/${soc}/matrix`),
   driftSummary: () => get<DriftSummary>("/drift/summary"),

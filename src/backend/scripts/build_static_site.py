@@ -43,6 +43,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.api.v1.bearings import get_bearings  # noqa: E402
 from app.api.v1.datasets import list_datasets  # noqa: E402
 from app.api.v1.drift import (  # noqa: E402
     get_below_threshold_tasks,
@@ -158,12 +159,15 @@ async def _emit_occupations(out: Path, db: AsyncSession) -> int:
             await _emit(
                 out, f"/occupations/{soc}/matrix", await get_task_matrix(soc_code=soc, db=db)
             )
+            await _emit(
+                out, f"/occupations/{soc}/bearings", await get_bearings(soc_code=soc, db=db)
+            )
             done += 1
         except HTTPException:
             continue  # SOC without renderable data — the UI can't navigate to it either
         if done % 200 == 0:
             logger.info("occupations: %d/%d", done, len(socs))
-    logger.info("occupations: %d rendered (detail + matrix)", done)
+    logger.info("occupations: %d rendered (detail + matrix + bearings)", done)
     return done
 
 

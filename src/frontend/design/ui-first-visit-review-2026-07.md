@@ -59,7 +59,7 @@ Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
    (`setQuery(term)`); the visitor must still hit Enter. Chips should trigger the search.
    *(SearchPage.tsx suggestions.)*
 
-7. **The occupation detail is a dead end.** Richest page in the app, no onward links: the
+7. **The occupation detail is a dead end.** *(Substantially addressed by the BearingsPanel — adjacent-role links + tide cross-link; remaining: sector links on the employment bars, item 20.)* Richest page in the app, no onward links: the
    employment-by-sector bars aren't clickable (→ `/sectors/:code`), and there's no "see how
    these tasks are moving → /tide" cross-link. Every EXPLORE page should hand off somewhere.
 
@@ -124,8 +124,33 @@ Item 4 DONE in phase 3.19 (commit ed8aeeb) — the three currents.
 
 ---
 
+## The bearings track (follow-ons from PR #19 — beyond first-visit polish)
+
+21. **Sector bearings — the planner aggregation.** Aggregate occupation-level bearings across a
+    sector: headcount-weighted mix ("N workers sit in roles whose task weight is majority-submerged"
+    — the reskilling-priority reading), the sector's **shared high ground** (dry DWAs that recur
+    across its biggest roles — where cross-role reskilling compounds), and the top cross-role
+    directions weighted by headcount. Surfaces on SectorDetail as the planner variant of the
+    BearingsPanel. Backend: aggregate the `/bearings` logic over `industry_occupation_profiles`
+    roles with headcount weights — watch latency (894 occupations × DWA joins; precompute or cache
+    per sector if the live join measures slow — measure first per ADR-007).
+
+22. **The Tier-2 story — org bearings (the product).** The same reading over a client's *actual*
+    workforce once the HRIS chain lands (FR-1 hierarchy → FR-2 matching): which of our people hold
+    majority-submerged roles; the org's in-house shared high ground (an **internal mobility map** —
+    who can move where along dry DWAs they already have); reskilling priorities ranked by
+    headcount × dryness gain. Positioning: Tier-1 public bearings is the demo, org overlay is the
+    product. HARD constraints inherited: all Tier-2 privacy rules apply (N≥5 aggregates, privacy
+    views only, leaf anonymisation; individual bearings visible only to self/manager scope) and the
+    Tier-1/Tier-2 pipeline separation holds — org data never routes through the public bearings
+    endpoint. Blocked on FR-1→FR-7; recorded now so the FR-6 dashboards inherit the bearings
+    vocabulary instead of reinventing it.
+
+---
+
 ### Suggested sequencing
 
 - **Quick wins, one sitting:** 2, 3, 6, 10, 16 (all small, high first-visit payoff).
 - **One session each:** 1+5 (the "explain the instrument" pass), 4, 9, 11, 12+13+19 (SectorDetail pass), 7+8+20 (cross-linking pass).
 - **Needs backend or bigger design:** 8 (families join), 17 (AU occupation surface), 14 (Methodology full build, planned phase 6).
+- **The bearings track:** 21 (sector bearings — the natural next after PR #19; a SectorDetail-pass companion to 12+13+19), then 22 (org bearings — Tier-2, blocked on FR-1→FR-7, design intent recorded).
