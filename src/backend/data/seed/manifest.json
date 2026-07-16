@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-15T23:20:58.797202+00:00",
+  "generated_at": "2026-07-16T05:07:34.726451+00:00",
   "onet_version": "28.1",
   "tables": {
     "onet_occupations": {
@@ -33,6 +33,13 @@
     "onet_sample_titles": {
       "rows": 7953,
       "bytes": 147868,
+      "sources": [
+        "onet"
+      ]
+    },
+    "onet_alternate_titles": {
+      "rows": 57543,
+      "bytes": 1054746,
       "sources": [
         "onet"
       ]
@@ -302,7 +309,6 @@
   "excluded_tables": {
     "onet_task_ratings": "raw O*NET importance/frequency/level ratings (161,559 rows, ~4x the task table) -- superseded for the Tier-1 story by eloundou_dwa_scores (already derived from these); re-derivable via the full O*NET ingest",
     "onet_work_activities": "broader GWA/IWA activity taxonomy (73,308 rows) -- not needed to browse sector/occupation/drift views; re-derivable via O*NET ingest",
-    "onet_alternate_titles": "job-title synonyms (57,543 rows) -- feeds Tier-2 fuzzy title matching, not the Tier-1 browsing experience; re-derivable via O*NET ingest",
     "onet_title_embeddings": "sentence-transformer vectors for 66,512 titles -- the single largest table by bytes; needed only to recompute semantic search, not to browse its already-materialized results; regenerate via the matching pipeline",
     "dwa_embeddings": "DWA title embeddings -- input to the already-materialized dwa_asc_bridge, not needed to browse it; regenerate via build_dwa_asc_bridge.py",
     "asc_task_embeddings": "ASC task-text embeddings -- same rationale as dwa_embeddings",
@@ -384,6 +390,6 @@
       "redistribution_ok": true
     }
   ],
-  "total_rows": 240430,
-  "total_bytes": 9308037
+  "total_rows": 297973,
+  "total_bytes": 10362783
 }

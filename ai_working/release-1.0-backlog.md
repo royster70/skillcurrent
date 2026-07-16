@@ -91,19 +91,26 @@ Companions: `docs/PUBLISHING.md` (topology + punch-list),
     points elsewhere for real contributor/self-hoster setup. All referencing
     docs updated; `check_docs.py` reachability confirmed 0 broken links.
 
-## P4 — static site (in scope for launch)
+## P4 — static site ✅ done (in scope for launch)
 
-13. **De-risk spike first** (static-smart doc §spike): export a representative
-    Parquet slice via the seed builder; DuckDB-WASM in a throwaway Vite page;
-    reimplement ONE analytical view (sector composite rollup); measure
-    bundle/cold-start/latency/bytes vs the JSON approach. Real numbers before
-    committing the pipeline to either substrate.
-14. Static export pipeline: JSON for hot/SEO views + Parquet/DuckDB-WASM for
-    analytical; `VITE_DEPLOYMENT_MODE=cdn|full`; client-side search (precomputed
-    top-K neighbours + transformers.js for free-text); deploy to GitHub
-    Pages/Cloudflare.
-15. Company-classify seam: precomputed ASX lookup shipped static; BYO-API-key or
-    a single edge function for arbitrary free-text.
+13. ✅ **De-risk spike** — resolved decisively for JSON-in-JS: the cross-cutting
+    table is 357 KB gz, 11 ms load, 0.30 ms/composite-query in plain JS; DuckDB-WASM
+    unnecessary at this scale (numbers in the static-smart discovery doc). GitHub
+    Pages, no Cloudflare.
+14. ✅ Static export pipeline (`scripts/build_static_site.py`) — pre-renders the API
+    to JSON by **calling the real handlers** (byte-identical to live; pinned by
+    `scripts/verify_static_parity.py`, 97/97 paths match). `VITE_DEPLOYMENT_MODE=cdn|full`
+    switch behind the one `api.ts` choke point. Client-side fuzzy search over the
+    shipped 65k-title corpus + precomputed `neighbours.json` for a "similar
+    occupations" bonus (no runtime transformers.js). Deploy via
+    `.github/workflows/deploy-static.yml` (Postgres service → restore_seed →
+    build_static_site → vite build cdn → Pages, with the 404.html SPA fallback).
+    `onet_alternate_titles` added to the seed (P2) so the CI build has the full
+    search corpus.
+15. ✅ Company-classify seam resolved: **hidden in static mode** (the ASX/GICS data
+    is `redistribution_ok=false` — `asx_gics` in the registry — and classify needs
+    a paid key). CompanyLookup stays full-build-only. Not the "precomputed ASX
+    lookup" originally sketched — that path was closed by the GICS licence finding.
 
 ## P5 — publish mechanics (PUBLISHING.md §2)
 

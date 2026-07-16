@@ -50,9 +50,21 @@ Prefer the full, real dataset instead of the seed? See [docs/INGESTION_RUNBOOK.m
 
 Every external data source is registered in `signal_source_registry` with a licence and a `redistribution_ok` flag — see [docs/data-sources.md](docs/data-sources.md) for the classification rules and [CONTRIBUTING.md](CONTRIBUTING.md#data-licensing-matters-for-any-new-data-source) for what's required before a new source can ship in the seed or a published export.
 
-### Static site (planned, not built yet)
+### Static mirror (no backend, no database)
 
-A no-database static build (DuckDB-WASM + Parquet over the seed/CC-BY tables) is on the roadmap — see `ai_working/discoveries/static-smart-deployment.md`. Until then, Docker is the zero-setup path.
+The whole Tier 1 dashboard also runs as a **static site** — a visitor loads it
+in a browser with no server. It reaches near-full parity with the Docker build
+(sectors, occupations, composite analysis, drift, task matrix, search, plus a
+"similar occupations" bonus); only the LLM-backed CompanyLookup is dropped. It's
+deployed to GitHub Pages by `.github/workflows/deploy-static.yml`. To build it
+locally:
+
+```bash
+cd src/backend && python -m scripts.restore_seed && python -m scripts.build_static_site
+cd ../frontend && VITE_DEPLOYMENT_MODE=cdn npm run build && npm run preview
+```
+
+See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 
 ## Architecture
 
@@ -140,6 +152,7 @@ npm run test:e2e                              # 46 Playwright E2E tests
 | [docs/SETUP.md](docs/SETUP.md) | Development environment setup |
 | [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) | Data loading procedure and verification |
 | [docs/SEED_DATASET.md](docs/SEED_DATASET.md) | Committed seed dataset — clone and run without the full ingest pipeline |
+| [docs/STATIC_SITE.md](docs/STATIC_SITE.md) | The no-database static build (P4) — architecture + how to build it |
 | [ai_working/REBUILD_RUNBOOK.md](ai_working/REBUILD_RUNBOOK.md) | Personal-machine disaster-recovery checklist (not a generic setup guide — see CONTRIBUTING.md for that) |
 | [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | All database tables, columns, join paths |
 | [docs/data-sources.md](docs/data-sources.md) | Data sources, licences & attribution |

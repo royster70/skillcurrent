@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
-import { api } from "../lib/api";
+import { api, IS_STATIC } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { CompanyLookup } from "../components/CompanyLookup";
@@ -78,15 +78,19 @@ export function SectorsPage() {
         </Link>
       </div>
 
-      {/* Company lookup — auto-selects sectors */}
-      <CompanyLookup
-        region={region}
-        onSectorsSelected={(codes, name) => {
-          // Merge with existing selection, deduplicate
-          setSelectedSectors((prev) => [...new Set([...prev, ...codes])]);
-          if (name) setCompanyName(name);
-        }}
-      />
+      {/* Company lookup — auto-selects sectors. Full-build-only: it needs a
+          paid LLM classify + the licence-restricted ASX/GICS data, neither of
+          which can ship in the static build. */}
+      {!IS_STATIC && (
+        <CompanyLookup
+          region={region}
+          onSectorsSelected={(codes, name) => {
+            // Merge with existing selection, deduplicate
+            setSelectedSectors((prev) => [...new Set([...prev, ...codes])]);
+            if (name) setCompanyName(name);
+          }}
+        />
+      )}
 
       {/* Composite sector selector */}
       <SectorChipSelector

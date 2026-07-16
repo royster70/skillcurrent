@@ -41,7 +41,7 @@ logging.basicConfig(
 logger = logging.getLogger("ingest_signal_sources")
 
 DATASET_NAME = "signal_source_registry"
-REGISTRY_VERSION = "2026.07.1"
+REGISTRY_VERSION = "2026.07.2"  # bump when signals.csv content changes (uq_dataset_version)
 DATASET_DIR = Path(__file__).resolve().parent.parent / "data" / "signal_sources"
 REQUIRED_COLUMNS = {
     "source_key",
