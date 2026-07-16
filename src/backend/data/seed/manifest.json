@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-16T14:01:06.430927+00:00",
+  "generated_at": "2026-07-16T15:05:18.287588+00:00",
   "onet_version": "28.1",
   "tables": {
     "onet_occupations": {
@@ -132,7 +132,7 @@
     },
     "industry_occupation_profiles": {
       "rows": 9025,
-      "bytes": 286885,
+      "bytes": 290944,
       "sources": [
         "oews",
         "onet",
@@ -391,5 +391,5 @@
     }
   ],
   "total_rows": 297973,
-  "total_bytes": 10427305
+  "total_bytes": 10431364
 }
