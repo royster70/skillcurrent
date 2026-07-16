@@ -1,5 +1,5 @@
 {
-  "generated_at": "2026-07-16T05:07:34.726451+00:00",
+  "generated_at": "2026-07-16T14:01:06.430927+00:00",
   "onet_version": "28.1",
   "tables": {
     "onet_occupations": {
@@ -118,7 +118,7 @@
     },
     "aei_task_snapshots": {
       "rows": 16976,
-      "bytes": 485348,
+      "bytes": 513628,
       "sources": [
         "aei"
       ]
@@ -132,7 +132,7 @@
     },
     "industry_occupation_profiles": {
       "rows": 9025,
-      "bytes": 250643,
+      "bytes": 286885,
       "sources": [
         "oews",
         "onet",
@@ -391,5 +391,5 @@
     }
   ],
   "total_rows": 297973,
-  "total_bytes": 10362783
+  "total_bytes": 10427305
 }
