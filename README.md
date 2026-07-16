@@ -110,7 +110,7 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 
 ## Current Status
 
-### Data loaded (~537,633 rows)
+### Data loaded (~602,645 rows across ~40 tables)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -120,12 +120,17 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 | AEI (Anthropic) | 35,730 | Empirical Claude usage + 4-era temporal snapshots |
 | BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
 | ABS/JSA 2025 | 2,743 | AU employment by occupation x ANZSIC division (FR-8.9) |
-| Derived products | 15,794 | Drift metrics (4,605) + industry profiles (9,019 US+AU) + crosswalk (21) + ANZSCO concordance (491) + AU profiles (1,084 of 9,019) |
+| AU-native task layer (OSCA + ASC) | 63,157 | Australian occupation backbone (OSCA 2024) + skills classification (ASC v3.0): OSCA occupations/tasks, ASC specialist tasks, the semantic DWA↔ASC bridge, and the unified AU task + exposure layer (FR-9.x) |
+| ABS Census 2021 + subdivisions | 1,391 | AU industry × occupation cross-tabs for company/sector classification (FR-8.9) |
+| Derived products | 15,794 | Drift metrics (4,605) + industry profiles (9,025 US+AU) + crosswalk (21) + ANZSCO concordance (491) + AU profiles (1,090 of 9,025) |
 | ASX company data | 1,978 | ASX listed companies with GICS→ANZSIC→NAICS sector mapping (FR-8.5 company lookup) |
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
+| Epoch AI ECI (GPTVal) | 464 | Longitudinal model-capability benchmarks — the waterline-velocity signal (FR-8.7 P0a) |
 
-### Tier 1 API (21 endpoints, live)
+*Full per-table breakdown: [CLAUDE.md](CLAUDE.md) "Data Load Status" and [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).*
+
+### Tier 1 API (~24 public endpoints; full spec at `/docs`)
 
 | Endpoint | Description |
 |----------|-------------|
@@ -138,8 +143,10 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 | `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift + GDPval availability (gdpval_task_count, gdpval_available fields) |
 | `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
 | `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings), plus conditional GDPval overlay strip. Returns era_snapshots[] per task (with automation_pct, augmentation_pct) and available_eras[] for temporal views. Includes gdpval_benchmark_count. |
+| `GET /api/v1/occupations/{soc}/bearings` | Role "bearings": recommended strategic moves given the occupation's zone and drift — insulated roles get "hold the high ground", exposed roles get concrete moves (FR-8.5) |
 | `GET /api/v1/gdpval/summary` | GDPval benchmark overview: total tasks (220), occupations (44), rubric items (10,453), sectors list, per-occupation task counts |
 | `GET /api/v1/gdpval/occupations/{soc_code}` | Full GDPval benchmark detail for one occupation: tasks with prompts + complete rubric items (criterion, score, required flag, tags) |
+| `GET /api/v1/gdpval/waterline` | Waterline-velocity signal: model-capability trajectory across eras (Epoch AI ECI), for "why the waterline keeps rising" (FR-8.7) |
 | `GET /api/v1/drift/summary` | Classification distribution |
 | `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
 | `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
@@ -150,7 +157,7 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 | `GET /api/v1/companies/search?q=...&region=AU` | pg_trgm fuzzy search across ASX companies and LLM classification cache; returns company_name, asx_code, sector names, ANZSIC/NAICS codes |
 | `POST /api/v1/companies/classify` | Claude Haiku classifies any company name into ANZSIC/NAICS sectors; results cached in company_classifications table; returns 503 if ANTHROPIC_API_KEY not set |
 
-OpenAPI docs: http://localhost:8000/docs
+Plus internal admin/observability and pipeline-control endpoints (`/admin/*`, `/pipeline/*`; ADR-007). Full, always-current spec at the OpenAPI docs: http://localhost:8000/docs
 
 ### Tier 1 Dashboard
 
@@ -160,29 +167,31 @@ Built with React 18, React Router, and Recharts, in the "warm instrument" design
 
 <sub>*Each sector's workforce split across the exposure scale — the further right, the deeper its people already sit. [See it live →](https://royster70.github.io/skillcurrent/sectors)*</sub>
 
-> **Note:** the detailed endpoint and page tables below describe the build as first shipped; some page names and routes have since evolved with the "warm instrument" redesign — the landing **Waterline** view now lives at `/`, with **Sectors** at `/sectors`. See the [live site](https://royster70.github.io/skillcurrent/) for the current navigation.
-
-| Page | Route | Visualisations |
-|------|-------|----------------|
-| Sectors | `/` | Worker-count metric cards, zone pie toggle (workers/occupations), sector positioning bubble chart, weighted scores in sector table; SectorChipSelector for building composite multi-sector views; RegionSelector toggle (US/AU flag) switches all sector data between NAICS and ANZSIC via ?region= URL param; CompanyLookup collapsible card with type-ahead search (pg_trgm) across ~1,978 ASX companies with ASX code badges and AI classify button (Claude Haiku) |
-| Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards (E0/E1/E2 + composite Beta), unified occupation table with multi-sector badges, auto-generated narrative summary panel |
-| Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority roles view (composite impact ranking with risk badges), toggle to full occupation mix; clicking role navigates to /occupations?selected=SOC; GDPval coverage indicators on role rows; "GDPval Only" filter to show only benchmark occupations |
-| Occupations | `/occupations` | SOC hierarchy tree (23 groups), GDPval filter toggle (narrows to 44 benchmark occupations), detail panel with ContextualScoreCards + interactive GDPval badge, tasks by AI usage (mini sparklines), redesigned TaskMatrix quadrant chart with era timeline sparklines — 2 temporal views (Baseline, By Era), 3 overlay modes (None, Usage Level, Usage Trend); AEI Task Intelligence panel (temporal trajectory, penetration ranking, auto/aug split, coverage ring); GDPval Benchmark panel (score range chart, rubric composition, tag frequency bars) |
-| Drift Analysis | `/drift` | Classification pie chart, usage vs velocity scatter, alert panel, departing/enduring lists |
+| Page | Route | What's there |
+|------|-------|--------------|
+| Waterline (landing) | `/` | The narrative explainer: what the current is, the interactive "Read the scale" primer + ZoneExplorer worked example, and the rising-tide era chart |
+| Sectors | `/sectors` | Worker-count metric cards, zone split, sector waterline; SectorChipSelector for building composite multi-sector views; RegionSelector (US/AU) switches all sector data between NAICS and ANZSIC via ?region=; CompanyLookup type-ahead (pg\_trgm) over ~1,978 ASX companies with AI classify (Claude Haiku) |
+| Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards (E0/E1/E2 + composite β), unified occupation table with multi-sector badges, auto-generated narrative summary |
+| Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority-roles ranking (composite impact) with risk badges, BearingsPanel; role rows link to `/occupations?selected=SOC`; GDPval coverage indicators + "GDPval Only" filter |
+| Occupations | `/occupations` | SOC hierarchy tree, GDPval filter, detail panel with ContextualScoreCards + TideChip, TaskMatrix quadrant chart with era sparklines (Baseline / By-Era, 3 overlay modes), AEI Task Intelligence panel, GDPval Benchmark panel, similar-occupations |
+| Rising Tide | `/tide` | Task drift over model eras — classification split, usage vs velocity, at-the-waterline alerts, departing/enduring lists (`/drift` redirects here) |
 | Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
+
+Plus three explainer pages: **How it works** (`/methodology`), **Data & sources** (`/sources`), and **Run this yourself** (`/run`).
 
 Frontend dev server: http://localhost:5173
 
 ### Tests
 
-246+ tests passing (144 backend + 56 component + 46 E2E). Backend at 83% coverage. Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup).
+~351 tests passing (244 backend + 61 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v                    # 144 backend tests
+python -m pytest tests/ -v                    # 244 backend tests (needs the seeded DB)
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
+npm run test                                  # 61 component tests (Vitest)
 npm run test:e2e                              # 46 Playwright E2E tests
 ```
 
@@ -227,7 +236,7 @@ skillcurrent/
     backend/
       app/
         api/v1/                # FastAPI endpoints + Pydantic schemas
-        models/                # SQLAlchemy ORM models (25+ tables)
+        models/                # SQLAlchemy ORM models (~40 tables)
         services/              # Ingestion, computation, transformations
       data/seed/               # Committed seed dataset (docs/SEED_DATASET.md)
       migrations/versions/     # Alembic migrations
@@ -236,7 +245,7 @@ skillcurrent/
       Dockerfile                # API image — migrates + restores the seed on first boot
     frontend/
       src/
-        pages/               # SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, DriftPage, SearchPage
+        pages/               # LandingPage, SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, TidePage, SearchPage, + explainers (Methodology, Sources, Run)
         components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard, RegionSelector (US/AU toggle), CompanyLookup (ASX company search + AI classify)
         hooks/               # useApi (data fetching)
         lib/                 # api client, constants
