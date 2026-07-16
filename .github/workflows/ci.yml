@@ -1,0 +1,75 @@
+name: CI
+
+on:
+  push:
+    branches: [master]
+  pull_request:
+    branches: [master]
+  workflow_dispatch: {}
+
+concurrency:
+  group: ci-${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  lint:
+    name: Quality gate (black + ruff + mypy --strict)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      - name: Cache pre-commit envs
+        uses: actions/cache@v4
+        with:
+          path: ~/.cache/pre-commit
+          key: pre-commit-${{ hashFiles('.pre-commit-config.yaml') }}
+      - run: pip install pre-commit
+      - run: pre-commit run --all-files --show-diff-on-failure
+
+  redistribution-gate:
+    name: Redistribution gate (FR-9.5)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+      # Stdlib-only, no DB needed — validates data/signal_sources/*.csv directly.
+      - run: cd src/backend && python -m scripts.check_redistribution
+
+  backend-tests:
+    name: Backend tests (non-DB subset)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.12"
+          cache: pip
+          cache-dependency-path: src/backend/pyproject.toml
+      - run: cd src/backend && pip install -e ".[dev]"
+      # Every other test file hits a live, fully-loaded Postgres via
+      # tests/conftest.py (923 occupations, the full FR-9 AU task layer, ...) —
+      # there is no seed dataset yet to stand that up in CI (release-1.0-backlog.md
+      # P2). test_drift.py and test_onet_ingestion.py are the only DB-free suites
+      # today (pure functions / tmp_path fixtures). Widen this list as more
+      # DB-free tests land, and switch to the full suite once P2 ships.
+      - run: cd src/backend && pytest tests/test_drift.py tests/test_onet_ingestion.py -v
+
+  frontend:
+    name: Frontend (lint + typecheck + unit tests + build)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "20"
+          cache: npm
+          cache-dependency-path: src/frontend/package-lock.json
+      - run: cd src/frontend && npm ci
+      - run: cd src/frontend && npm run lint
+      - run: cd src/frontend && npm run typecheck
+      - run: cd src/frontend && npm run test
+      - run: cd src/frontend && npm run build
