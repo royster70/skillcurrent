@@ -7,6 +7,7 @@ import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch"
 import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, ZONE_TITLES, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_LABELS, MOVEMENT_COLORS } from "../lib/constants";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
+import { OccupationSummaryPanel } from "../components/OccupationSummaryPanel";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { GDPvalBenchmarkPanel } from "../components/GDPvalBenchmarkPanel";
 import { AEITaskDetailPanel } from "../components/AEITaskDetailPanel";
@@ -251,6 +252,10 @@ export function OccupationsPage() {
 function OccupationDetailPanel({ soc }: { soc: string }) {
   const { data: occ, loading } = useApi(() => api.occupation(soc), [soc]);
   const { data: matrixData } = useApi(() => api.taskMatrix(soc), [soc]);
+  // Lifted here (not fetched inside BearingsPanel/OccupationSummaryPanel) —
+  // both panels read the same bearings response; fetching once avoids a
+  // redundant round trip for identical data.
+  const { data: bearings } = useApi(() => api.bearings(soc), [soc]);
   const [gdpvalExpanded, setGdpvalExpanded] = useState(false);
   const [aeiExpanded, setAeiExpanded] = useState(false);
   const [gdpvalTasks, setGdpvalTasks] = useState<GDPvalTaskDetail[] | null>(null);
@@ -334,6 +339,11 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
         </div>
       </div>
 
+      {/* What this means for you — the plain-English synthesis, above every
+          instrument on the page (review: "this should become the dominant
+          outcome, not a supporting feature"). */}
+      {matrixData && <OccupationSummaryPanel occ={occ} matrixData={matrixData} bearings={bearings} />}
+
       {/* GDPval Benchmark Panel — collapsible */}
       {occ.gdpval_available && (
         <GDPvalBenchmarkPanel
@@ -363,7 +373,7 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
       )}
 
       {/* Your bearings — the action layer: high ground, direction, tooling */}
-      {matrixData && <BearingsPanel soc={soc} matrixData={matrixData} />}
+      {matrixData && <BearingsPanel matrixData={matrixData} bearings={bearings} />}
 
       {/* Description (if available) */}
       {occ.description && (

@@ -6,7 +6,7 @@
  */
 
 import { useEffect, useState, type ReactNode, type CSSProperties } from "react";
-import { Link, useLocation } from "react-router-dom";
+import { Link, useLocation, useNavigate } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
@@ -148,6 +148,18 @@ export function LandingPage() {
   );
   const chart = useReveal();
   const [hoveredPath, setHoveredPath] = useState(-1);
+  const [heroQuery, setHeroQuery] = useState("");
+  const [heroFocused, setHeroFocused] = useState(false);
+  const navigate = useNavigate();
+
+  // The transactional visitor's first question is "what's happening to MY
+  // job?" — give that an answer before the narrative, not after it (review:
+  // "the product delays the user's first personal answer").
+  const submitHeroSearch = (e: React.FormEvent) => {
+    e.preventDefault();
+    if (heroQuery.trim().length < 2) return;
+    navigate(`/search?q=${encodeURIComponent(heroQuery.trim())}`);
+  };
   // Bearing convention (motion.ts): left option bends the current left, etc.
   const pathsBearing = hoveredPath === -1 ? 0 : (hoveredPath - 1) * 26;
 
@@ -205,6 +217,44 @@ export function LandingPage() {
               AI capability is rising like a waterline across the work we do. See where
               it sits today, where it's heading — and the skills that keep you above it.
             </p>
+
+            {/* Primary path: search your role right here — the narrative below
+                is still here for whoever wants it, but it's no longer required
+                before a first-time visitor gets an answer. */}
+            <form
+              onSubmit={submitHeroSearch}
+              style={{ display: "flex", gap: 8, flexWrap: "wrap", justifyContent: "center", marginTop: 32, width: "100%", maxWidth: 480 }}
+            >
+              <input
+                type="text"
+                value={heroQuery}
+                onChange={(e) => setHeroQuery(e.target.value)}
+                onFocus={() => setHeroFocused(true)}
+                onBlur={() => setHeroFocused(false)}
+                placeholder="Your job title… e.g. 'Account Manager'"
+                aria-label="Search for your role"
+                style={{
+                  flex: 1, minWidth: 220, padding: "13px 18px", fontSize: 16, borderRadius: 10,
+                  border: `1.5px solid ${heroFocused ? t.brass : t.line}`, outline: "none",
+                  fontFamily: TYPE.body, color: t.ink, background: t.surface,
+                  transition: `border-color ${DUR.hover}ms ${EASE}`,
+                }}
+              />
+              <button
+                type="submit"
+                disabled={heroQuery.trim().length < 2}
+                style={{
+                  display: "flex", alignItems: "center", gap: 8,
+                  padding: "13px 24px", fontSize: 15, fontWeight: 600, borderRadius: 10,
+                  border: "none", backgroundColor: t.brass, color: "#fff",
+                  cursor: heroQuery.trim().length < 2 ? "default" : "pointer",
+                  opacity: heroQuery.trim().length < 2 ? 0.5 : 1, fontFamily: TYPE.body,
+                }}
+              >
+                <IconSearch size={16} /> Find my role
+              </button>
+            </form>
+
             <button
               onClick={() =>
                 document.getElementById("the-current")?.scrollIntoView({
@@ -213,13 +263,13 @@ export function LandingPage() {
                 })
               }
               style={{
-                marginTop: 40, display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
+                marginTop: 30, display: "flex", flexDirection: "column", alignItems: "center", gap: 12,
                 background: "none", border: "none", cursor: "pointer", padding: 0, fontFamily: "inherit",
               }}
             >
               <span style={{ position: "relative", display: "inline-block", paddingBottom: 4 }}>
-                <span style={{ color: t.brass, fontSize: 17, fontWeight: 700, fontFamily: TYPE.mono, letterSpacing: 3.5 }}>
-                  FOLLOW THE CURRENT
+                <span style={{ color: t.brass, fontSize: 15, fontWeight: 700, fontFamily: TYPE.mono, letterSpacing: 3 }}>
+                  UNDERSTAND THE WATERLINE
                 </span>
                 <WaveUnderline color={t.brass} />
               </span>
