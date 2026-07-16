@@ -174,5 +174,5 @@ Either way, the two-repo dance ends and you develop in the open.
 - `ai_working/release-1.0-backlog.md` — the prioritised first-release backlog (P0–P5)
 - `ai_working/open-source-prep-plan.md` — full licensing analysis + phased plan
 - `docs/data-sources.md` — per-source licence + redistribution classification
-- `docs/REBUILD_RUNBOOK.md` — rebuild the environment + data from scratch
+- `ai_working/REBUILD_RUNBOOK.md` — rebuild the environment + data from scratch
 - `docs/SETUP.md` — development setup

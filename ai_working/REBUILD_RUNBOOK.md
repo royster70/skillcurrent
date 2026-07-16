@@ -1,5 +1,14 @@
 # Laptop Rebuild Runbook — SkillCurrent
 
+> **This is Roy's personal-machine disaster-recovery checklist** (his own
+> `Data/` backup, Claude Code global config/memory, drive layout) — filed here
+> in `ai_working/` as a dev-journal artifact, not a `docs/` product doc. If
+> you're setting up a contributor or self-hoster environment, see
+> [CONTRIBUTING.md](../CONTRIBUTING.md) or [docs/SETUP.md](../docs/SETUP.md)
+> instead — the data-rebuild steps below (`docs/INGESTION_RUNBOOK.md`, the
+> `$DATA_ROOT` paths) are generic and still apply; the Claude Code
+> config/memory sections are not.
+
 Complete instructions to rebuild the skillcurrent development environment from scratch on a fresh Windows 11 machine, including PostgreSQL in Docker, all data ingestion, and Claude Code configuration.
 
 **Repo**: `royster70/skillcurrent` (GitHub, private)

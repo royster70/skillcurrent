@@ -9,6 +9,13 @@ include = ["app*"]
 name = "skillcurrent-backend"
 version = "0.1.0"
 requires-python = ">=3.12"
+# Core: everything needed to boot `app.main:app` and serve every registered
+# live endpoint, plus build_seed.py/restore_seed.py (pandas/pyarrow) since the
+# Docker image restores the seed on first boot. sentence-transformers and
+# anthropic are here (not a separate "ml" extra) because they're each required
+# by a live route (POST /search/semantic, POST /companies/classify) that's
+# imported unconditionally at router load time -- there's no "ml" tier to
+# split out until those become optional/lazily-imported.
 dependencies = [
     "fastapi>=0.110",
     "uvicorn[standard]>=0.27",
@@ -19,23 +26,32 @@ dependencies = [
     "pydantic-settings>=2.0",
     "pgvector>=0.3",
     "sentence-transformers>=2.2",
+    "anthropic>=0.40",
     "pandas>=2.0",
     "pyarrow>=15.0",
-    "pyreadr>=0.5",
-    "scipy>=1.12",
-    "openpyxl>=3.1",
     "apscheduler>=3.10",
 ]
 
 [project.optional-dependencies]
+# Only needed to run the full raw-source ingestion pipeline (scripts/ingest_*,
+# scripts/run_pipeline.py) -- not imported by the running API or by
+# restore_seed.py, so a Docker/API-only install can skip these.
+ingest = [
+    "pyreadr>=0.5",   # ASC v3.0 .rda files (scripts/ingest_asc.py)
+    "openpyxl>=3.1",  # ABS/OSCA Excel files (scripts/ingest_abs.py, osca_ingestion.py)
+    "scipy>=1.12",    # drift linregress (scripts/compute_drift.py, drift_calculation.py)
+]
 dev = [
+    # The test suite imports ingestion modules directly (asc_ingestion.py,
+    # osca_ingestion.py, drift_calculation.py), so dev needs ingest transitively.
+    "skillcurrent-backend[ingest]",
     "pytest>=8.0",
     "pytest-asyncio>=0.23",
     "pytest-cov>=4.0",
     "httpx>=0.27",
     # black and ruff are PINNED to match .pre-commit-config.yaml exactly.
-    # The pre-commit hooks are the formatting source of truth; a `>=` floor here
-    # would let a fresh install pull a newer version that formats some constructs
+    # The pre-commit hooks are the formatting source of truth; a `>=` floor would
+    # let a fresh install pull a newer version that formats some constructs
     # differently, so `python -m black --check` would disagree with the commit gate.
     # If you bump these, bump the `rev:` in .pre-commit-config.yaml in lockstep.
     "black==24.10.0",
