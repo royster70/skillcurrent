@@ -51,7 +51,7 @@ from app.api.v1.drift import (  # noqa: E402
     get_drift_summary,
     get_enduring_tasks,
 )
-from app.api.v1.gdpval import gdpval_occupation, gdpval_summary  # noqa: E402
+from app.api.v1.gdpval import gdpval_occupation, gdpval_summary, gdpval_waterline  # noqa: E402
 from app.api.v1.occupations import get_occupation, get_soc_hierarchy  # noqa: E402
 from app.api.v1.sector_priorities import get_sector_priorities  # noqa: E402
 from app.api.v1.sectors import get_sector_subdivisions, list_sectors  # noqa: E402
@@ -119,8 +119,9 @@ async def _emit_globals(out: Path, db: AsyncSession) -> None:
         await get_enduring_tasks(min_snapshots=2, page=1, page_size=10, db=db),
     )
     await _emit(out, "/gdpval/summary", await gdpval_summary(db=db))
+    await _emit(out, "/gdpval/waterline", await gdpval_waterline(db=db))
     await _emit(out, "/occupations/hierarchy", await get_soc_hierarchy(db=db))
-    logger.info("globals: 7 files")
+    logger.info("globals: 8 files")
 
 
 async def _emit_sectors(out: Path, db: AsyncSession) -> dict[str, list[str]]:
