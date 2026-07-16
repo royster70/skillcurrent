@@ -63,6 +63,33 @@ pytest tests/test_performance.py -m slow # P95 latency thresholds (ADR-007)
 - **Performance changes need measurements**: run `pytest -m slow` and check
   `GET /api/v1/admin/slow-queries` before and after. Don't guess.
 
+## Keeping docs in sync (drift checks)
+
+Docs drift from code silently. Two layers guard against it:
+
+- **`check_docs.py`** (pre-commit + CI) — structural: broken internal links and
+  orphaned docs.
+- **`scripts/check_content_drift.py`** (the **Content drift** CI job) — *content*:
+  asserts machine-checkable claims in `README.md` / `CLAUDE.md` still match the
+  code (the canonical row total, frontend routes, endpoint/test/table counts).
+  Structural drift (a route moved, the two docs citing different row totals)
+  **fails CI** — fix the doc in the same PR as the code change. Volatile-count
+  mismatches (a new endpoint or test) are warnings, not failures. Run it locally:
+
+  ```bash
+  cd src/backend && python -m scripts.check_content_drift          # exit 1 on drift
+  cd src/backend && python -m scripts.check_content_drift --report # list everything
+  ```
+
+- **Weekly doc-drift review** (P6) — a scheduled, **review-only** routine runs the
+  content checker plus an LLM pass over the week's commits vs the docs, and opens
+  a GitHub issue flagging likely-stale prose. It never edits docs; a human accepts
+  or dismisses each item.
+
+If you add an endpoint, page/route, model, or data source, update the relevant
+`README.md` / `CLAUDE.md` claims in the same PR — the content-drift job will tell
+you which ones.
+
 ## Data licensing (matters for any new data source)
 
 Code is MIT ([LICENSE](LICENSE)); the data compilation is CC-BY-4.0

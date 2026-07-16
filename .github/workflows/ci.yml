@@ -39,6 +39,19 @@ jobs:
       # Stdlib-only, no DB needed — validates data/signal_sources/*.csv directly.
       - run: cd src/backend && python -m scripts.check_redistribution
 
+  content-drift:
+    name: Content drift (docs vs code)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v7
+      - uses: actions/setup-python@v6
+        with:
+          python-version: "3.12"
+      # Stdlib-only, no DB — asserts machine-checkable README/CLAUDE.md claims
+      # (row total, routes, counts) still match the code. Fails only on ERROR
+      # (structural drift); volatile-count mismatches are WARN. Part of P6.
+      - run: cd src/backend && python -m scripts.check_content_drift
+
   secret-scan:
     name: Secret scan (history)
     runs-on: ubuntu-latest
