@@ -8,7 +8,12 @@ const t = THEME.light;
 const STAGES = [
   ["Sources", "O*NET occupations & tasks, employment (BLS/ABS), plus AI research & observed usage."],
   ["Crosswalk", "Tasks map to standard work activities (DWAs), bridging US and AU classifications."],
-  ["β / exposure", "Eloundou E0/E1/E2 → β = E1 + 0.5·E2, the single exposure signal."],
+  [
+    "β / exposure",
+    "β = E1 + 0.5·E2 — direct AI exposure (E1) plus half-weighted tool-assisted exposure (E2). " +
+      "A task can carry both, so β runs 0–1.5 rather than 0–1. From the Eloundou et al. 2024 " +
+      "task-exposure study (\"GPTs are GPTs\").",
+  ],
   ["Zones", "β sorts each task into insulated · augmented · automated — above, at, or below the line."],
 ];
 

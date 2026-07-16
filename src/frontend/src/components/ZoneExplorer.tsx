@@ -173,8 +173,7 @@ function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterl
       style={{ marginTop: 16, outline: "none" }}
     >
       <div style={{ fontSize: 12.5, color: t.inkMuted, marginBottom: 14, maxWidth: 520, lineHeight: 1.55 }}>
-        Every job splits across the scale — the routine parts sink toward automation, the human
-        parts stay dry. Watch the tide reach a real job; switch jobs to compare.
+        Watch the tide reach a real job — drag the waterline, switch jobs to compare.
       </div>
 
       {/* Focused role — its name rides the current (the wave underline) */}
@@ -457,10 +456,12 @@ export function ZoneExplorer() {
           and the zone descriptions aligned to the bands beside it. */}
       <WorkedExample waterline={waterline} onWaterline={setWaterline} />
 
-      {/* Honesty footer */}
+      {/* Honesty footer — includes the plain-words 0–1.5 gloss (the scale max
+          is derived, not arbitrary: a task can score on both questions). */}
       <div style={{ fontSize: 11, color: t.inkMuted, fontStyle: "italic", textAlign: "center", marginTop: 14 }}>
-        Beta = E1 + 0.5×E2 (Eloundou 2024). No occupation has all tasks affected —
-        most roles blend all three zones.
+        β = E1 + 0.5×E2 — direct AI exposure plus half-weighted tool-assisted exposure,
+        so the scale tops out at 1.5 (Eloundou 2024). No job has every task affected —
+        most blend all three zones.
       </div>
     </div>
   );
