@@ -110,6 +110,28 @@ Companions: `docs/PUBLISHING.md` (topology + punch-list),
 16. Create public repo (`royster70/skillcurrent`); `public` forward-only branch;
     first curated push; converge at launch (Phase B).
 
+## P6 — ongoing documentation maintenance (post-launch; supports the open-source shift)
+
+17. **Scheduled content-drift review** (not yet built — discussed 2026-07-16).
+    What exists today is event-driven and structural only: `scripts/check_docs.py`
+    catches broken links + orphaned docs on every commit (pre-commit) and every
+    PR (CI); the `docs-updater` agent exists but only runs when someone
+    remembers to invoke it after a feature. Neither catches **content drift** —
+    stale row counts, an architecture description that's fallen behind the
+    code, `CLAUDE.md`'s "Build Status" going out of date. That gap gets worse
+    once external contributors are merging PRs without knowing the
+    `docs-updater` convention exists.
+    Proposed shape: a **weekly, review-only** scheduled routine (via the
+    `schedule` skill/cron, not `/loop`) that diffs the week's merged commits
+    against the docs they touch and flags likely-stale sections for a human
+    to accept/dismiss — not auto-editing. Keep it review-only to avoid two
+    failure modes: an agent silently "fixing" docs into something wrong, and
+    a routine noisy enough that its flags get ignored.
+    **Open decisions for Roy**: exact cadence (weekly vs. per-N-PRs), which
+    docs are in scope (README/CLAUDE.md/docs/ vs. also ai_working/), and
+    where flagged drift should land (a GitHub issue, a chip in-session, a
+    standing doc).
+
 ## Explicit non-blockers (so they stop looking like blockers)
 
 - **`gdpval_evaluations` = 0 rows** (pending ~$15.70 recharge for the 2-Sonnet
