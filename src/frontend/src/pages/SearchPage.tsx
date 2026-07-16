@@ -1,7 +1,7 @@
 import { useState } from "react";
 import { useNavigate } from "react-router-dom";
-import { api, type SearchResult } from "../lib/api";
-import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, ZONE_LABELS, SIGNAL_COLORS } from "../lib/constants";
+import { api, IS_STATIC, type SearchResult } from "../lib/api";
+import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, ZONE_LABELS, ZONE_TITLES, SIGNAL_COLORS } from "../lib/constants";
 import { CurrentFlow } from "../components/current/CurrentFlow";
 import { Waypoint } from "../components/Waypoint";
 import { DUR, EASE } from "../components/current/motion";
@@ -26,18 +26,22 @@ export function SearchPage() {
   const [results, setResults] = useState<SearchResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [searched, setSearched] = useState(false);
+  const [failed, setFailed] = useState(false);
   const [mode, setMode] = useState<SearchMode>("semantic");
   const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
 
   // Accepts an explicit term so the suggestion chips can search immediately —
   // setQuery() is async, so a chip can't set state then read it back this tick.
-  const handleSearch = async (q: string = query) => {
+  // Same reason `m` is a parameter: the failure-fallback button switches mode
+  // and re-searches in one click.
+  const handleSearch = async (q: string = query, m: SearchMode = mode) => {
     if (q.length < 2) return;
     setLoading(true);
     setSearched(true);
+    setFailed(false);
     try {
-      if (mode === "semantic") {
+      if (m === "semantic") {
         const data = await api.semanticSearch(q, description || undefined);
         setResults(data.results);
       } else {
@@ -45,7 +49,10 @@ export function SearchPage() {
         setResults(data.results);
       }
     } catch {
+      // A failed request is NOT "no matches" — surface it as its own state so
+      // an outage never masquerades as a genuine zero-result search.
       setResults([]);
+      setFailed(true);
     } finally {
       setLoading(false);
     }
@@ -63,7 +70,10 @@ export function SearchPage() {
           Search for a role
         </h1>
         <p style={{ fontSize: 14, color: t.inkMuted, margin: "6px 0 0" }}>
-          Search 66,500+ job titles using {mode === "semantic" ? "AI-powered semantic matching" : "text matching"}
+          Search 66,500+ job titles using{" "}
+          {mode === "semantic"
+            ? IS_STATIC ? "fuzzy title matching" : "AI-powered semantic matching"
+            : "text matching"}
         </p>
       </div>
 
@@ -81,7 +91,7 @@ export function SearchPage() {
               transition: `all ${DUR.hover}ms ${EASE}`,
             }}
           >
-            <IconCompass size={15} /> Semantic
+            <IconCompass size={15} /> {IS_STATIC ? "Best match" : "Semantic"}
           </button>
           <button
             onClick={() => setMode("text")}
@@ -99,14 +109,19 @@ export function SearchPage() {
         </div>
         <span style={{ fontSize: 12, color: t.inkMuted }}>
           {mode === "semantic"
-            ? "Understands meaning — matches roles by what they do, not just keywords"
+            ? IS_STATIC
+              // Honesty over gloss: the static build has no embedding model, so
+              // "semantic" here is really the same trigram fuzzy match ranked a
+              // little differently. Say so rather than claim AI matching.
+              ? "Static build — fuzzy title matching over the same corpus. Full semantic search runs in the self-hosted build."
+              : "Understands meaning — matches roles by what they do, not just keywords"
             : "Matches by text similarity — exact phrases and fuzzy matching"}
         </span>
       </div>
 
       {/* Search inputs */}
       <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-        <div style={{ display: "flex", gap: 8 }}>
+        <div style={{ display: "flex", gap: 8, flexWrap: "wrap" }}>
           <input
             type="text"
             value={query}
@@ -116,7 +131,7 @@ export function SearchPage() {
             onBlur={() => setFocused(false)}
             placeholder="Job title... e.g. 'DevOps Engineer', 'Clinical Psychologist', 'Data Architect'"
             style={{
-              flex: 1, padding: "12px 16px", fontSize: 16, borderRadius: 10,
+              flex: 1, minWidth: 220, padding: "12px 16px", fontSize: 16, borderRadius: 10,
               border: `1.5px solid ${focused ? t.brass : t.line}`, outline: "none",
               fontFamily: TYPE.body, color: t.ink, background: t.surface,
               transition: `border-color ${DUR.hover}ms ${EASE}`,
@@ -166,8 +181,46 @@ export function SearchPage() {
         )}
       </div>
 
-      {/* Results */}
-      {searched && !loading && results.length === 0 && (
+      {/* Failure — a distinct state from "no matches", so an unavailable
+          service never reads as a genuine zero-result search */}
+      {searched && !loading && failed && (
+        <div style={{ padding: "48px 0", textAlign: "center", color: t.inkMuted }}>
+          <div style={{ opacity: 0.35, marginBottom: 10, display: "flex", justifyContent: "center" }}>
+            <IconWaterline size={30} />
+          </div>
+          <div style={{ fontSize: 15, fontWeight: 600, color: t.ink }}>Search is unavailable right now</div>
+          <div style={{ fontSize: 13.5, marginTop: 6 }}>
+            The search service didn't respond — this isn't a "no matches" result.
+            Check your connection, then retry.
+          </div>
+          <div style={{ display: "flex", gap: 8, justifyContent: "center", marginTop: 16, flexWrap: "wrap" }}>
+            <button
+              onClick={() => handleSearch()}
+              style={{
+                padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                border: "none", backgroundColor: t.brass, color: "#fff", cursor: "pointer", fontFamily: TYPE.body,
+              }}
+            >
+              Retry
+            </button>
+            {mode === "semantic" && !IS_STATIC && (
+              <button
+                onClick={() => { setMode("text"); handleSearch(query, "text"); }}
+                style={{
+                  padding: "8px 18px", fontSize: 13, fontWeight: 600, borderRadius: 8,
+                  border: `1px solid ${t.line}`, backgroundColor: t.surface, color: t.inkMuted,
+                  cursor: "pointer", fontFamily: TYPE.body,
+                }}
+              >
+                Try text match instead
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Genuine zero-result search */}
+      {searched && !loading && !failed && results.length === 0 && (
         <div style={{ padding: "48px 0", textAlign: "center", color: t.inkMuted }}>
           <div style={{ opacity: 0.35, marginBottom: 10, display: "flex", justifyContent: "center" }}>
             <IconWaterline size={30} />
@@ -180,7 +233,7 @@ export function SearchPage() {
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
           <div style={{ fontSize: 13, color: t.inkMuted, marginBottom: 4 }}>
             {results.length} occupation{results.length !== 1 ? "s" : ""} matching "{query}"
-            {mode === "semantic" && " (semantic)"}
+            {mode === "semantic" && (IS_STATIC ? " (best match)" : " (semantic)")}
           </div>
 
           {results.map((r) => (
@@ -289,6 +342,7 @@ function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
         {r.aei_exposure != null && <ScorePill label="AEI" value={r.aei_exposure} color={SIGNAL_COLORS.aei} />}
         {r.dominant_zone && (
           <span
+            title={ZONE_TITLES[r.dominant_zone as keyof typeof ZONE_TITLES]}
             style={{
               fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16, fontFamily: TYPE.body,
               color: ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || t.inkMuted,

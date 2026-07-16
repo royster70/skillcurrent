@@ -42,7 +42,7 @@ export const BRASS_TINT = "rgba(156, 100, 20, 0.10)";
 export const ZONE_COLORS = {
   E0: "#b06a1a", // insulated — above the waterline (warm amber)
   E1: "#1663ab", // augmented — at the waterline (clear blue)
-  E2: "#2c9a5f", // automated — submerged (clear green; widened from teal so E1≠E2)
+  E2: "#2c9a5f", // high automation potential — submerged (clear green; widened from teal so E1≠E2)
   alert: "#b23b3b", // below threshold
 } as const;
 
@@ -56,7 +56,18 @@ export const ZONE_COLORS_DARK = {
 export const ZONE_LABELS = {
   E0: "Insulated",
   E1: "Augmented",
-  E2: "Automated",
+  // "High automation potential", not "Automated" — β reads capability, not
+  // deployment. A task can be technically automatable yet stay human-led
+  // (regulation, liability, workflow integration, economics).
+  E2: "High automation potential",
+} as const;
+
+// Hover qualifiers for bare zone chips — the one place a user can ask
+// "what does this label actually claim?" without leaving the page.
+export const ZONE_TITLES = {
+  E0: "E0 — Insulated: human-led work today's AI barely reaches (β < 0.40)",
+  E1: "E1 — Augmented: AI assists on routine parts while humans lead (β 0.40–0.85)",
+  E2: "E2 — High automation potential: AI can perform much of this task; whether it does depends on tools, controls and context (β ≥ 0.85)",
 } as const;
 
 // Soft zone backgrounds (light) — warm-instrument tints of the zone hues.

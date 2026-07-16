@@ -1,10 +1,10 @@
 import { useState, useEffect, useMemo, useCallback } from "react";
-import { useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC, type GDPvalTaskDetail } from "../lib/api";
 import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_LABELS, MOVEMENT_COLORS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, ZONE_TITLES, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_LABELS, MOVEMENT_COLORS } from "../lib/constants";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
@@ -235,9 +235,12 @@ export function OccupationsPage() {
               tasks is placed on the same dry→submerged scale the whole platform reads on,
               with the current marking where AI usage is rising.
             </p>
-            <a href="/#read-the-scale" style={{ fontSize: 12.5, fontWeight: 600, color: theme.brass, textDecoration: "none", marginTop: 12 }}>
+            {/* Router Link, not a raw <a href="/..."> — an absolute href bypasses
+                the router basename and escapes the app when it's served under a
+                sub-path (GitHub Pages /skillcurrent/). */}
+            <Link to="/#read-the-scale" style={{ fontSize: 12.5, fontWeight: 600, color: theme.brass, textDecoration: "none", marginTop: 12 }}>
               Learn to read the scale →
-            </a>
+            </Link>
           </div>
         )}
       </div>
@@ -290,7 +293,7 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           <ContextualScoreCard label="Microsoft" value={occ.ms_ai_applicability} percentile={occ.ms_ai_percentile} median={occ.ms_ai_median} population={occ.ms_ai_population} signalColor={SIGNAL_COLORS.microsoft} sourceKey="microsoft" />
           <ContextualScoreCard label="AEI" value={occ.aei_exposure} percentile={occ.aei_percentile} median={occ.aei_median} population={occ.aei_population} signalColor={SIGNAL_COLORS.aei} sourceKey="aei" eraSnapshots={occ.aei_era_snapshots} />
           {occ.dominant_zone && (
-            <span style={{
+            <span title={ZONE_TITLES[occ.dominant_zone as keyof typeof ZONE_TITLES]} style={{
               fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
               backgroundColor: zoneColor + "15", color: zoneColor, border: `1px solid ${zoneColor}40`,
             }}>

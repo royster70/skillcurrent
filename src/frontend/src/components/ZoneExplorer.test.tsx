@@ -16,7 +16,7 @@ describe("ZoneExplorer", () => {
     renderExplorer();
     expect(screen.getByText("E0 — Insulated")).toBeInTheDocument();
     expect(screen.getByText("E1 — Augmented")).toBeInTheDocument();
-    expect(screen.getByText("E2 — Automated")).toBeInTheDocument();
+    expect(screen.getByText("E2 — High automation potential")).toBeInTheDocument();
   });
 
   it("shows threshold ranges", () => {
@@ -97,7 +97,7 @@ describe("ZoneExplorer", () => {
 
   it("sets the waterline when a zone card is clicked", () => {
     renderExplorer();
-    fireEvent.click(screen.getByText("E2 — Automated"));
+    fireEvent.click(screen.getByText("E2 — High automation potential"));
     const slider = screen.getByRole("slider", { name: "Waterline" });
     expect(slider).toHaveAttribute("aria-valuenow", "1.05");
   });
@@ -131,7 +131,7 @@ describe("ZoneLegend", () => {
     expect(pips.length).toBe(3);
     expect(screen.getByText("Insulated")).toBeInTheDocument();
     expect(screen.getByText("Augmented")).toBeInTheDocument();
-    expect(screen.getByText("Automated")).toBeInTheDocument();
+    expect(screen.getByText("High automation potential")).toBeInTheDocument();
   });
 
   it("links to the landing's READ THE SCALE section", () => {
