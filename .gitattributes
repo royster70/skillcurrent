@@ -1,0 +1,25 @@
+# Normalize all text files to LF in the repo and on checkout.
+# Forcing eol=lf (not just text=auto) overrides each contributor's
+# core.autocrlf so Windows checkouts don't rewrite files to CRLF.
+# This is load-bearing: docker-entrypoint.sh is COPYed byte-for-byte
+# into the Linux backend image; a CRLF shebang makes the container
+# crash on boot with "exec ./docker-entrypoint.sh: no such file or
+# directory".
+* text=auto eol=lf
+
+# Shell scripts MUST be LF — they run inside Linux containers.
+*.sh text eol=lf
+
+# Binary assets: never apply EOL conversion or line diffs.
+*.parquet binary
+*.png binary
+*.jpg binary
+*.jpeg binary
+*.gif binary
+*.ico binary
+*.pdf binary
+*.xlsx binary
+*.xls binary
+*.rda binary
+*.zip binary
+*.gz binary
