@@ -13,7 +13,10 @@ import { SearchPage } from "./pages/SearchPage";
 
 function App() {
   return (
-    <BrowserRouter>
+    // basename so routes resolve when the site is served under a sub-path
+    // (GitHub Pages: /<repo>/). BASE_URL is "/" for dev/Docker, "/skillcurrent/"
+    // for the cdn build (set by vite `base`).
+    <BrowserRouter basename={import.meta.env.BASE_URL}>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<LandingPage />} />
