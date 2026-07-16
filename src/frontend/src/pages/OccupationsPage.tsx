@@ -4,7 +4,7 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC, type GDPvalTaskDetail } from "../lib/api";
 import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_LABELS, MOVEMENT_COLORS } from "../lib/constants";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
@@ -43,6 +43,43 @@ function MiniBetaTrack({ beta, width = 64 }: { beta: number; width?: number }) {
           transform: "translate(-50%, -50%)",
         }}
       />
+    </span>
+  );
+}
+
+// Directional glyph per tide state — the word (MOVEMENT_LABELS) carries the
+// meaning; the arrow is a quick-read echo. Mirrors SectorDetailPage's RoleRow.
+const TIDE_GLYPH: Record<string, string> = {
+  departing: "↑", // Rising — AI usage climbing era over era
+  emerging: "↗", // Surfacing — new tasks appearing
+  enduring: "→", // Holding fast — stable
+  below_threshold: "≈", // At the waterline — about to flip
+  unclassified: "·",
+};
+
+/** Occupation-level tide indicator for the detail header. Reads the same
+ * Rising Tide vocabulary as the Tide page and sector role rows: the dominant
+ * task movement (drift_classification), with the aggregate drift velocity in
+ * the tooltip for transparency. Null when the occupation has no drift signal. */
+function TideChip({ classification, velocity }: { classification: string | null; velocity: number | null }) {
+  if (!classification) return null;
+  const key = classification as keyof typeof MOVEMENT_LABELS;
+  const color = MOVEMENT_COLORS[key] ?? theme.inkMuted;
+  const label = MOVEMENT_LABELS[key] ?? classification;
+  const glyph = TIDE_GLYPH[classification] ?? TIDE_GLYPH.unclassified;
+  const drift =
+    velocity != null ? `${velocity >= 0 ? "+" : ""}${velocity.toFixed(4)}/era` : "no velocity";
+  return (
+    <span
+      title={`Tide — dominant task movement: ${label} (avg drift ${drift})`}
+      style={{
+        display: "inline-flex", alignItems: "center", gap: 5,
+        fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
+        color, backgroundColor: color + "15", border: `1px solid ${color}40`,
+      }}
+    >
+      <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>{glyph}</span>
+      {label}
     </span>
   );
 }
@@ -260,6 +297,7 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
               {ZONE_LABELS[occ.dominant_zone as keyof typeof ZONE_LABELS] || occ.dominant_zone}
             </span>
           )}
+          <TideChip classification={occ.drift_classification} velocity={occ.drift_velocity} />
           {occ.gdpval_available && (
             <div
               onClick={() => setGdpvalExpanded(!gdpvalExpanded)}
