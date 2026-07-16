@@ -2,7 +2,7 @@
 
 Usage:
     python -m scripts.ingest_osca
-    python -m scripts.ingest_osca --path "C:/Users/royst/Projects/Data/OSCA" --version 2024.1.0
+    python -m scripts.ingest_osca --path "$DATA_ROOT/OSCA" --version 2024.1.0
 """
 
 import argparse

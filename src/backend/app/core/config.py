@@ -10,7 +10,7 @@ class Settings(BaseSettings):
     # Root directory for all external source data (outside the repo).
     # Every dataset path below is derived from this so the pipeline is
     # machine-portable: set DATA_ROOT in .env to relocate on a new machine.
-    data_root: str = r"C:\Users\royst\Projects\Data"
+    data_root: str = "./data"
 
     anthropic_auth_token: str = ""  # Set ANTHROPIC_AUTH_TOKEN in .env for AI classification
     enable_request_logging: bool = False  # Log API requests to api_request_log (ADR-007)

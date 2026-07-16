@@ -9,8 +9,8 @@ Usage:
     python -m scripts.build_anzsco_concordance
 
 Data files expected:
-    C:/Users/royst/Projects/Data/ANZSCO/anzsco 2022 structure 062023.xlsx
-    C:/Users/royst/Projects/Data/ANZSCO/anzsco 2022 index of principal titles, alternative titles and specialisations 062023.xlsx
+    $DATA_ROOT/ANZSCO/anzsco 2022 structure 062023.xlsx
+    $DATA_ROOT/ANZSCO/anzsco 2022 index of principal titles, alternative titles and specialisations 062023.xlsx
 """
 
 import asyncio
