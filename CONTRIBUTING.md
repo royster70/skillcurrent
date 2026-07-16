@@ -8,7 +8,8 @@ commit must pass, and what we expect from changes. Architecture context lives in
 ## Dev setup
 
 1. **Prerequisites**: Python 3.12, PostgreSQL 16 with `pgvector` + `pg_trgm`,
-   Node 20+ (frontend).
+   Node 20+ (frontend). Or skip all of this with `docker compose up` from the
+   repo root — see the README's "Running it" section.
 2. **Backend**:
    ```bash
    cd src/backend
@@ -16,11 +17,13 @@ commit must pass, and what we expect from changes. Architecture context lives in
    pip install -e ".[dev]"
    cp ../../.env.example .env                          # then edit DATABASE_URL / DATA_ROOT
    alembic upgrade head
+   python -m scripts.doctor                            # preflight check
+   python -m scripts.restore_seed                       # loads the committed seed dataset
    ```
-3. **Data**: reference data is rebuilt from public sources — see
-   [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) /
-   [docs/REBUILD_RUNBOOK.md](docs/REBUILD_RUNBOOK.md). (A seed dataset for a
-   faster start is on the roadmap — see `ai_working/release-1.0-backlog.md`.)
+3. **Data**: `restore_seed.py` loads the committed
+   [seed dataset](docs/SEED_DATASET.md) (40 tables, 240k rows) in seconds. For
+   the full, real dataset from public sources instead, see
+   [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md).
 4. **Frontend**: `cd src/frontend && npm install && npm run dev`.
 
 ## The quality gate (enforced, not advisory)

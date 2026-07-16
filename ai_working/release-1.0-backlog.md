@@ -32,41 +32,64 @@ Companions: `docs/PUBLISHING.md` (topology + punch-list),
 | 4 | `CONTRIBUTING.md` (setup, green gate, tests/invariants, licensing, commits) | ✅ this branch |
 | 5 | Re-run PUBLISHING.md §0 secret scan — repeat before **every** public push | recurring |
 
-## P1 — CI + enforcement (there is no CI today; `.github/` doesn't exist)
+## P1 — CI + enforcement ✅ done
 
-6. GitHub Actions:
-   - lint job = `pre-commit run --all-files`
-   - backend tests (non-DB tests first; full suite once the tiny seed exists)
-   - `python -m scripts.check_redistribution` as the pre-publish gate
-     (already CI-runnable, exits 1 on violation)
+6. ✅ GitHub Actions (`.github/workflows/ci.yml`): lint (`pre-commit run --all-files`),
+   `check_redistribution.py` gate, backend tests (`test_drift.py` +
+   `test_onet_ingestion.py` — the only DB-free suites today; widen once more
+   land), frontend (eslint + tsc + vitest + build). Verified green on GitHub's
+   own runners, not just locally.
 
-## P2 — seed dataset (prep-plan Phase 3; the "clone → runs" centrepiece)
+## P2 — seed dataset ✅ done (prep-plan Phase 3; the "clone → runs" centrepiece)
 
-7. `scripts/build_seed.py` — export only tables whose every contributing source
-   is `redistribution_ok = true` (query `signal_source_registry`), **to Parquet**.
-   Per the static-smart discovery doc, the seed and the static-site data layer
-   are deliberately the *same artifact*. Stamp as-of date + source manifest.
-8. `scripts/restore_seed.py` — one-command restore into Postgres.
-9. Two tiers: tiny committed sample (CI + quickstart) and full CC-BY snapshot as
-   a GitHub Release asset (not in git).
-   **Open decision (Roy): tiny-seed scope** — e.g. ~50 occupations / 2 sectors.
+7. ✅ `scripts/build_seed.py` — exports every table whose source(s) are
+   `redistribution_ok = true` (checked against the live `signal_source_registry`)
+   to Parquet, with a `manifest.json` recording exact row/byte counts + the
+   sources actually shipped. **Tiny-seed scope resolved**: grounded in the live
+   schema (real row counts + FK graph via `information_schema`, not guesswork)
+   — full breadth of every occupation/task/exposure/employment table (40
+   tables), excluding only the 3 `vector` embedding tables, O*NET's bulkiest
+   raw detail tables (superseded by included derived tables), and
+   CompanyLookup/ASX (full-build-only + licence-unverified). See
+   `EXCLUDED_TABLES` in the script + `docs/SEED_DATASET.md`.
+8. ✅ `scripts/restore_seed.py` — one-command restore, preserves original PKs,
+   resets serial sequences, `--truncate` for idempotent re-runs.
+9. ✅ Tiny committed sample shipped: **40 tables, 240,430 rows, 8.9 MB**,
+   committed to git (`src/backend/data/seed/`). The full CC-BY snapshot as a
+   separate GitHub Release asset is not built — the committed tiny seed already
+   covers the full occupation/sector breadth, so a second, bigger tier hasn't
+   been needed yet; revisit if that changes.
 
-## P3 — run-path infrastructure (prep-plan Phase 5)
+## P3 — run-path infrastructure ✅ done (prep-plan Phase 5)
 
-10. `docker-compose.yml` — pgvector Postgres + backend + frontend; seed restore
-    on first boot.
-11. `scripts/doctor.py` preflight + dependency tiering (core / `[ingest]` /
-    `[ml]` / `[dev]`).
-12. README rewrite: four audiences (contributors, researchers/citers,
-    self-hosters, visitors), three run-paths (static mirror / docker full stack /
-    add-a-signal); reframe `CLAUDE.md` from consulting-accelerator voice
-    (keep the data-model invariants — they're an asset).
-12b. Decide `docs/REBUILD_RUNBOOK.md`'s public fate: it is a *personal-machine*
-    disaster-recovery runbook (Roy's `.claude` memory backup, miniconda path,
-    drive layout) that can't be mechanically scrubbed without destroying its
-    purpose. Either generalise it into a from-scratch rebuild guide (the
-    `$DATA_ROOT` data paths are already neutral) or move the personal-machine
-    sections to `ai_working/` (the dev journal is public by decision anyway).
+10. ✅ `docker-compose.yml` + `src/backend/Dockerfile` + `src/frontend/Dockerfile`
+    (nginx, proxies `/api` to the backend) — pgvector Postgres + backend +
+    frontend. `docker-entrypoint.sh` migrates and restores the seed on a
+    genuinely empty database only (idempotent across restarts). **Verified
+    end-to-end**: built both images, brought the stack up, confirmed the seed
+    auto-restored (240,430 rows), hit the API and the frontend-via-nginx proxy,
+    confirmed the dashboard renders real seeded data in a browser, and confirmed
+    a restart correctly skips re-seeding.
+11. ✅ `scripts/doctor.py` preflight (Python/Node versions, `.env`, DB
+    reachability, pgvector/pg_trgm extensions, migration status, seed presence,
+    Docker availability) + dependency tiering in `pyproject.toml`
+    (`core` / `[ingest]` / `[dev]` — no separate `[ml]` tier: sentence-transformers
+    is already required by a live endpoint, so there's nothing to split out
+    until that becomes optional). Also fixed a latent bug found along the way:
+    `anthropic` was imported by a live endpoint but never a declared dependency.
+12. ✅ README rewrite: "Who this is for" (four audiences) + "Running it" (three
+    run-paths — Docker/native/add-a-signal; the static site is honestly marked
+    **planned, not built**, not overclaimed). `CLAUDE.md` reframed: the
+    exhaustive session-log "Build Dependency Chain" (branch/PR notes, dollar
+    figures) moved to `ai_working/build-history.md`; replaced with a short
+    "Build Status" summary. Data-model invariants, privacy rules, engineering
+    principles, and reference docs are unchanged — they're the asset, not the
+    voice that needed fixing.
+12b. ✅ Resolved: `ai_working/REBUILD_RUNBOOK.md` moved out of `docs/` (it's
+    Roy's personal-machine disaster-recovery checklist — `.claude` memory
+    backup, miniconda path — not a generic setup guide). A banner at its top
+    points elsewhere for real contributor/self-hoster setup. All referencing
+    docs updated; `check_docs.py` reachability confirmed 0 broken links.
 
 ## P4 — static site (in scope for launch)
 
@@ -86,6 +109,28 @@ Companions: `docs/PUBLISHING.md` (topology + punch-list),
 
 16. Create public repo (`royster70/skillcurrent`); `public` forward-only branch;
     first curated push; converge at launch (Phase B).
+
+## P6 — ongoing documentation maintenance (post-launch; supports the open-source shift)
+
+17. **Scheduled content-drift review** (not yet built — discussed 2026-07-16).
+    What exists today is event-driven and structural only: `scripts/check_docs.py`
+    catches broken links + orphaned docs on every commit (pre-commit) and every
+    PR (CI); the `docs-updater` agent exists but only runs when someone
+    remembers to invoke it after a feature. Neither catches **content drift** —
+    stale row counts, an architecture description that's fallen behind the
+    code, `CLAUDE.md`'s "Build Status" going out of date. That gap gets worse
+    once external contributors are merging PRs without knowing the
+    `docs-updater` convention exists.
+    Proposed shape: a **weekly, review-only** scheduled routine (via the
+    `schedule` skill/cron, not `/loop`) that diffs the week's merged commits
+    against the docs they touch and flags likely-stale sections for a human
+    to accept/dismiss — not auto-editing. Keep it review-only to avoid two
+    failure modes: an agent silently "fixing" docs into something wrong, and
+    a routine noisy enough that its flags get ignored.
+    **Open decisions for Roy**: exact cadence (weekly vs. per-N-PRs), which
+    docs are in scope (README/CLAUDE.md/docs/ vs. also ai_working/), and
+    where flagged drift should land (a GitHub issue, a chip in-session, a
+    standing doc).
 
 ## Explicit non-blockers (so they stop looking like blockers)
 
