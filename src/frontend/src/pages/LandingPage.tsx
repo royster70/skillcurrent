@@ -79,9 +79,9 @@ function WaterlineBar({ s, shown, index }: { s: Sector; shown: boolean; index: n
         {s.naics_title}
       </div>
       <div style={{ flex: 1, minWidth: 60, display: "flex", height: 26, borderRadius: 4, overflow: "hidden", border: `1px solid ${t.line}` }}>
-        <div style={{ background: ZONE_COLORS.E0, ...seg(s.workers_e0, 0) }} title={`${ZONE_LABELS.E0} (insulated)`} />
-        <div style={{ background: ZONE_COLORS.E1, ...seg(s.workers_e1, 1) }} title={`${ZONE_LABELS.E1} (augmented)`} />
-        <div style={{ background: ZONE_COLORS.E2, ...seg(s.workers_e2, 2) }} title={`${ZONE_LABELS.E2} (automated)`} />
+        <div style={{ background: ZONE_COLORS.E0, ...seg(s.workers_e0, 0) }} title={`E0 — ${ZONE_LABELS.E0} (dry)`} />
+        <div style={{ background: ZONE_COLORS.E1, ...seg(s.workers_e1, 1) }} title={`E1 — ${ZONE_LABELS.E1} (at the line)`} />
+        <div style={{ background: ZONE_COLORS.E2, ...seg(s.workers_e2, 2) }} title={`E2 — ${ZONE_LABELS.E2} (submerged)`} />
       </div>
       <div style={{ width: 52, fontFamily: TYPE.mono, fontSize: 13, color: t.inkMuted, fontVariantNumeric: "tabular-nums" }}>
         β{(s.avg_eloundou_beta ?? 0).toFixed(2)}

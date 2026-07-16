@@ -2,7 +2,7 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { CompanyLookup } from "../components/CompanyLookup";
 import { SectorChipSelector } from "../components/SectorChipSelector";
@@ -67,7 +67,7 @@ export function SectorsPage() {
           subtitle={`workers in ${totalE0} occupations with Beta < 0.40`} color={ZONE_COLORS.E0} />
         <MetricCard label="AUGMENTED (E1)" value={fmtEmp(workersE1)}
           subtitle={`workers in ${totalE1} occupations with Beta 0.40–0.85`} color={ZONE_COLORS.E1} />
-        <MetricCard label="AUTOMATED (E2)" value={fmtEmp(workersE2)}
+        <MetricCard label={`${ZONE_LABELS.E2.toUpperCase()} (E2)`} value={fmtEmp(workersE2)}
           subtitle={`workers in ${totalE2} occupations with Beta ≥ 0.85`} color={ZONE_COLORS.E2} />
         {/* Unlike the three zone cards, this is Rising-Tide vocabulary — so it
             links there (and uses that page's own label, not raw jargon). */}

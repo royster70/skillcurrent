@@ -9,7 +9,7 @@
  */
 
 import { useMemo, useState } from "react";
-import { useSearchParams, useNavigate } from "react-router-dom";
+import { Link, useSearchParams, useNavigate } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import {
   api,
@@ -17,7 +17,7 @@ import {
   type SubdivisionEntry,
   type SubdivisionOccupationProfile,
 } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { MetricCard } from "../components/MetricCard";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
@@ -48,7 +48,10 @@ export function CompositeSectorPage() {
         <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0 }}>Composite Sector Analysis</h1>
         <p style={{ color: t.inkMuted, marginTop: 8 }}>
           Select 2 or more sectors from the{" "}
-          <a href="/" style={{ color: t.brass }}>Sectors page</a>{" "}
+          {/* Router Link (basename-aware), and the chip selector lives on
+              /sectors — the old raw <a href="/"> escaped the app on GitHub
+              Pages AND pointed at the landing page. */}
+          <Link to={region === "AU" ? "/sectors?region=AU" : "/sectors"} style={{ color: t.brass }}>Sectors page</Link>{" "}
           to build a composite view.
         </p>
       </div>
@@ -151,7 +154,7 @@ function CompositeContent({
           </div>
         ))}
         <button
-          onClick={() => navigate(`/${region === "AU" ? "?region=AU" : ""}`)}
+          onClick={() => navigate(`/sectors${region === "AU" ? "?region=AU" : ""}`)}
           style={{
             display: "flex", alignItems: "center", gap: 4,
             background: "none", border: "none", cursor: "pointer",
@@ -183,7 +186,7 @@ function CompositeContent({
           color={ZONE_COLORS.E1}
         />
         <MetricCard
-          label="AUTOMATED (E2)"
+          label={`${ZONE_LABELS.E2.toUpperCase()} (E2)`}
           value={fmtEmp(data.workers_e2)}
           subtitle={`${pct(data.workers_e2, totalEmp)} of composite workforce`}
           color={ZONE_COLORS.E2}
@@ -357,7 +360,7 @@ function generateNarrative(data: CompositeSectorResponse): string {
   const totalEmp = data.total_employment;
   const beta = data.weighted_eloundou_beta;
   const zone = beta != null
-    ? beta >= 0.85 ? "Automated (E2)" : beta >= 0.4 ? "Augmented (E1)" : "Insulated (E0)"
+    ? beta >= 0.85 ? `${ZONE_LABELS.E2} (E2)` : beta >= 0.4 ? `${ZONE_LABELS.E1} (E1)` : `${ZONE_LABELS.E0} (E0)`
     : "undetermined";
 
   // Find occupations that span the most sectors

@@ -14,7 +14,12 @@ const STAGES = [
       "A task can carry both, so β runs 0–1.5 rather than 0–1. From the Eloundou et al. 2024 " +
       "task-exposure study (\"GPTs are GPTs\").",
   ],
-  ["Zones", "β sorts each task into insulated · augmented · automated — above, at, or below the line."],
+  [
+    "Zones",
+    "β sorts each task into insulated · augmented · high automation potential — above, at, or " +
+      "below the line. The deepest zone reads capability, not deployment: AI can perform much of " +
+      "the task, but whether it does depends on tools, controls and context.",
+  ],
 ];
 
 export function MethodologyPage() {

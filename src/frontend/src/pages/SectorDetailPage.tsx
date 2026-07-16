@@ -297,7 +297,7 @@ function generateNarrative(data: {
   if (e2Roles.length > 0 && totalWorkers > 0) {
     const pct = ((e2Workers / totalWorkers) * 100).toFixed(0);
     sentences.push(
-      `${e2Roles.length} of ${all.length} occupations are in the automated zone (E2), representing ${fmtNum(e2Workers)} workers (${pct}% of this sector's workforce).`
+      `${e2Roles.length} of ${all.length} occupations sit in the high-automation-potential zone (E2), representing ${fmtNum(e2Workers)} workers (${pct}% of this sector's workforce).`
     );
   }
 

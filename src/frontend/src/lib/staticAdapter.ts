@@ -50,6 +50,9 @@ export function loadShared<T>(file: string): Promise<T> {
       if (!r.ok) throw new Error(`static data missing: ${file} (${r.status})`);
       return r.json();
     });
+    // Evict on rejection — a cached failed promise would poison every retry
+    // until a full page reload (the search Retry button depends on this).
+    p.catch(() => cache.delete(file));
     cache.set(file, p);
   }
   return p as Promise<T>;

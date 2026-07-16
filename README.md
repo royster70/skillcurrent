@@ -33,7 +33,9 @@ Each task's β sorts it into one of three **zones** — above the line, at it, o
 |------|---------|---------------|------------|
 | 🟠 **E0 — Insulated** *(dry)* | β < 0.40 | Human-only work | Preserve and invest in these distinctly human skills |
 | 🔵 **E1 — Augmented** *(at the line)* | 0.40 – 0.85 | AI assists, human leads | Upskill people to work alongside AI on the routine parts |
-| 🟢 **E2 — Automated** *(submerged)* | β ≥ 0.85 | AI performs, human validates | Redesign the role around oversight and exceptions |
+| 🟢 **E2 — High automation potential** *(submerged)* | β ≥ 0.85 | AI performs, human validates | Redesign the role around oversight and exceptions |
+
+*E2 reads capability, not deployment — AI can perform much of the task; whether it actually does depends on tools, controls, regulation and economics.*
 
 **Why the waterline keeps rising.** An *era* is a model generation — and they now arrive in months, not decades. Each new frontier model lifts the waterline, and work that sat safely above it slips under. That's the current these pages measure — rising an order of magnitude faster than past technological shifts, and never backward. → [See which tasks are rising, era over era](https://royster70.github.io/skillcurrent/tide).
 
