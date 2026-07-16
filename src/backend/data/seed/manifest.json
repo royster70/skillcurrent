@@ -1,0 +1,389 @@
+{
+  "generated_at": "2026-07-15T23:20:58.797202+00:00",
+  "onet_version": "28.1",
+  "tables": {
+    "onet_occupations": {
+      "rows": 1016,
+      "bytes": 138536,
+      "sources": [
+        "onet"
+      ]
+    },
+    "onet_task_statements": {
+      "rows": 18796,
+      "bytes": 1052629,
+      "sources": [
+        "onet"
+      ]
+    },
+    "onet_tasks_to_dwas": {
+      "rows": 23850,
+      "bytes": 321271,
+      "sources": [
+        "onet"
+      ]
+    },
+    "onet_dwa_references": {
+      "rows": 2087,
+      "bytes": 67629,
+      "sources": [
+        "onet"
+      ]
+    },
+    "onet_sample_titles": {
+      "rows": 7953,
+      "bytes": 147868,
+      "sources": [
+        "onet"
+      ]
+    },
+    "onet_emerging_tasks": {
+      "rows": 328,
+      "bytes": 28941,
+      "sources": [
+        "onet"
+      ]
+    },
+    "eloundou_occ_scores": {
+      "rows": 923,
+      "bytes": 68203,
+      "sources": [
+        "eloundou"
+      ]
+    },
+    "eloundou_dwa_scores": {
+      "rows": 17537,
+      "bytes": 1441593,
+      "sources": [
+        "eloundou",
+        "onet"
+      ]
+    },
+    "ms_ai_applicability_scores": {
+      "rows": 785,
+      "bytes": 33931,
+      "sources": [
+        "microsoft_ai"
+      ]
+    },
+    "ms_ai_soc_metrics": {
+      "rows": 785,
+      "bytes": 104116,
+      "sources": [
+        "microsoft_ai"
+      ]
+    },
+    "ms_ai_iwa_metrics": {
+      "rows": 332,
+      "bytes": 44470,
+      "sources": [
+        "microsoft_ai"
+      ]
+    },
+    "ms_ai_soc_to_iwas": {
+      "rows": 13698,
+      "bytes": 104658,
+      "sources": [
+        "microsoft_ai"
+      ]
+    },
+    "ms_ai_physical_tasks": {
+      "rows": 18796,
+      "bytes": 115087,
+      "sources": [
+        "microsoft_ai",
+        "onet"
+      ]
+    },
+    "aei_job_exposure": {
+      "rows": 756,
+      "bytes": 28989,
+      "sources": [
+        "aei"
+      ]
+    },
+    "aei_task_penetration": {
+      "rows": 17998,
+      "bytes": 1058785,
+      "sources": [
+        "aei"
+      ]
+    },
+    "aei_task_snapshots": {
+      "rows": 16976,
+      "bytes": 485348,
+      "sources": [
+        "aei"
+      ]
+    },
+    "oews_employment": {
+      "rows": 8573,
+      "bytes": 174169,
+      "sources": [
+        "oews"
+      ]
+    },
+    "industry_occupation_profiles": {
+      "rows": 9025,
+      "bytes": 250643,
+      "sources": [
+        "oews",
+        "onet",
+        "abs_jsa_employment",
+        "osca"
+      ]
+    },
+    "industry_crosswalk": {
+      "rows": 21,
+      "bytes": 5996,
+      "sources": [
+        "oews",
+        "abs_jsa_employment"
+      ]
+    },
+    "task_drift_metrics": {
+      "rows": 4605,
+      "bytes": 446592,
+      "sources": [
+        "onet",
+        "eloundou",
+        "aei"
+      ]
+    },
+    "abs_employment": {
+      "rows": 2743,
+      "bytes": 69925,
+      "sources": [
+        "abs_jsa_employment"
+      ]
+    },
+    "abs_employment_osca": {
+      "rows": 2997,
+      "bytes": 50240,
+      "sources": [
+        "abs_jsa_employment",
+        "osca"
+      ]
+    },
+    "anzsco_soc_concordance": {
+      "rows": 491,
+      "bytes": 39179,
+      "sources": [
+        "onet",
+        "abs_jsa_employment"
+      ]
+    },
+    "abs_census_wpp": {
+      "rows": 180,
+      "bytes": 12224,
+      "sources": [
+        "abs_census"
+      ]
+    },
+    "abs_census_w13": {
+      "rows": 159,
+      "bytes": 13278,
+      "sources": [
+        "abs_census"
+      ]
+    },
+    "abs_census_subdivision_occ": {
+      "rows": 1521,
+      "bytes": 27352,
+      "sources": [
+        "abs_census"
+      ]
+    },
+    "anzsic_subdivisions": {
+      "rows": 214,
+      "bytes": 13001,
+      "sources": [
+        "abs_jsa_employment"
+      ]
+    },
+    "osca_occupations": {
+      "rows": 1156,
+      "bytes": 120022,
+      "sources": [
+        "osca"
+      ]
+    },
+    "osca_main_tasks": {
+      "rows": 6887,
+      "bytes": 356461,
+      "sources": [
+        "osca"
+      ]
+    },
+    "osca_anzsco_map": {
+      "rows": 1383,
+      "bytes": 24931,
+      "sources": [
+        "osca"
+      ]
+    },
+    "osca_isco_map": {
+      "rows": 1448,
+      "bytes": 22968,
+      "sources": [
+        "osca"
+      ]
+    },
+    "asc_specialist_task": {
+      "rows": 10963,
+      "bytes": 363534,
+      "sources": [
+        "asc"
+      ]
+    },
+    "asc_core_competency": {
+      "rows": 6000,
+      "bytes": 70264,
+      "sources": [
+        "asc"
+      ]
+    },
+    "asc_technology_tool": {
+      "rows": 1989,
+      "bytes": 32416,
+      "sources": [
+        "asc"
+      ]
+    },
+    "dwa_asc_bridge": {
+      "rows": 5033,
+      "bytes": 198164,
+      "sources": [
+        "onet",
+        "asc"
+      ]
+    },
+    "au_task": {
+      "rows": 20329,
+      "bytes": 426999,
+      "sources": [
+        "asc",
+        "eloundou",
+        "onet"
+      ]
+    },
+    "au_occupation_exposure": {
+      "rows": 960,
+      "bytes": 32991,
+      "sources": [
+        "asc",
+        "eloundou",
+        "onet",
+        "osca"
+      ]
+    },
+    "gdpval_tasks": {
+      "rows": 220,
+      "bytes": 296938,
+      "sources": [
+        "gdpval_tasks"
+      ]
+    },
+    "gdpval_rubric_items": {
+      "rows": 10453,
+      "bytes": 1001873,
+      "sources": [
+        "gdpval_tasks"
+      ]
+    },
+    "gptval_benchmarks": {
+      "rows": 464,
+      "bytes": 15823,
+      "sources": [
+        "epoch_eci"
+      ]
+    }
+  },
+  "excluded_tables": {
+    "onet_task_ratings": "raw O*NET importance/frequency/level ratings (161,559 rows, ~4x the task table) -- superseded for the Tier-1 story by eloundou_dwa_scores (already derived from these); re-derivable via the full O*NET ingest",
+    "onet_work_activities": "broader GWA/IWA activity taxonomy (73,308 rows) -- not needed to browse sector/occupation/drift views; re-derivable via O*NET ingest",
+    "onet_alternate_titles": "job-title synonyms (57,543 rows) -- feeds Tier-2 fuzzy title matching, not the Tier-1 browsing experience; re-derivable via O*NET ingest",
+    "onet_title_embeddings": "sentence-transformer vectors for 66,512 titles -- the single largest table by bytes; needed only to recompute semantic search, not to browse its already-materialized results; regenerate via the matching pipeline",
+    "dwa_embeddings": "DWA title embeddings -- input to the already-materialized dwa_asc_bridge, not needed to browse it; regenerate via build_dwa_asc_bridge.py",
+    "asc_task_embeddings": "ASC task-text embeddings -- same rationale as dwa_embeddings",
+    "asx_company_sectors": "CompanyLookup feature is full-build-only (paid LLM classify); the ASX listed-company list's own redistribution terms are unverified per docs/data-sources.md Tier-2",
+    "company_classifications": "LLM classification cache for the same full-build-only feature",
+    "gdpval_evaluations": "0 rows as of this seed (pending the paid eval run) -- nothing to export yet; will be added to SEED_TABLES once populated",
+    "api_request_log": "operational telemetry, not product data",
+    "dataset_versions": "internal ingestion provenance, not product data",
+    "dataset_version_deltas": "internal ingestion provenance, not product data",
+    "transformation_log": "internal pipeline lineage, not product data",
+    "signal_source_registry": "ships as the already-committed data/signal_sources/signals.csv; restore_seed.py re-ingests it via scripts.ingest_signal_sources instead of duplicating it here",
+    "alembic_version": "schema migration state, not product data"
+  },
+  "sources": [
+    {
+      "source_key": "onet",
+      "source_name": "O*NET 28.1",
+      "licence": "Public domain",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "eloundou",
+      "source_name": "Eloundou 2024 GPTs are GPTs",
+      "licence": "MIT",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "microsoft_ai",
+      "source_name": "Microsoft Working with AI",
+      "licence": "CC BY 4.0",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "aei",
+      "source_name": "Anthropic Economic Index (labour + temporal)",
+      "licence": "CC BY",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "oews",
+      "source_name": "BLS OEWS May 2024",
+      "licence": "Public domain",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "osca",
+      "source_name": "OSCA 2024 v1.0",
+      "licence": "CC BY 4.0",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "asc",
+      "source_name": "Australian Skills Classification v3.0",
+      "licence": "CC BY 4.0",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "abs_jsa_employment",
+      "source_name": "JSA Occupation Profiles employment",
+      "licence": "CC BY 4.0",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "abs_census",
+      "source_name": "ABS Census 2021 Working Population Profiles",
+      "licence": "CC BY 4.0",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "epoch_eci",
+      "source_name": "Epoch AI Capabilities Index (ECI)",
+      "licence": "CC BY",
+      "redistribution_ok": true
+    },
+    {
+      "source_key": "gdpval_tasks",
+      "source_name": "OpenAI GDPval task set",
+      "licence": "MIT",
+      "redistribution_ok": true
+    }
+  ],
+  "total_rows": 240430,
+  "total_bytes": 9308037
+}
