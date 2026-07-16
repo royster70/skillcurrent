@@ -1,5 +1,5 @@
-import { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useEffect, useRef, useState } from "react";
+import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, IS_STATIC, type SearchResult } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, ZONE_LABELS, ZONE_TITLES, SIGNAL_COLORS } from "../lib/constants";
 import { CurrentFlow } from "../components/current/CurrentFlow";
@@ -30,6 +30,7 @@ export function SearchPage() {
   const [mode, setMode] = useState<SearchMode>("semantic");
   const [focused, setFocused] = useState(false);
   const navigate = useNavigate();
+  const [searchParams] = useSearchParams();
 
   // Accepts an explicit term so the suggestion chips can search immediately —
   // setQuery() is async, so a chip can't set state then read it back this tick.
@@ -61,6 +62,22 @@ export function SearchPage() {
   const handleKeyDown = (e: React.KeyboardEvent) => {
     if (e.key === "Enter" && !e.shiftKey) handleSearch();
   };
+
+  // Landing directly via ?q=… (the hero search) runs the search immediately —
+  // otherwise the hero's "Find my role" click would drop the visitor on an
+  // empty search page and make them type their own query again. Runs once:
+  // a ref (not a dep-array trick) keeps it from re-firing on every render or
+  // fighting the user's own typing afterward.
+  const ranInitialQuery = useRef(false);
+  useEffect(() => {
+    if (ranInitialQuery.current) return;
+    const q = searchParams.get("q");
+    if (!q || q.trim().length < 2) return;
+    ranInitialQuery.current = true;
+    setQuery(q);
+    handleSearch(q);
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [searchParams]);
 
   return (
     <div style={{ display: "flex", flexDirection: "column", gap: 24, maxWidth: 1000, fontFamily: TYPE.body, color: t.ink }}>

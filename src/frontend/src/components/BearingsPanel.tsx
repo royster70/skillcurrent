@@ -22,23 +22,24 @@
 
 import { useMemo } from "react";
 import { Link } from "react-router-dom";
-import { useApi } from "../hooks/useApi";
-import { api, type TaskMatrixResponse } from "../lib/api";
+import type { TaskMatrixResponse, BearingsResponse } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG, ZONE_THRESHOLDS } from "../lib/constants";
 
 const t = THEME.light;
 
-type ZoneKey = "E0" | "E1" | "E2";
+export type ZoneKey = "E0" | "E1" | "E2";
 
-function zoneOf(beta: number): ZoneKey {
+export function zoneOf(beta: number): ZoneKey {
   if (beta >= ZONE_THRESHOLDS.E2) return "E2";
   if (beta >= ZONE_THRESHOLDS.E1) return "E1";
   return "E0";
 }
 
 /** Importance-weighted zone shares — "how much of the role's task weight sits
- * in each zone". Importance (1–5) is the US proxy for time; null → midpoint. */
-function zoneMix(data: TaskMatrixResponse): Record<ZoneKey, number> {
+ * in each zone". Importance (1–5) is the US proxy for time; null → midpoint.
+ * Exported: OccupationSummaryPanel's lead sentence reads the same mix so the
+ * two panels never disagree about which pattern a role's weight calls for. */
+export function zoneMix(data: TaskMatrixResponse): Record<ZoneKey, number> {
   const w: Record<ZoneKey, number> = { E0: 0, E1: 0, E2: 0 };
   let total = 0;
   for (const task of data.tasks) {
@@ -52,7 +53,7 @@ function zoneMix(data: TaskMatrixResponse): Record<ZoneKey, number> {
 }
 
 /** The lead sentence — which pattern this role's mix calls for. */
-function leadFor(mix: Record<ZoneKey, number>): string {
+export function leadFor(mix: Record<ZoneKey, number>): string {
   if (mix.E0 >= 0.5)
     return "Most of this role's weight already sits on dry ground — the play is to hold it: deepen the human work below, and watch the tide for change.";
   if (mix.E2 >= 0.35)
@@ -69,8 +70,11 @@ const SECTION: React.CSSProperties = {
   marginBottom: 8,
 };
 
-export function BearingsPanel({ soc, matrixData }: { soc: string; matrixData: TaskMatrixResponse }) {
-  const { data: bearings } = useApi(() => api.bearings(soc), [soc]);
+/** `bearings` is lifted from OccupationDetailPanel (shared with
+ * OccupationSummaryPanel) rather than fetched here — the two panels read the
+ * same /occupations/{soc}/bearings response, so fetching it twice would be
+ * a redundant round trip for identical data. */
+export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrixResponse; bearings: BearingsResponse | null }) {
   const mix = useMemo(() => zoneMix(matrixData), [matrixData]);
 
   // Top at-the-line tasks by importance; rising usage first (the current is
