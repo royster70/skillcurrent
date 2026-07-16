@@ -185,7 +185,7 @@ Frontend dev server: http://localhost:5173
 
 ### Tests
 
-~351 tests passing (244 backend + 61 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
+~370 tests passing (244 backend + 80 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
 
 ```powershell
 cd src/backend
@@ -193,7 +193,7 @@ python -m pytest tests/ -v                    # 244 backend tests (needs the see
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
-npm run test                                  # 61 component tests (Vitest)
+npm run test                                  # 80 component tests (Vitest)
 npm run test:e2e                              # 46 Playwright E2E tests
 ```
 
