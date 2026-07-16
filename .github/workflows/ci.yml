@@ -39,6 +39,29 @@ jobs:
       # Stdlib-only, no DB needed — validates data/signal_sources/*.csv directly.
       - run: cd src/backend && python -m scripts.check_redistribution
 
+  secret-scan:
+    name: Secret scan (history)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+        with:
+          fetch-depth: 0 # full history — this scans every commit
+      # Automates the PUBLISHING.md section-0 pre-publish scan so it can't be
+      # forgotten before a push to a public repo.
+      - name: No .env / Data ever committed
+        run: |
+          if git log --all --oneline -- '.env' '**/.env' 'Data/**' | grep -q .; then
+            echo "::error::.env or Data/ appears in git history"; exit 1
+          fi
+          echo "OK: no .env/Data in history"
+      - name: No credential values in history
+        run: |
+          hits=$(git rev-list --all | while read c; do \
+            git grep -IE "sk-ant-[A-Za-z0-9_-]{20,}|AKIA[0-9A-Z]{16}|(ANTHROPIC_AUTH_TOKEN|API_KEY|SECRET)[[:space:]]*=[[:space:]]*[\"']?[A-Za-z0-9]{24,}" "$c" -- 2>/dev/null; \
+          done | head -5)
+          if [ -n "$hits" ]; then echo "::error::potential credential in history:"; echo "$hits"; exit 1; fi
+          echo "CLEAN"
+
   backend-tests:
     name: Backend tests (non-DB subset)
     runs-on: ubuntu-latest
@@ -50,12 +73,10 @@ jobs:
           cache: pip
           cache-dependency-path: src/backend/pyproject.toml
       - run: cd src/backend && pip install -e ".[dev]"
-      # Every other test file hits a live, fully-loaded Postgres via
-      # tests/conftest.py (923 occupations, the full FR-9 AU task layer, ...) —
-      # there is no seed dataset yet to stand that up in CI (release-1.0-backlog.md
-      # P2). test_drift.py and test_onet_ingestion.py are the only DB-free suites
-      # today (pure functions / tmp_path fixtures). Widen this list as more
-      # DB-free tests land, and switch to the full suite once P2 ships.
+      # test_drift.py and test_onet_ingestion.py are the DB-free suites (pure
+      # functions / tmp_path). The rest need a live seeded Postgres via
+      # tests/conftest.py; a follow-up can add a Postgres service + restore_seed
+      # now that the seed exists (release-1.0-backlog.md P2 shipped).
       - run: cd src/backend && pytest tests/test_drift.py tests/test_onet_ingestion.py -v
 
   frontend:

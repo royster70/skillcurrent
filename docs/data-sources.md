@@ -95,6 +95,20 @@ Local data directory: `$DATA_ROOT` (set via env / `.env`, outside the git repo, 
 | Used by | The core exposure signal (β = E1 + 0.5×E2) behind zones, the matrix, drift, US/AU task exposure |
 | Ingestion | `python -m scripts.ingest_eloundou` (`source_url` recorded as arXiv 2303.10130) |
 
+## ASX Listed Companies + GICS (CompanyLookup) — RESTRICTED, not redistributable
+
+| Field | Value |
+|-------|-------|
+| Publisher | ASX (company list) / MSCI + S&P Global (GICS classification) |
+| Dataset | ASX listed companies mapped company → GICS industry group → ANZSIC/NAICS sector (`asx_company_sectors`) |
+| Source | `https://www.asx.com.au/asx/research/ASXListedCompanies.csv` (free download) + hardcoded GICS→ANZSIC concordance |
+| Licence | **Proprietary.** GICS is licensed IP of MSCI + S&P Global; the ASX list carries ASX terms of use. |
+| Redistribution OK | **No** (`asx_gics`, `redistribution_ok = false`). The per-company GICS assignment — and the ANZSIC/NAICS codes **derived from it** — are licensed classifications, not freely redistributable. |
+| Registry | `signal_source_registry` key `asx_gics` (enforced by `scripts/check_redistribution.py`) |
+| Status | LOADED in the full/self-host build only. **Excluded from the seed and the static site.** |
+| Used by | The CompanyLookup feature (FR-8.5) — **full-build-only.** Its classify half also needs a paid Claude key. Self-hosters fetch the ASX CSV themselves; nothing is redistributed. |
+| Ingestion | `python -m scripts.ingest_asx_companies` (downloads the CSV at ingest time) |
+
 ---
 
 ## Established sources (loaded, cross-reference)

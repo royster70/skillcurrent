@@ -1,0 +1,5 @@
+blank_issues_enabled: true
+contact_links:
+  - name: Security / data-redistribution report
+    url: https://github.com/royster70/skillcurrent/security/advisories/new
+    about: Report a vulnerability or a restricted-source leak privately (see SECURITY.md) — do not open a public issue.
