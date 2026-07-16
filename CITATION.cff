@@ -1,0 +1,21 @@
+cff-version: 1.2.0
+message: "If you use SkillCurrent or its data compilation, please cite it as below."
+title: "SkillCurrent"
+abstract: >-
+  Task-level analysis of how AI reshapes work, combining the O*NET occupational
+  taxonomy, Eloundou (2024) theoretical exposure scores, Microsoft and Anthropic
+  empirical AI-usage data, government employment statistics, and longitudinal
+  capability measures into workforce-planning intelligence.
+type: software
+authors:
+  # Replace with your preferred name/ORCID; entity form is used here as a placeholder.
+  - name: "royster70"
+repository-code: "https://github.com/royster70/skillcurrent"
+url: "https://github.com/royster70/skillcurrent"
+license: MIT
+keywords:
+  - "AI exposure"
+  - "workforce analytics"
+  - "occupational taxonomy"
+  - "O*NET"
+  - "labour economics"

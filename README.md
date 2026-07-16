@@ -1,5 +1,11 @@
 # SkillCurrent
 
+<!-- Badges resolve once the public repo (royster70/skillcurrent) is live with CI + Pages;
+     add the Pages badge/link after the first deploy. -->
+[![CI](https://github.com/royster70/skillcurrent/actions/workflows/ci.yml/badge.svg)](https://github.com/royster70/skillcurrent/actions/workflows/ci.yml)
+[![Code licence: MIT](https://img.shields.io/badge/code-MIT-blue.svg)](LICENSE)
+[![Data licence: CC BY 4.0](https://img.shields.io/badge/data-CC%20BY%204.0-brightgreen.svg)](DATA_LICENSE)
+
 Analyses how AI reshapes work at the task level. Combines O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI applicability data (Microsoft, Anthropic), and government employment statistics to produce workforce planning intelligence.
 
 **Core insight**: AI capability follows a compounding, directional trajectory — a rising waterline across task landscapes. The platform tracks where the waterline sits today and where it's heading.

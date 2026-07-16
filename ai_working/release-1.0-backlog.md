@@ -112,10 +112,32 @@ Companions: `docs/PUBLISHING.md` (topology + punch-list),
     a paid key). CompanyLookup stays full-build-only. Not the "precomputed ASX
     lookup" originally sketched — that path was closed by the GICS licence finding.
 
-## P5 — publish mechanics (PUBLISHING.md §2)
+## P5 — publish mechanics (PUBLISHING.md §5 — DECIDED: converge, develop in the open)
 
-16. Create public repo (`royster70/skillcurrent`); `public` forward-only branch;
-    first curated push; converge at launch (Phase B).
+16. **Launch (one-time, GitHub settings — Roy does these; not scriptable here):**
+    flip the repo to public as `royster70/skillcurrent` (rename if needed) →
+    enable Pages (Settings → Pages → Source = GitHub Actions) → run the
+    `Deploy static site` workflow (dispatch or `v*` tag) → turn on `master`
+    branch protection (require the CI checks) + private vulnerability reporting.
+    Re-run the §0 secret scan first (now the automated `secret-scan` CI job).
+    After this it's one repo: branch → PR → `master`; CI is the pre-publish gate.
+
+17. **Lift the README from the live site once Pages deploys** (the README is the
+    first experience — make it match the site). Gated on #16.
+    - Add a prominent **live-demo link + Pages status badge** at the top of the
+      README (the hero), and the Pages URL to `CITATION.cff`/repo "About".
+    - **Borrow the site's language**: align the README intro with the landing
+      page's voice and the project vocabulary (Waterline view / Freeboard metric
+      / Soundings; "Open intelligence for the changing world of work"). Source:
+      `src/frontend/src/pages/LandingPage.tsx` + the design brief in `design/`.
+    - **Borrow diagrams/branding**: the marquee visuals (ZoneExplorer / sector
+      waterline / task matrix) are React components, so they need **exporting to
+      SVG/PNG** (or a curated screenshot) to embed in GitHub-rendered markdown —
+      decide export vs. screenshot per visual. Optionally a header/wordmark
+      image using the brass/`current` two-tone brand.
+    - Keep it honest: link to the live site for the interactive experience;
+      the README carries the static hero + one or two key visuals, not a full
+      copy of the site.
 
 ## P6 — ongoing documentation maintenance (post-launch; supports the open-source shift)
 
