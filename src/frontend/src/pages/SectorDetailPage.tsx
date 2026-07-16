@@ -182,7 +182,7 @@ export function SectorDetailPage() {
             <BarChart data={impactBars} layout="vertical" margin={{ right: 80 }}>
               <XAxis type="number" tick={{ fontSize: 11 }} domain={[0, "auto"]} />
               <YAxis type="category" dataKey="name" width={180} tick={{ fontSize: 10 }} />
-              <Tooltip formatter={(val: number) => [`${val.toFixed(1)}`, "Impact Score"]} />
+              <Tooltip formatter={(val) => [`${Number(val).toFixed(1)}`, "Impact Score"]} />
               <Bar dataKey="impact" barSize={14} radius={[0, 4, 4, 0]}>
                 {impactBars.map((d, i) => (
                   <Cell key={i} fill={
