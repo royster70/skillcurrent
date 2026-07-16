@@ -16,7 +16,7 @@ jobs:
     name: Quality gate (black + ruff + mypy --strict)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -32,7 +32,7 @@ jobs:
     name: Redistribution gate (FR-9.5)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -43,7 +43,7 @@ jobs:
     name: Secret scan (history)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
         with:
           fetch-depth: 0 # full history — this scans every commit
       # Automates the PUBLISHING.md section-0 pre-publish scan so it can't be
@@ -66,7 +66,7 @@ jobs:
     name: Backend tests (non-DB subset)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-python@v6
         with:
           python-version: "3.12"
@@ -83,7 +83,7 @@ jobs:
     name: Frontend (lint + typecheck + unit tests + build)
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v4
+      - uses: actions/checkout@v7
       - uses: actions/setup-node@v7
         with:
           node-version: "20"
