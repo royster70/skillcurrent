@@ -65,6 +65,10 @@ SEED_TABLES: dict[str, list[str]] = {
     "onet_tasks_to_dwas": ["onet"],
     "onet_dwa_references": ["onet"],
     "onet_sample_titles": ["onet"],
+    # Alternate job-title synonyms — the static site's client-side fuzzy search
+    # (P4) matches over these for parity with the server's pg_trgm /search, so
+    # they're part of the shipped corpus (public domain, ~1 MB Parquet).
+    "onet_alternate_titles": ["onet"],
     "onet_emerging_tasks": ["onet"],
     "eloundou_occ_scores": ["eloundou"],
     "eloundou_dwa_scores": ["eloundou", "onet"],
@@ -113,10 +117,6 @@ EXCLUDED_TABLES: dict[str, str] = {
     "onet_work_activities": (
         "broader GWA/IWA activity taxonomy (73,308 rows) -- not needed to "
         "browse sector/occupation/drift views; re-derivable via O*NET ingest"
-    ),
-    "onet_alternate_titles": (
-        "job-title synonyms (57,543 rows) -- feeds Tier-2 fuzzy title matching, "
-        "not the Tier-1 browsing experience; re-derivable via O*NET ingest"
     ),
     "onet_title_embeddings": (
         "sentence-transformer vectors for 66,512 titles -- the single largest "

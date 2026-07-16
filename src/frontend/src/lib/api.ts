@@ -1,10 +1,24 @@
-/** API client for Tier 1 endpoints. All calls go through Vite proxy (/api -> localhost:8000). */
+/**
+ * API client for Tier 1 endpoints.
+ *
+ * Two transports, chosen by VITE_DEPLOYMENT_MODE:
+ *  - "full" (default): GETs go through the Vite proxy (/api -> localhost:8000).
+ *  - "cdn": GETs are served from the pre-rendered static data tree (staticGet),
+ *    composite + search compute client-side, and the LLM-backed CompanyLookup
+ *    is disabled (the UI gates it off; the guards below are belt-and-braces).
+ */
 
 import { mockResponse } from "./mocks";
+import { staticGet } from "./staticAdapter";
+import { semanticSearchStatic } from "./clientSearch";
 
 const BASE = "/api/v1";
 
+/** True when built for the static, no-backend deployment. */
+export const IS_STATIC = import.meta.env.VITE_DEPLOYMENT_MODE === "cdn";
+
 async function get<T>(path: string): Promise<T> {
+  if (IS_STATIC) return staticGet<T>(path);
   const mocked = mockResponse(path); // dev-only fixtures; undefined -> real fetch
   if (mocked !== undefined) return mocked as T;
   const res = await fetch(`${BASE}${path}`);
@@ -386,6 +400,7 @@ export interface CompanyClassifyResponse {
 export const api = {
   search: (q: string) => get<SearchResponse>(`/search?q=${encodeURIComponent(q)}`),
   semanticSearch: async (q: string, description?: string) => {
+    if (IS_STATIC) return semanticSearchStatic(q, description);
     const res = await fetch(`${BASE}/search/semantic`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
@@ -413,9 +428,14 @@ export const api = {
     get<CompositeSectorResponse>(`/sectors/composite?codes=${codes.join(",")}&region=${region}${company ? `&company=${encodeURIComponent(company)}` : ""}`),
   sectorSubdivisions: (code: string) => get<SubdivisionEntry[]>(`/sectors/${code}/subdivisions`),
   sectorOccupationMix: (code: string) => get<{ anzsic_division_code: string; anzsic_division_name: string; census_year: number; total_employed: number; mix: OccupationMixEntry[] }>(`/sectors/${code}/occupation-mix`),
-  companySearch: (q: string, region = "AU") =>
-    get<CompanySearchResponse>(`/companies/search?q=${encodeURIComponent(q)}&region=${region}`),
+  // CompanyLookup is full-build-only (paid LLM + licence-restricted ASX/GICS
+  // data). The UI hides it in cdn mode; these guards make a stray call explicit.
+  companySearch: (q: string, region = "AU") => {
+    if (IS_STATIC) throw new Error("Company lookup is unavailable in the static build.");
+    return get<CompanySearchResponse>(`/companies/search?q=${encodeURIComponent(q)}&region=${region}`);
+  },
   companyClassify: async (name: string, region = "AU") => {
+    if (IS_STATIC) throw new Error("Company classification is unavailable in the static build.");
     const res = await fetch(`${BASE}/companies/classify`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
