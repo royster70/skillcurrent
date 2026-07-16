@@ -18,7 +18,7 @@ requires-python = ">=3.12"
 # split out until those become optional/lazily-imported.
 dependencies = [
     "fastapi>=0.110",
-    "uvicorn[standard]>=0.27",
+    "uvicorn[standard]>=0.51.0",
     "sqlalchemy[asyncio]>=2.0",
     "asyncpg>=0.29",
     "alembic>=1.13",
