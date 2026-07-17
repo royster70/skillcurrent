@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
@@ -12,6 +12,7 @@ import { ZoneLegend } from "../components/ZoneExplorer";
 import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
 import { InsightCallout } from "../components/InsightCallout";
+import { AuOccupationPanel } from "../components/AuOccupationPanel";
 
 const t = THEME.light;
 
@@ -19,9 +20,41 @@ export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
   const { region } = useRegion();
   const navigate = useNavigate();
+  const [searchParams, setSearchParams] = useSearchParams();
   const [showFullMix, setShowFullMix] = useState(false);
   const [gdpvalFilter, setGdpvalFilter] = useState(false);
   const [subsExpanded, setSubsExpanded] = useState(false);
+
+  // AU-native occupation panel (#73/#78): the index gives OSCA→SOC; invert it
+  // to a SOC→OSCA map so SOC-keyed AU sector rows can open their OSCA reading.
+  // Only fetched for the AU market — US sectors have no OSCA layer.
+  const { data: auIndex } = useApi(
+    () => (region === "AU" ? api.auOccupations() : Promise.resolve(null)),
+    [region],
+  );
+  const socToOsca = useMemo(() => {
+    const m = new Map<string, string>();
+    if (!auIndex) return m;
+    for (const o of auIndex.occupations) {
+      for (const soc of o.soc_codes) {
+        // First OSCA wins — the index is ordered by OSCA code, deterministic.
+        if (!m.has(soc)) m.set(soc, o.osca_code);
+        if (!m.has(soc.replace(/\.00$/, ""))) m.set(soc.replace(/\.00$/, ""), o.osca_code);
+      }
+    }
+    return m;
+  }, [auIndex]);
+  const auSelected = searchParams.get("au_selected");
+  const openAu = (osca: string) => {
+    const next = new URLSearchParams(searchParams);
+    next.set("au_selected", osca);
+    setSearchParams(next);
+  };
+  const closeAu = () => {
+    const next = new URLSearchParams(searchParams);
+    next.delete("au_selected");
+    setSearchParams(next);
+  };
 
   const { data, loading, error } = useApi(
     () => api.sectorPriorities(code!, 10, region), [code, region]
@@ -273,11 +306,31 @@ export function SectorDetailPage() {
           </thead>
           <tbody>
             {displayRoles.map((r) => (
-              <RoleRow key={r.soc_code} role={r} navigate={navigate} hasGdpval={gdpvalSocs.has(r.soc_code)} />
+              <RoleRow
+                key={r.soc_code}
+                role={r}
+                navigate={navigate}
+                hasGdpval={gdpvalSocs.has(r.soc_code)}
+                onOpenAu={
+                  region === "AU" && socToOsca.has(r.soc_code)
+                    ? () => openAu(socToOsca.get(r.soc_code)!)
+                    : undefined
+                }
+              />
             ))}
           </tbody>
         </table>
+        {region === "AU" && (
+          <div style={{ fontSize: 11.5, color: t.inkMuted, marginTop: 8 }}>
+            Rows with an <strong>AU reading</strong> link open the Australian OSCA occupation
+            (task coverage + skills); others open the US O*NET reading, badged as such.
+          </div>
+        )}
       </div>
+
+      {/* AU-native occupation reading (#73/#78) — opens over the sector when a
+          role with an OSCA match is clicked. */}
+      {auSelected && <AuOccupationPanel oscaCode={auSelected} onClose={closeAu} />}
     </div>
   );
 }
@@ -323,19 +376,26 @@ function generateNarrative(data: {
   return sentences;
 }
 
-function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate>; hasGdpval?: boolean }) {
+function RoleRow({ role: r, navigate, hasGdpval, onOpenAu }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate>; hasGdpval?: boolean; onOpenAu?: () => void }) {
   const { lex } = useLanguage();
   const zoneColor = r.dominant_zone ? ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] : t.inkMuted;
   const tideColor = r.drift_classification ? MOVEMENT_COLORS[r.drift_classification as keyof typeof MOVEMENT_COLORS] : t.inkMuted;
 
   return (
     <tr style={{ borderTop: "1px solid #E4E4E7", cursor: "pointer" }}
-      onClick={() => navigate(`/occupations?selected=${r.soc_code}`)}
+      onClick={() => (onOpenAu ? onOpenAu() : navigate(`/occupations?selected=${r.soc_code}`))}
       onMouseEnter={(e) => (e.currentTarget.style.backgroundColor = t.ground)}
       onMouseLeave={(e) => (e.currentTarget.style.backgroundColor = "transparent")}
     >
       <td style={td}>
-        <div style={{ fontWeight: 500 }}>{r.occupation_title}</div>
+        <div style={{ fontWeight: 500, display: "flex", alignItems: "center", gap: 6 }}>
+          {r.occupation_title}
+          {onOpenAu && (
+            <span style={{ fontSize: 9, fontWeight: 700, padding: "1px 6px", borderRadius: 4, backgroundColor: BRASS_TINT, color: t.brass }}>
+              AU reading
+            </span>
+          )}
+        </div>
         <div style={{ fontSize: 11, color: t.inkMuted, display: "flex", alignItems: "center", gap: 6 }}>
           {r.soc_code}
           {hasGdpval && (

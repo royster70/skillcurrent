@@ -9,6 +9,7 @@ import { useLanguage } from "../lib/language";
 import { RegionBadge } from "../components/RegionBadge";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
+import { SkillsToBuild } from "../components/SkillsToBuild";
 import { OccupationSummaryPanel } from "../components/OccupationSummaryPanel";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { GDPvalBenchmarkPanel } from "../components/GDPvalBenchmarkPanel";
@@ -473,6 +474,10 @@ function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: 
 
       {/* Your bearings — the action layer: high ground, direction, tooling */}
       {matrixData && <BearingsPanel matrixData={matrixData} bearings={bearings} />}
+
+      {/* Build these skills (#78) — named capabilities from the same bearings
+          response (no new fetch): durable skills + bridges to drier roles. */}
+      <SkillsToBuild bearings={bearings} />
 
       {/* Description (if available) */}
       {occ.description && (
