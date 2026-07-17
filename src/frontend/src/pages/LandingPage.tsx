@@ -12,6 +12,8 @@ import { useHashScroll } from "../hooks/useHashScroll";
 import { api } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { useRegion } from "../lib/region";
+import { RegionBadge } from "../components/RegionBadge";
 import { CurrentFlow, BackgroundCurrent, WaveUnderline } from "../components/current/CurrentFlow";
 import { Waypoint } from "../components/Waypoint";
 import { ReadingPrimer } from "../components/ReadingPrimer";
@@ -183,7 +185,9 @@ export function LandingPage() {
   const plain = mode === "plain";
   const BEATS = beatsFor(plain);
   const PATHS = pathsFor(plain);
-  const { data } = useApi(() => api.sectors("US"), []);
+  // Respect the visitor's persisted market instead of hardcoding US (#74).
+  const { region } = useRegion();
+  const { data } = useApi(() => api.sectors(region), [region]);
   const sectors = [...(data?.sectors ?? [])].sort(
     (a, b) => (b.avg_eloundou_beta ?? 0) - (a.avg_eloundou_beta ?? 0),
   );
@@ -405,8 +409,9 @@ export function LandingPage() {
       <section style={{ maxWidth: 900, margin: "0 auto", padding: "24px 32px 60px" }}>
         <Reveal>
           <Waypoint>{plain ? "AI EXPOSURE, TODAY" : "THE WATERLINE, TODAY"}</Waypoint>
-          <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px" }}>
+          <h2 style={{ fontFamily: TYPE.display, fontSize: 30, fontWeight: 600, margin: "0 0 6px", display: "flex", alignItems: "center", gap: 10, flexWrap: "wrap" }}>
             {plain ? "AI exposure across sectors" : "The waterline across sectors"}
+            <RegionBadge region={region} />
           </h2>
           <p style={{ color: t.inkMuted, fontSize: 15, maxWidth: 640, marginTop: 0 }}>
             {plain

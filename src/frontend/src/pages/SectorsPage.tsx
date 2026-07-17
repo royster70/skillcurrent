@@ -1,33 +1,34 @@
-import { useState } from "react";
-import { Link, useSearchParams } from "react-router-dom";
+import { useEffect, useState } from "react";
+import { Link } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { useRegion } from "../lib/region";
 import { MetricCard } from "../components/MetricCard";
 import { CompanyLookup } from "../components/CompanyLookup";
 import { SectorChipSelector } from "../components/SectorChipSelector";
 import { SectorWaterline } from "../components/SectorWaterline";
 import { SectorSignalTable } from "../components/SectorSignalTable";
 import { ZoneLegend } from "../components/ZoneExplorer";
-import { RegionSelector } from "../components/RegionSelector";
+import { RegionBadge } from "../components/RegionBadge";
 
 const t = THEME.light;
 
 export function SectorsPage() {
   const { mode, lex } = useLanguage();
-  const [searchParams, setSearchParams] = useSearchParams();
-  const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
+  // Region comes from the global selector (Layout) via URL > localStorage >
+  // US (#74). Sector picks are region-scoped, so a market switch resets them.
+  const { region } = useRegion();
   const { data, loading, error } = useApi(() => api.sectors(region), [region]);
   const { data: drift } = useApi(() => api.driftSummary(), []);
   const [selectedSectors, setSelectedSectors] = useState<string[]>([]);
   const [companyName, setCompanyName] = useState<string | null>(null);
 
-  const setRegion = (r: string) => {
-    setSearchParams(r === "US" ? {} : { region: r });
+  useEffect(() => {
     setSelectedSectors([]);
     setCompanyName(null);
-  };
+  }, [region]);
 
   if (loading) return <div>Loading sectors...</div>;
   if (error) return <div style={{ color: "red" }}>Error: {error}</div>;
@@ -57,7 +58,7 @@ export function SectorsPage() {
             {" "}· {(totalEmp / 1_000_000).toFixed(1)}M {region === "AU" ? "AU" : "US"} workers
           </p>
         </div>
-        <RegionSelector region={region} onChange={setRegion} />
+        <RegionBadge region={region} />
       </div>
 
       {/* Zone explainer — collapsed by default */}

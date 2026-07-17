@@ -5,6 +5,8 @@ import { api } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { useLanguage } from "../lib/language";
 import type { Lexicon } from "../lib/lexicon";
+import { useRegion } from "../lib/region";
+import { RegionSelector } from "./RegionSelector";
 import { WaveUnderline } from "./current/CurrentFlow";
 import {
   IconWaterline,
@@ -53,6 +55,7 @@ const navGroups = (lex: Lexicon) => [
 export function Layout() {
   const { data: datasets } = useApi(() => api.datasets(), []);
   const { mode, setMode, lex } = useLanguage();
+  const { region, setRegion } = useRegion();
   const groups = useMemo(() => navGroups(lex), [lex]);
   const [userCollapsed, setUserCollapsed] = useState(false);
   const [isNarrow, setIsNarrow] = useState(
@@ -213,6 +216,31 @@ export function Layout() {
           <IconTerminal size={collapsed ? 18 : 15} style={{ flexShrink: 0 }} />
           {!collapsed && <span>Open by design — run this yourself</span>}
         </NavLink>
+
+        {/* Labour market (#74) — global, quietly persisted (URL still wins).
+            The badge on each result view says which market the data is from;
+            this is where the visitor changes it. */}
+        {!collapsed ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10.5, color: t.inkMuted, fontWeight: 600, letterSpacing: 1, marginBottom: 6 }}>
+              LABOUR MARKET
+            </div>
+            <RegionSelector region={region} onChange={(r) => setRegion(r === "AU" ? "AU" : "US")} />
+          </div>
+        ) : (
+          <button
+            onClick={() => setRegion(region === "US" ? "AU" : "US")}
+            aria-label={`Labour market: ${region}. Switch to ${region === "US" ? "AU" : "US"}`}
+            title={`Labour market: ${region} — click to switch`}
+            style={{
+              marginTop: 12, padding: "6px 0", width: "100%", borderRadius: 6,
+              border: `1px solid ${t.line}`, background: t.surface, cursor: "pointer",
+              fontSize: 11, fontWeight: 700, color: t.inkMuted, fontFamily: TYPE.mono,
+            }}
+          >
+            {region}
+          </button>
+        )}
 
         {/* Language mode (#79) — plain words by default, the nautical brand
             vocabulary one click away. The toggle IS the language trial. */}
