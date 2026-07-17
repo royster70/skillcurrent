@@ -41,3 +41,25 @@ textarea:focus-visible,
   outline-offset: 2px;
   border-radius: 4px;
 }
+
+/* One-page brief print styles (GitHub #85). The brief route renders outside the
+   app chrome; anything tagged `.no-print` (the print button, deep links) is
+   hidden when printing, and the page is set up to fit a single A4/Letter sheet
+   with no page background so it reads cleanly on paper or as a saved PDF. */
+@media print {
+  .no-print {
+    display: none !important;
+  }
+  body {
+    background: #fff !important;
+  }
+  .brief-sheet {
+    box-shadow: none !important;
+    border: none !important;
+    margin: 0 !important;
+    max-width: none !important;
+  }
+  @page {
+    margin: 14mm;
+  }
+}

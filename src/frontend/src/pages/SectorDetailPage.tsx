@@ -1,5 +1,5 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate, useSearchParams, Link } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
@@ -126,10 +126,21 @@ export function SectorDetailPage() {
           ← Back to Sectors
         </button>
         <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0 }}>{data.naics_title}</h1>
-        <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
-          {region === "AU" ? "ANZSIC" : "NAICS"} {data.naics_code} · {data.occupation_count} occupations
-          {data.total_employment ? ` · ${(data.total_employment / 1_000_000).toFixed(1)}M ${region === "AU" ? "AU" : "US"} workers` : ""}
-          {" "}<RegionBadge region={region} />
+        <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0", display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap" }}>
+          <span>
+            {region === "AU" ? "ANZSIC" : "NAICS"} {data.naics_code} · {data.occupation_count} occupations
+            {data.total_employment ? ` · ${(data.total_employment / 1_000_000).toFixed(1)}M ${region === "AU" ? "AU" : "US"} workers` : ""}
+          </span>
+          <RegionBadge region={region} />
+          {/* One-page brief (#85), region-aware, in the active audience lens. */}
+          <Link
+            to={`/brief/sector/${code}${region === "AU" ? "?region=AU" : ""}`}
+            target="_blank"
+            rel="noopener"
+            style={{ fontSize: 11.5, fontWeight: 600, color: t.brass, textDecoration: "none", border: `1px solid ${t.brass}55`, borderRadius: 6, padding: "2px 8px" }}
+          >
+            Print brief ↗
+          </Link>
         </p>
       </div>
 
@@ -336,7 +347,9 @@ export function SectorDetailPage() {
 }
 
 /** Generate 2-3 narrative sentences from sector data. */
-function generateNarrative(data: {
+/** Sector narrative sentences — exported so the one-page sector brief (#85)
+ * reads the same summary the detail page shows. */
+export function generateNarrative(data: {
   naics_title: string;
   total_employment: number | null;
   occupation_count: number;
