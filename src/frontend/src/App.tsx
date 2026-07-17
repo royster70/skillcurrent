@@ -1,5 +1,6 @@
 import { BrowserRouter, Routes, Route, Navigate } from "react-router-dom";
 import { LanguageProvider } from "./lib/language";
+import { AudienceProvider } from "./lib/audience";
 import { Layout } from "./components/Layout";
 import { LandingPage } from "./pages/LandingPage";
 import { MethodologyPage } from "./pages/MethodologyPage";
@@ -18,10 +19,12 @@ function App() {
     // (GitHub Pages: /<repo>/). BASE_URL is "/" for dev/Docker, "/skillcurrent/"
     // for the cdn build (set by vite `base`).
     <BrowserRouter basename={import.meta.env.BASE_URL}>
-      {/* Language mode (plain | nautical, #79) wraps the whole tree inside the
-          router so nav labels re-render on toggle and disclosure deep links
-          can use <Link>. */}
+      {/* Language mode (plain | nautical, #79) + audience mode (individual |
+          organisation | education, #86) wrap the tree inside the router so
+          toggles re-render nav/copy and disclosure deep links can use <Link>.
+          The two are orthogonal — vocabulary register vs. framing. */}
       <LanguageProvider>
+      <AudienceProvider>
       <Routes>
         <Route element={<Layout />}>
           <Route path="/" element={<LandingPage />} />
@@ -38,6 +41,7 @@ function App() {
           <Route path="/drift" element={<Navigate to="/tide" replace />} />
         </Route>
       </Routes>
+      </AudienceProvider>
       </LanguageProvider>
     </BrowserRouter>
   );

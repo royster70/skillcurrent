@@ -22,6 +22,8 @@ import { Link } from "react-router-dom";
 import type { OccupationDetail, TaskMatrixResponse, BearingsResponse } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { useAudience } from "../lib/audience";
+import type { SummaryColumn } from "../lib/audience-lexicon";
 import { Waypoint } from "./Waypoint";
 import { ConfidenceBadge } from "./ConfidenceBadge";
 import { zoneOf, zoneMix, leadFor, type ZoneKey } from "./BearingsPanel";
@@ -56,6 +58,7 @@ export function OccupationSummaryPanel({
   bearings: BearingsResponse | null;
 }) {
   const { mode, lex } = useLanguage();
+  const { aud } = useAudience();
   const mix = zoneMix(matrixData);
   const lead = leadFor(mix, lex.leads);
 
@@ -87,75 +90,78 @@ export function OccupationSummaryPanel({
     ["AEI", occ.aei_exposure],
   ].filter(([, v]) => v != null) as [string, number][];
 
+  // Each summary column, keyed so the audience lexicon (#86) can relabel and
+  // reorder them. The data is identical across audiences — only the heading,
+  // order and framing change (same-data-reframed discipline).
+  const columnBody: Record<SummaryColumn, React.ReactNode> = {
+    useNow:
+      useAiNow.length === 0 ? (
+        <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
+          {mode === "plain"
+            ? "No task in this role is meaningfully AI-assistable yet."
+            : "No task in this role currently sits at or past the waterline."}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {useAiNow.map((task) => (
+            <Bullet key={task.text} color={ZONE_COLORS[zoneOf(task.beta)]} bg={ZONE_BG[zoneOf(task.beta) as ZoneKey]}>
+              {task.text}
+            </Bullet>
+          ))}
+        </div>
+      ),
+    keepHuman:
+      highGround == null ? (
+        <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Loading…</div>
+      ) : highGround.length === 0 ? (
+        <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
+          {mode === "plain"
+            ? `No activities in this role are clearly low-exposure — see "${lex.instruments.bearings}" below for the fuller reading.`
+            : "No activities in this role sit clearly dry — see Bearings below for the fuller reading."}
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {highGround.map((s) => (
+            <Bullet key={s.dwa_id} color={ZONE_COLORS.E0} bg={ZONE_BG.E0}>
+              {s.dwa_title}
+            </Bullet>
+          ))}
+        </div>
+      ),
+    prepare:
+      prepareForNext.length === 0 ? (
+        <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
+          Nothing in this role is rising notably right now.
+        </div>
+      ) : (
+        <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
+          {prepareForNext.map((task) => (
+            <Bullet key={task.task_text} color={t.current} bg={`${t.current}15`}>
+              {task.task_text}
+            </Bullet>
+          ))}
+        </div>
+      ),
+  };
+
   return (
     <div style={{ background: t.surface, borderRadius: 12, border: `1.5px solid ${t.brass}40`, padding: 20, fontFamily: TYPE.body, color: t.ink }}>
-      <Waypoint>WHAT THIS MEANS FOR YOU</Waypoint>
+      <Waypoint>{aud.summary.eyebrow}</Waypoint>
       <div style={{ fontFamily: TYPE.display, fontSize: 19, fontWeight: 600, lineHeight: 1.3, maxWidth: 640 }}>{lead}</div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "18px 28px", marginTop: 18 }}>
-        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={COLUMN_LABEL}>Use AI for, now</div>
-          {useAiNow.length === 0 ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
-              {mode === "plain"
-                ? "No task in this role is meaningfully AI-assistable yet."
-                : "No task in this role currently sits at or past the waterline."}
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {useAiNow.map((task) => (
-                <Bullet key={task.text} color={ZONE_COLORS[zoneOf(task.beta)]} bg={ZONE_BG[zoneOf(task.beta) as ZoneKey]}>
-                  {task.text}
-                </Bullet>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={COLUMN_LABEL}>Keep human control over</div>
-          {highGround == null ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Loading…</div>
-          ) : highGround.length === 0 ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
-              {mode === "plain"
-                ? `No activities in this role are clearly low-exposure — see "${lex.instruments.bearings}" below for the fuller reading.`
-                : "No activities in this role sit clearly dry — see Bearings below for the fuller reading."}
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {highGround.map((s) => (
-                <Bullet key={s.dwa_id} color={ZONE_COLORS.E0} bg={ZONE_BG.E0}>
-                  {s.dwa_title}
-                </Bullet>
-              ))}
-            </div>
-          )}
-        </div>
-
-        <div style={{ flex: "1 1 220px", minWidth: 0 }}>
-          <div style={COLUMN_LABEL}>Prepare for next</div>
-          {prepareForNext.length === 0 ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
-              Nothing in this role is rising notably right now.
-            </div>
-          ) : (
-            <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
-              {prepareForNext.map((task) => (
-                <Bullet key={task.task_text} color={t.current} bg={`${t.current}15`}>
-                  {task.task_text}
-                </Bullet>
-              ))}
-            </div>
-          )}
-        </div>
+        {aud.summary.order.map((col) => (
+          <div key={col} style={{ flex: "1 1 220px", minWidth: 0 }}>
+            <div style={COLUMN_LABEL}>{aud.summary.columns[col]}</div>
+            {columnBody[col]}
+          </div>
+        ))}
       </div>
 
-      {/* Current evidence vs future implication — the two left columns read
-          today's measured exposure; the third reads a direction, not a fact. */}
+      {/* Framing line — reads which columns are measured-today vs a direction,
+          in the active audience's words (#86). */}
       <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 16, lineHeight: 1.5 }}>
-        <em>Use AI for</em> and <em>keep human control over</em> reflect today's measured exposure.{" "}
-        <em>Prepare for next</em> reflects rising usage across model eras — a direction, not a certainty.
+        {aud.summary.framing}
       </div>
 
       {/* Evidence — which independent signals actually cover this role (#73).

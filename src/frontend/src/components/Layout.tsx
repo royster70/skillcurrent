@@ -5,6 +5,8 @@ import { api } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { useLanguage } from "../lib/language";
 import type { Lexicon, LanguageMode } from "../lib/lexicon";
+import { useAudience } from "../lib/audience";
+import { AUDIENCE_LEXICONS, type AudienceMode } from "../lib/audience-lexicon";
 import { useRegion, type Region } from "../lib/region";
 import { RegionSelector } from "./RegionSelector";
 import { WaveUnderline } from "./current/CurrentFlow";
@@ -56,14 +58,19 @@ interface SidebarProps {
   setRegion: (r: Region) => void;
   mode: LanguageMode;
   setMode: (m: LanguageMode) => void;
+  audience: AudienceMode;
+  setAudience: (a: AudienceMode) => void;
   /** Collapsed icon-only rail (wide screens only). Always false in the drawer. */
   collapsed: boolean;
   /** Called when a nav link is followed — used by the drawer to close itself. */
   onNavigate?: () => void;
 }
 
+const AUDIENCE_ORDER: AudienceMode[] = ["individual", "organisation", "education"];
+const AUDIENCE_GLYPH: Record<AudienceMode, string> = { individual: "I", organisation: "O", education: "E" };
+
 /** The nav body shared by the wide rail and the mobile drawer (#76). */
-function SidebarBody({ groups, datasets, region, setRegion, mode, setMode, collapsed, onNavigate }: SidebarProps) {
+function SidebarBody({ groups, datasets, region, setRegion, mode, setMode, audience, setAudience, collapsed, onNavigate }: SidebarProps) {
   return (
     <>
       {groups.map((group, gi) => (
@@ -162,6 +169,39 @@ function SidebarBody({ groups, datasets, region, setRegion, mode, setMode, colla
         </button>
       )}
 
+      {/* Audience lens (#86) — reframes the summary for a worker, a workforce
+          leader, or an educator. Orthogonal to language; same data, three lenses. */}
+      {!collapsed ? (
+        <div style={{ marginTop: 12 }}>
+          <div style={{ fontSize: 10.5, color: t.inkMuted, fontWeight: 600, letterSpacing: 1, marginBottom: 6 }}>AUDIENCE</div>
+          <div role="group" aria-label="Audience lens" style={{ display: "flex", borderRadius: 8, border: `1px solid ${t.line}`, overflow: "hidden" }}>
+            {AUDIENCE_ORDER.map((a) => (
+              <button
+                key={a}
+                onClick={() => setAudience(a)}
+                aria-pressed={audience === a}
+                title={AUDIENCE_LEXICONS[a].tagline}
+                style={{ flex: 1, padding: "6px 2px", fontSize: 10.5, fontWeight: 600, cursor: "pointer", border: "none", fontFamily: TYPE.body, backgroundColor: audience === a ? BRASS_TINT : t.surface, color: audience === a ? t.brass : t.inkMuted }}
+              >
+                {AUDIENCE_LEXICONS[a].label}
+              </button>
+            ))}
+          </div>
+        </div>
+      ) : (
+        <button
+          onClick={() => {
+            const i = AUDIENCE_ORDER.indexOf(audience);
+            setAudience(AUDIENCE_ORDER[(i + 1) % AUDIENCE_ORDER.length]);
+          }}
+          aria-label={`Audience: ${AUDIENCE_LEXICONS[audience].label}. Click to cycle`}
+          title={`Audience: ${AUDIENCE_LEXICONS[audience].label} — click to cycle`}
+          style={{ marginTop: 12, padding: "6px 0", width: "100%", borderRadius: 6, border: `1px solid ${t.line}`, background: t.surface, cursor: "pointer", fontSize: 11, fontWeight: 700, color: t.inkMuted, fontFamily: TYPE.mono }}
+        >
+          {AUDIENCE_GLYPH[audience]}
+        </button>
+      )}
+
       {/* Data vintage */}
       {!collapsed && (
         <div style={{ borderTop: `1px solid ${t.line}`, paddingTop: 16, marginTop: 12 }}>
@@ -215,6 +255,7 @@ function pageTitle(pathname: string, lex: Lexicon): string {
 export function Layout() {
   const { data: datasets } = useApi(() => api.datasets(), []);
   const { mode, setMode, lex } = useLanguage();
+  const { mode: audience, setMode: setAudience } = useAudience();
   const { region, setRegion } = useRegion();
   const groups = useMemo(() => navGroups(lex), [lex]);
   const [userCollapsed, setUserCollapsed] = useState(false);
@@ -259,7 +300,7 @@ export function Layout() {
   }, [drawerOpen]);
 
   const sidebarProps: Omit<SidebarProps, "collapsed" | "onNavigate"> = {
-    groups, datasets, region, setRegion, mode, setMode,
+    groups, datasets, region, setRegion, mode, setMode, audience, setAudience,
   };
 
   // ── Narrow: top bar + overlay drawer ──

@@ -18,6 +18,7 @@
 import type { BearingsResponse } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { useAudience } from "../lib/audience";
 
 const t = THEME.light;
 
@@ -32,6 +33,7 @@ const SECTION: React.CSSProperties = {
 
 export function SkillsToBuild({ bearings }: { bearings: BearingsResponse | null }) {
   const { mode, lex } = useLanguage();
+  const { aud } = useAudience();
   if (!bearings) return null;
 
   const durable = bearings.high_ground.slice(0, 6);
@@ -54,12 +56,14 @@ export function SkillsToBuild({ bearings }: { bearings: BearingsResponse | null 
 
   return (
     <div style={{ background: t.surface, borderRadius: 12, border: `1.5px solid ${t.line}`, padding: 20, fontFamily: TYPE.body, color: t.ink }}>
+      {/* Plain mode carries the audience framing (#86 — build / invest in /
+          teach); nautical keeps its metaphor title. */}
       <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>
-        {mode === "plain" ? "Build these skills" : lex.instruments.highGround}
+        {mode === "plain" ? aud.skills.title : lex.instruments.highGround}
       </div>
       <div style={{ fontSize: 12.5, color: t.inkMuted, marginTop: 2, maxWidth: 560, lineHeight: 1.45 }}>
         {mode === "plain"
-          ? "Named capabilities to deepen — the work in this role that stays human-led, and the skills that bridge to less-exposed roles."
+          ? aud.skills.intro
           : "The high ground to hold — this role's dry activities to deepen, and the bridge skills that lead to drier roles."}
       </div>
 
