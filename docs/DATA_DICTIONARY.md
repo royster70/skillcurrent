@@ -1048,6 +1048,34 @@ Task-weighted AU-native exposure rollup per OSCA occupation, with an honest meas
 - **Populated by**: `python -m scripts.compute_au_task_layer`
 - **Note**: This is a distinct plane from occupation-level zone Beta (`eloundou_occ_scores`/`industry_occupation_profiles`) — it is not recomputed here and remains the near-complete top-down occupation exposure signal even where AU task-level detail is unavailable (ADR-011 L0).
 
+### jsa_genai_exposure
+
+JSA "Our Gen AI Transition" (Aug 2025) — the platform's first published **AU-native** AI-exposure signal, keyed by 4-digit ANZSCO unit group. 357 rows (714 source rows deduped: each occupation appears under "All occupations" + its specific matrix group with identical scores). Kept as its own signal, **never blended** with the bridge-derived `au_occupation_exposure.au_task_beta`.
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| anzsco_code | TEXT | NO | 4-digit ANZSCO unit group |
+| anzsco_title | TEXT | YES | Unit group title |
+| matrix_group | TEXT | YES | JSA occupation matrix group (the specific group, not "All occupations") |
+| augmentation_score | FLOAT | YES | AI augmentation exposure, 0–1 (independent of β) |
+| automation_score | FLOAT | YES | AI automation exposure, 0–1 (independent of β) |
+| rate_of_skill_change | FLOAT | YES | JSA skill-change rate |
+| historical_mobility | FLOAT | YES | Historical occupation mobility 2021–2022 |
+| high_fit_transition_rate | FLOAT | YES | High-fit transition rate |
+| hybridisation_potential | FLOAT | YES | Differential score, scaled ×1000 (can be negative) |
+| specialisation_potential | FLOAT | YES | Differential score, scaled ×1000 (can be negative) |
+| entry_level_ad_share | FLOAT | YES | Share of job ads that are entry level (%) |
+| jsa_version | TEXT | NO | Release version (default 2025.08) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Unique constraint**: `(anzsco_code, jsa_version)` = `uq_jsa_genai_anzsco_version`
+- **Indexes**: `ix_jsa_genai_exposure_anzsco_code`
+- **Migration**: 035
+- **Populated by**: `python -m scripts.ingest_jsa_genai` (also an optional pipeline stage)
+- **Surfaced by**: `GET /api/v1/au/occupations/{osca}` → `jsa_native` (matched via `osca_anzsco_map` 6-digit → 4-digit prefix, highest-weight code)
+
 ---
 
 ## Temporal Snapshot Layer (ADR-012)
@@ -1311,3 +1339,4 @@ US-imported (`au_task.us_imported_beta`) and AU-native (`au_task.au_native_beta`
 | 032 | signal_source_registry — FR-9.5 signal-source registry + redistribution gate |
 | 033 | backfill aei_task_snapshots.onet_soc_codes via the O*NET task bridge |
 | 034 | snapshot_runs, exposure_snapshots — temporal snapshot/release layer (ADR-012) |
+| 035 | jsa_genai_exposure — JSA "Our Gen AI Transition" AU-native exposure signal (FR-9.x) |

@@ -303,6 +303,12 @@ def _build_pipeline_dag() -> list[PipelineStage]:
             description="Australian Skills Classification v3.0 (FR-9.2, ADR-011)",
         ),
         PipelineStage(
+            "ingest_jsa_genai",
+            partial(_call, "ingest_jsa_genai"),
+            optional=True,
+            description="JSA 'Our Gen AI Transition' — AU-native exposure signal (FR-9.x)",
+        ),
+        PipelineStage(
             "build_dwa_asc_bridge",
             partial(_call, "build_dwa_asc_bridge"),
             depends_on=["ingest_asc", "onet"],

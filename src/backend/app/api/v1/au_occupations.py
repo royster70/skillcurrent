@@ -27,6 +27,7 @@ from app.api.v1.schemas import (
     AuOccupationDetail,
     AuOccupationIndexEntry,
     AuOccupationIndexResponse,
+    JsaNativeExposure,
 )
 from app.db.session import get_db
 
@@ -143,6 +144,38 @@ async def _au_competencies(
     return source, items
 
 
+async def _au_jsa_native(db: AsyncSession, osca_code: str) -> JsaNativeExposure | None:
+    """The published JSA Gen AI reading for this occupation's ANZSCO unit group.
+
+    JSA is keyed at 4-digit ANZSCO; osca_anzsco_map is 6-digit — join on the
+    4-digit prefix, taking the highest-weight mapped code's group. A SEPARATE
+    signal from the bridge-derived exposure — never blended (CLAUDE.md)."""
+    r = await db.execute(
+        text(
+            """
+        SELECT j.anzsco_code, j.anzsco_title, j.augmentation_score,
+               j.automation_score, j.rate_of_skill_change
+        FROM osca_anzsco_map m
+        JOIN jsa_genai_exposure j ON j.anzsco_code = SUBSTRING(m.anzsco_code, 1, 4)
+        WHERE m.osca_code = :code
+        ORDER BY m.weight DESC NULLS LAST, j.anzsco_code
+        LIMIT 1
+    """
+        ),
+        {"code": osca_code},
+    )
+    row = r.fetchone()
+    if not row:
+        return None
+    return JsaNativeExposure(
+        source_anzsco=row[0],
+        anzsco_title=row[1],
+        augmentation_score=round(row[2], 3) if row[2] is not None else None,
+        automation_score=round(row[3], 3) if row[3] is not None else None,
+        rate_of_skill_change=round(row[4], 2) if row[4] is not None else None,
+    )
+
+
 async def _au_main_tasks(db: AsyncSession, osca_code: str) -> list[str]:
     r = await db.execute(
         text("SELECT task_text FROM osca_main_tasks WHERE osca_code = :code ORDER BY id"),
@@ -219,6 +252,7 @@ async def get_au_occupation(
         description=core[2],
         osca_version=core[3],
         exposure=exposure,
+        jsa_native=await _au_jsa_native(db, osca_code),
         competencies=competencies,
         competency_source_anzsco=source_anzsco,
         main_tasks=await _au_main_tasks(db, osca_code),

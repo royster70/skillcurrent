@@ -48,8 +48,8 @@ Local data directory: `$DATA_ROOT` (set via env / `.env`, outside the git repo, 
 | Redistribution OK | Yes (CC BY — attribution required) |
 | Local path | `$DATA_ROOT\JSA-GenAI\Occupations_8.csv` (714 ANZSCO-keyed occupation rows) |
 | Columns (verified) | ANZSCO unit code, ANZSCO unit title, Occupation matrix group, Augmentation exposure score, Automation exposure score, Rate of skill change, Historical occupation mobility 2021-2022, High-fit transition rate, Hybridisation potential, Specialisation potential, Share of job ads that are entry level |
-| Status | ACQUIRED — not yet ingested. No ingestion script exists yet. |
-| Planned use | AU occupation-level AI exposure signal, complementary to Eloundou/Microsoft/AEI — not yet wired into any FR |
+| Status | LOADED — `jsa_genai_exposure` (357 rows, migration 035), `scripts/ingest_jsa_genai.py`. 714 source rows dedupe to 357 (each occupation appears twice — "All occupations" + its specific matrix group — with identical scores). |
+| Use | The platform's **first published AU-native exposure signal**. Surfaced on `GET /api/v1/au/occupations/{osca}` as `jsa_native` — kept SEPARATE from the bridge-derived `au_task_beta`, never blended (augmentation/automation are each their own 0–1 scale, not β). |
 
 ## AEI Geographic Release (Anthropic Economic Index)
 

@@ -330,6 +330,13 @@
         "osca",
         "asc"
       ]
+    },
+    "jsa_genai_exposure": {
+      "rows": 357,
+      "bytes": 33257,
+      "sources": [
+        "jsa_genai"
+      ]
     }
   },
   "excluded_tables": {
@@ -416,6 +423,6 @@
       "redistribution_ok": true
     }
   ],
-  "total_rows": 313487,
-  "total_bytes": 10934698
+  "total_rows": 313844,
+  "total_bytes": 10967955
 }

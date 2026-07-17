@@ -45,6 +45,7 @@ These are hard rules. Do not optimise around them.
 - **ASC specialist tasks are the AU task-level exposure carrier, via the semantic DWA bridge only** — ASC v3.0's published files carry no source-DWA/O*NET/IWA column (B0 spike, ADR-011), so the L1 `dwa_lookup` rung is impossible; every measured `au_task` row is tier `T2` (semantic, cosine floor 0.60), never a fabricated L1 lookup
 - **OSCA main tasks reject task-level exposure** — `au_task` has a CHECK constraint (`ck_au_task_osca_main_no_exposure`) rejecting any write of `au_native_beta` against `task_source = 'OSCA_main'`; consistent with the descriptor_only rule above
 - **US-imported and AU-native exposure are kept in separate columns, never blended** — `au_task.us_imported_beta` vs `au_task.au_native_beta`/`au_native_beta_soc`; a `us_au_divergence` flag surfaces disagreement as a publishable insight, not noise
+- **JSA Gen AI is a THIRD, published AU-native signal — never blended, never mapped to β** — `jsa_genai_exposure` (augmentation + automation, each 0–1, 4-digit ANZSCO) is an independent Australian-government reading, distinct from BOTH the bridge-derived `au_task_beta` AND the US β. Surfaced as its own `jsa_native` block on the AU endpoint; its scores are never converted to a β/zone or averaged with the bridge reading. Joins to OSCA via `osca_anzsco_map` 6-digit → 4-digit prefix
 - **AU task-level exposure uses the same distributed-DWA scale as the US task_matrix** — global `AVG(dv_beta_derived)` per matched DWA from `eloundou_dwa_scores`, so US and AU task exposure are directly comparable
 - **Bridge confidence = cosine similarity, floored at 0.60** — `dwa_asc_bridge.confidence` is never a fabricated or blended score; matches below the floor are excluded, not clamped
 
@@ -98,7 +99,7 @@ section is the summary, that file is the archive.
 - **OpenAI GDPval**: MIT license — 220 real-world knowledge tasks across 44 occupations and 9 NAICS sectors. Tasks mapped to O*NET SOC codes (43 exact + 1 contextual match). Rubric-graded evaluations (10,453 items). gdpval_evaluations table ready for model-era scores to enable FR-8.7 waterline velocity. LOADED.
 - **OSCA 2024 v1.0 (ABS)**: CC-BY 4.0, `abs.gov.au` — canonical AU occupation backbone (FR-9.1), replaces retired ANZSCO (kept as legacy dual key). 1,156 occupations, 6,887 descriptor-only main tasks, 1,383 OSCA↔ANZSCO correspondence rows, 1,448 OSCA↔ISCO-08 correspondence rows. LOADED.
 - **Australian Skills Classification (ASC) v3.0 (JSA)**: CC BY 4.0, acquired via the `runapp-aus/strayr` R package `.rda` files (read with `pyreadr`). AU-native task/skill layer and the FR-9.2 exposure carrier — specialist tasks were built from O*NET DWAs (21.2/23.1) but the published files carry no source-DWA column, so the platform bridges them semantically (ADR-011 L2). 10,963 specialist tasks (ANZSCO-keyed), 6,000 core competency scores, 1,989 technology tool rows. LOADED.
-- **JSA "Our Gen AI Transition" (Aug 2025)**: CC-BY. ANZSCO-keyed augmentation/automation exposure scores (`Occupations_8.csv`, 714 occupation rows). ACQUIRED, not yet ingested.
+- **JSA "Our Gen AI Transition" (Aug 2025)**: CC-BY. ANZSCO-keyed augmentation/automation exposure scores (`Occupations_8.csv`). The platform's first published **AU-native** exposure signal — kept separate from the bridge-derived `au_task_beta`, never blended (each score is its own 0–1 scale, not β). 714 source rows dedupe to 357 (one per 4-digit ANZSCO; the file lists each occupation twice, under "All occupations" + its specific matrix group, with identical scores). LOADED (`jsa_genai_exposure`, mig 035; surfaced on `GET /au/occupations/{osca}` as `jsa_native`).
 - **AEI geographic release**: Country-level Anthropic Economic Index release incl. AUS (`AEI/geographic/`). Licence: verify CC-BY vs MIT per release before redistribution. ACQUIRED, not yet ingested.
 - **AIOE (Felten AI Occupational Exposure)**: Citation-only licence — NOT CC-BY, flagged redistribution-restricted. `AIOE_DataAppendix.xlsx`. ACQUIRED, not yet ingested.
 
@@ -160,7 +161,8 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | au_occupation_exposure | 960 | Derived (task-weighted AU exposure rollup per OSCA, FR-9.2) |
 | snapshot_runs | 1 | Derived (ADR-012 temporal snapshot layer — genesis 2026-Q3 release) |
 | exposure_snapshots | 15,513 | Derived (ADR-012 — append-only verdict snapshots per run/release) |
-| **TOTAL** | **~618,159** | |
+| jsa_genai_exposure | 357 | JSA "Our Gen AI Transition" (AU-native augmentation/automation, FR-9.x, mig 035) |
+| **TOTAL** | **~618,516** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy

@@ -154,7 +154,7 @@ Plus three explainer pages: **How it works** (`/methodology`), **Data & sources*
 
 Any occupation or sector can also be exported as a **one-page brief** — a chrome-free print/PDF view at `/brief/occupation/:soc` and `/brief/sector/:code`, rendered in the reader's active audience lens (Individual / Organisation / Education) and language mode.
 
-### Data loaded (~618,159 rows across ~42 tables)
+### Data loaded (~618,516 rows across ~43 tables)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -172,6 +172,7 @@ Any occupation or sector can also be exported as a **one-page brief** — a chro
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 | Epoch AI ECI (GPTVal) | 464 | Longitudinal model-capability benchmarks — the waterline-velocity signal (FR-8.7 P0a) |
 | Snapshot layer | 15,514 | Append-only history of derived verdicts — genesis 2026-Q3 release (ADR-012) |
+| JSA Gen AI (AU) | 357 | Jobs and Skills Australia augmentation/automation — first AU-native exposure signal (FR-9.x) |
 
 *Full per-table breakdown: [CLAUDE.md](CLAUDE.md) "Data Load Status" and [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).*
 

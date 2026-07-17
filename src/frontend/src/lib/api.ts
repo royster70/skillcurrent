@@ -380,12 +380,25 @@ export interface AuExposureSummary {
   confidence_basis: string;
 }
 
+// Published AU-native reading (Jobs and Skills Australia). A SEPARATE signal
+// from AuExposureSummary (the bridge-derived US-imported β) — never blended.
+export interface JsaNativeExposure {
+  source_anzsco: string;
+  anzsco_title: string | null;
+  augmentation_score: number | null;
+  automation_score: number | null;
+  rate_of_skill_change: number | null;
+  source: string;
+  basis: string;
+}
+
 export interface AuOccupationDetail {
   osca_code: string;
   title: string;
   description: string | null;
   osca_version: string;
   exposure: AuExposureSummary | null;
+  jsa_native: JsaNativeExposure | null;
   competencies: AscCompetencyItem[];
   competency_source_anzsco: string | null;
   main_tasks: string[];
