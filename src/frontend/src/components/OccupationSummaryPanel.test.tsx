@@ -157,6 +157,29 @@ describe("OccupationSummaryPanel", () => {
     expect(screen.queryByText(/Microsoft/)).not.toBeInTheDocument();
   });
 
+  it("shows the ConfidenceBadge when the payload carries signal_coverage (#73)", () => {
+    const occ = makeOcc({
+      eloundou_beta_gpt4: 0.3,
+      ms_ai_applicability: 0.2,
+      aei_exposure: null,
+      signal_coverage: {
+        eloundou: true, microsoft: true, aei: false, gdpval: false,
+        signal_count: 2, confidence: "moderate",
+      },
+    });
+    renderPanel({ occ, matrixData: makeMatrix([makeTask()]), bearings: makeBearings() });
+    expect(screen.getByText(/Evidence: 2 of 3 signals · Moderate confidence/)).toBeInTheDocument();
+    // The plain-list fallback is replaced, not doubled
+    expect(screen.queryByText(/Evidence: Eloundou,/)).not.toBeInTheDocument();
+  });
+
+  it("falls back to the plain evidence list when signal_coverage is absent (pre-regen static payloads)", () => {
+    const occ = makeOcc({ eloundou_beta_gpt4: 0.3, signal_coverage: undefined });
+    renderPanel({ occ, matrixData: makeMatrix([makeTask()]), bearings: makeBearings() });
+    expect(screen.getByText(/Evidence: Eloundou/)).toBeInTheDocument();
+    expect(screen.queryByText(/of 3 signals/)).not.toBeInTheDocument();
+  });
+
   it("separates current evidence from future implication, and links to the methodology page", () => {
     renderPanel({ occ: makeOcc(), matrixData: makeMatrix([makeTask()]), bearings: makeBearings() });
     expect(screen.getByText(/reflect today's measured exposure/)).toBeInTheDocument();

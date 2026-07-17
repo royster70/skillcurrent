@@ -11,6 +11,7 @@ from app.api.v1.schemas import (
     OccupationsResponse,
     OccupationSummary,
     OccupationTasksResponse,
+    SignalCoverage,
     SocHierarchyNode,
     SocHierarchyResponse,
     TaskWithDrift,
@@ -19,6 +20,32 @@ from app.api.v1.soc_groups import MAJOR_GROUPS as _MAJOR_GROUPS
 from app.db.session import get_db
 
 router = APIRouter(prefix="/occupations", tags=["occupations"])
+
+
+def _signal_coverage(
+    eloundou_beta: float | None,
+    ms_score: float | None,
+    aei_score: float | None,
+    gdpval_count: int,
+) -> SignalCoverage:
+    """Derive evidence coverage from already-fetched fields (GitHub #73).
+
+    Pure presence counting — no confidence VALUES are read or averaged from
+    any source (CLAUDE.md: never blend confidences across sources). GDPval
+    is reported but excluded from the count: it is a benchmark corpus, not
+    an exposure signal.
+    """
+    flags = (eloundou_beta is not None, ms_score is not None, aei_score is not None)
+    count = sum(flags)
+    confidence = "high" if count == 3 else ("moderate" if count == 2 else "limited")
+    return SignalCoverage(
+        eloundou=flags[0],
+        microsoft=flags[1],
+        aei=flags[2],
+        gdpval=gdpval_count > 0,
+        signal_count=count,
+        confidence=confidence,
+    )
 
 
 @router.get("/hierarchy", response_model=SocHierarchyResponse)
@@ -379,6 +406,14 @@ async def get_occupation(
     )
     gdpval_count = r.scalar() or 0
 
+    # Evidence coverage (#73) — derived from the exact values the response
+    # reports (same truthiness treatment as the score fields below), so the
+    # badge can never disagree with the visible scores.
+    eloundou_val = eloundou[0] if eloundou and eloundou[0] else None
+    ms_val = ms[0] if ms and ms[0] else None
+    aei_val = aei[0] if aei and aei[0] else None
+    coverage = _signal_coverage(eloundou_val, ms_val, aei_val, gdpval_count)
+
     return OccupationDetail(
         soc_code=onet_soc,
         title=occ[1],
@@ -407,6 +442,7 @@ async def get_occupation(
         aei_era_snapshots=aei_era_snapshots,
         gdpval_task_count=gdpval_count,
         gdpval_available=gdpval_count > 0,
+        signal_coverage=coverage,
     )
 
 

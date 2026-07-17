@@ -273,6 +273,9 @@ async def _emit_client_data(out: Path, db: AsyncSession) -> dict[str, int]:
             "total_employment": r["total_emp"],
             "has_tasks": bool(r["has_tasks"]),
             "category": r["category"],
+            # Evidence coverage (#73): count of non-null core signals (0-3),
+            # python-side over the same LEFT JOINs — presence, never blending.
+            "signals": sum(r[k] is not None for k in ("beta", "ms", "aei")),
         }
         for r in occ_rows
     }

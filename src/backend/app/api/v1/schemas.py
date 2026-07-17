@@ -120,6 +120,23 @@ class OccupationEraSnapshot(BaseModel):
     task_count: int
 
 
+class SignalCoverage(BaseModel):
+    """Which independent signals actually cover this occupation (GitHub #73).
+
+    Presence flags only — the qualitative `confidence` word is derived by
+    COUNTING non-null core signals, never by blending confidence values
+    across sources (CLAUDE.md invariant). GDPval is reported but not
+    counted: it is a benchmark corpus, not an exposure signal.
+    """
+
+    eloundou: bool
+    microsoft: bool
+    aei: bool
+    gdpval: bool
+    signal_count: int  # 0–3 core scalar signals present
+    confidence: str  # "high" (3) | "moderate" (2) | "limited" (<=1)
+
+
 class OccupationDetail(BaseModel):
     soc_code: str
     title: str
@@ -154,6 +171,10 @@ class OccupationDetail(BaseModel):
     # GDPval benchmark availability
     gdpval_task_count: int = 0
     gdpval_available: bool = False
+    # Evidence coverage (#73). Optional so pre-regen static payloads (which
+    # lack the field) still validate client-side; the frontend renders no
+    # badge when absent.
+    signal_coverage: SignalCoverage | None = None
 
 
 class OccupationSectorProfile(BaseModel):
