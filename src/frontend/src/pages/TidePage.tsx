@@ -17,7 +17,8 @@
 import { useState, useEffect, type ReactNode } from "react";
 import { useApi } from "../hooks/useApi";
 import { api, type DriftTask } from "../lib/api";
-import { MOVEMENT_COLORS, MOVEMENT_LABELS, ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
+import { MOVEMENT_COLORS, ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { Waypoint } from "../components/Waypoint";
 import { EraTide } from "../components/EraTide";
@@ -107,6 +108,7 @@ function StatTile({ label, value, subtitle, color, alert, active, onClick }: {
 function ApproachRow({ task, domain, shown, index, showPace }: {
   task: DriftTask; domain: number; shown: boolean; index: number; showPace: boolean;
 }) {
+  const { lex } = useLanguage();
   const u = usageOf(task);
   const v = Math.max(0, paceOf(task));
   const eta = erasToLine(task);
@@ -124,7 +126,7 @@ function ApproachRow({ task, domain, shown, index, showPace }: {
           {task.task_text}
           {atLine && (
             <span style={{ fontSize: 9.5, fontWeight: 700, color: ZONE_COLORS.alert, marginLeft: 8, whiteSpace: "nowrap" }}>
-              {MOVEMENT_LABELS.below_threshold.toUpperCase()}
+              {lex.movementLabels.below_threshold.toUpperCase()}
             </span>
           )}
         </span>
@@ -308,6 +310,7 @@ function TideList({ tasks, title, blurb, showPace, alertTint, filterKey }: {
 type TideFilter = "movers" | "departing" | "below_threshold" | "enduring";
 
 export function TidePage() {
+  const { mode, lex } = useLanguage();
   const { data: summary, loading } = useApi(() => api.driftSummary(), []);
   const { data: departing } = useApi(() => api.driftDeparting(1, 15), []);
   const { data: belowThreshold } = useApi(() => api.driftBelowThreshold(), []);
@@ -360,20 +363,20 @@ export function TidePage() {
     },
     departing: {
       tasks: [...(departing?.tasks ?? [])].sort((a, b) => paceOf(b) - paceOf(a)).slice(0, 12),
-      title: MOVEMENT_LABELS.departing,
+      title: lex.movementLabels.departing,
       blurb: "Sorted by pace — the fastest climbers first.",
       showPace: true,
     },
     below_threshold: {
       tasks: [...(belowThreshold?.tasks ?? [])].sort((a, b) => (erasToLine(a) ?? Infinity) - (erasToLine(b) ?? Infinity)),
-      title: MOVEMENT_LABELS.below_threshold,
+      title: lex.movementLabels.below_threshold,
       blurb: "Just below the line with usage still rising — the first to flip. A forecast, not an alarm.",
       showPace: true,
       alertTint: true,
     },
     enduring: {
       tasks: [...(enduring?.tasks ?? [])].sort((a, b) => usageOf(b) - usageOf(a)).slice(0, 12),
-      title: MOVEMENT_LABELS.enduring,
+      title: lex.movementLabels.enduring,
       blurb: "The still water — AI usage of these tasks isn't moving era over era.",
       showPace: false,
     },
@@ -384,7 +387,7 @@ export function TidePage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: TYPE.body, color: theme.ink }}>
       {/* Header */}
       <div>
-        <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Rising Tide</h1>
+        <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>{lex.nav.tide}</h1>
         <p style={{ fontSize: 14, color: theme.inkMuted, margin: "4px 0 0" }}>
           How fast AI usage is rising across {summary.total_tasks.toLocaleString()} tasks, model era over model era
           {maxEras >= 2 ? ` — trends read across up to ${maxEras} eras` : ""}.
@@ -405,13 +408,13 @@ export function TidePage() {
 
       {/* Stat row — the tiles ARE the navigation: click one to focus the list */}
       <div style={{ display: "flex", gap: 14, flexWrap: "wrap" }}>
-        <StatTile label={MOVEMENT_LABELS.departing} value={summary.departing.toLocaleString()}
+        <StatTile label={lex.movementLabels.departing} value={summary.departing.toLocaleString()}
           subtitle="AI usage rising era over era" color={MOVEMENT_COLORS.departing}
           active={filter === "departing"} onClick={() => toggle("departing")} />
-        <StatTile label={MOVEMENT_LABELS.enduring} value={summary.enduring.toLocaleString()}
+        <StatTile label={lex.movementLabels.enduring} value={summary.enduring.toLocaleString()}
           subtitle="usage stable or declining" color={MOVEMENT_COLORS.enduring}
           active={filter === "enduring"} onClick={() => toggle("enduring")} />
-        <StatTile label={MOVEMENT_LABELS.below_threshold} value={summary.below_threshold.toLocaleString()}
+        <StatTile label={lex.movementLabels.below_threshold} value={summary.below_threshold.toLocaleString()}
           subtitle="the next tasks to flip zones" color={MOVEMENT_COLORS.below_threshold} alert
           active={filter === "below_threshold"} onClick={() => toggle("below_threshold")} />
         {avgPaceRising != null && (
@@ -422,7 +425,7 @@ export function TidePage() {
       {/* Sparsity, first-class — not a hidden remainder */}
       {summary.unclassified > 0 && (
         <div style={{ fontSize: 12, color: theme.inkMuted, marginTop: -12 }}>
-          <span style={{ fontWeight: 600, color: MOVEMENT_COLORS.unclassified }}>{MOVEMENT_LABELS.unclassified}:</span>{" "}
+          <span style={{ fontWeight: 600, color: MOVEMENT_COLORS.unclassified }}>{lex.movementLabels.unclassified}:</span>{" "}
           {summary.unclassified.toLocaleString()} of {summary.total_tasks.toLocaleString()} tasks —
           not enough model eras yet to read a trend. Each new era converts more of these.
         </div>
@@ -430,7 +433,7 @@ export function TidePage() {
 
       {/* ONE list, four lenses — filtered by the tiles above */}
       <Reveal>
-        <Waypoint>WHAT THE TIDE REACHES NEXT</Waypoint>
+        <Waypoint>{mode === "plain" ? "WHAT CHANGES NEXT" : "WHAT THE TIDE REACHES NEXT"}</Waypoint>
         <TideList
           filterKey={filter}
           tasks={view.tasks}

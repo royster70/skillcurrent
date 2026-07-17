@@ -18,7 +18,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SectorSummary } from "../lib/api";
-import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS } from "../lib/constants";
+import { THEME, TYPE, ZONE_COLORS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 
 const t = THEME.light;
 
@@ -98,6 +99,7 @@ export function SectorWaterline({ sectors, region }: { sectors: SectorSummary[];
 /** Composition header: a zone legend, NOT a β scale — segment length is share
  * of workers, so β threshold ticks would visually lie here. */
 function DepthHeader() {
+  const { mode, lex } = useLanguage();
   return (
     <div style={{ display: "grid", gridTemplateColumns: GRID, gap: 12, alignItems: "end", paddingBottom: 6, marginBottom: 4, borderBottom: `1px solid ${t.line}` }}>
       <div style={{ fontSize: 10.5, color: t.inkMuted, textTransform: "uppercase", letterSpacing: 0.4 }}>Sector</div>
@@ -105,23 +107,24 @@ function DepthHeader() {
         {(["E0", "E1", "E2"] as ZoneKey[]).map((z) => (
           <span key={z} style={{ display: "inline-flex", alignItems: "center", gap: 4, color: ZONE_COLORS[z] }}>
             <span style={{ width: 7, height: 7, borderRadius: 2, background: ZONE_COLORS[z] }} />
-            {ZONE_LABELS[z]}
+            {lex.zoneLabels[z]}
           </span>
         ))}
         <span style={{ fontWeight: 400, color: t.inkMuted, marginLeft: "auto", fontSize: 9 }}>share of workers →</span>
       </div>
-      <div style={{ fontSize: 10.5, color: t.inkMuted, textAlign: "right", textTransform: "uppercase", letterSpacing: 0.4 }}>Submerged</div>
+      <div style={{ fontSize: 10.5, color: t.inkMuted, textAlign: "right", textTransform: "uppercase", letterSpacing: 0.4 }}>{mode === "plain" ? "Most exposed" : "Submerged"}</div>
     </div>
   );
 }
 
 function SectorRow({ row, maxEmp, onOpen }: { row: Row; maxEmp: number; onOpen: () => void }) {
+  const { lex } = useLanguage();
   const [hover, setHover] = useState(false);
   const empScale = Math.sqrt(row.employment / maxEmp); // area-honest weighting
   const breakdown =
-    `${ZONE_LABELS.E0} ${(row.share.E0 * 100).toFixed(0)}% · ` +
-    `${ZONE_LABELS.E1} ${(row.share.E1 * 100).toFixed(0)}% · ` +
-    `${ZONE_LABELS.E2} ${(row.share.E2 * 100).toFixed(0)}% of ${fmtEmp(row.employment)} workers`;
+    `${lex.zoneLabels.E0} ${(row.share.E0 * 100).toFixed(0)}% · ` +
+    `${lex.zoneLabels.E1} ${(row.share.E1 * 100).toFixed(0)}% · ` +
+    `${lex.zoneLabels.E2} ${(row.share.E2 * 100).toFixed(0)}% of ${fmtEmp(row.employment)} workers`;
 
   return (
     <div

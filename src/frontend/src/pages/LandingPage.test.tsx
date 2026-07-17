@@ -46,7 +46,9 @@ describe("LandingPage hero", () => {
 
   it("keeps the narrative reachable via a secondary CTA, not a required first step", () => {
     renderLanding();
-    expect(screen.getByText("UNDERSTAND THE WATERLINE")).toBeInTheDocument();
+    // Plain mode (the default, #79) leads with the plain CTA; the nautical
+    // wording survives behind the language toggle.
+    expect(screen.getByText("SEE HOW IT'S MEASURED")).toBeInTheDocument();
   });
 
   it("does not navigate on a too-short query", () => {

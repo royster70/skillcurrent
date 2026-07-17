@@ -1,6 +1,7 @@
 /** Score card with percentile bar, predicted/measured tags, temporal sparkline, and source explainer. */
 
 import { useState } from "react";
+import { Link } from "react-router-dom";
 import type { OccupationEraSnapshot } from "../lib/api";
 import { THEME, TYPE } from "../lib/constants";
 
@@ -202,6 +203,14 @@ export function ContextualScoreCard({ label, value, percentile, median, populati
           <div style={{ fontSize: 10, color: t.inkMuted, lineHeight: 1.4, fontStyle: "italic" }}>
             {explainer.measures}
           </div>
+          {/* Deep link into the methodology's predicted-vs-measured section —
+              the "Explain this score" drill-down home (#79). */}
+          <Link
+            to="/methodology#observed-vs-theoretical"
+            style={{ display: "inline-block", marginTop: 6, fontSize: 10.5, fontWeight: 600, color: t.brass, textDecoration: "none" }}
+          >
+            How these signals differ →
+          </Link>
         </div>
       )}
     </div>

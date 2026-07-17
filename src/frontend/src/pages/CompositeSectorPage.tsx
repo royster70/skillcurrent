@@ -17,7 +17,9 @@ import {
   type SubdivisionEntry,
   type SubdivisionOccupationProfile,
 } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { useLanguage } from "../lib/language";
+import type { Lexicon } from "../lib/lexicon";
 import { MetricCard } from "../components/MetricCard";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { OccupationMixPanel } from "../components/OccupationMixPanel";
@@ -87,8 +89,9 @@ function CompositeContent({
   navigate: ReturnType<typeof useNavigate>;
   region?: string;
 }) {
+  const { mode, lex } = useLanguage();
   const totalEmp = data.total_employment;
-  const narrative = generateNarrative(data);
+  const narrative = generateNarrative(data, lex, mode === "plain");
 
   // Sector abbreviations for compact badges
   const sectorAbbrev = useMemo(() => {
@@ -174,19 +177,19 @@ function CompositeContent({
       {/* Metric cards */}
       <div style={{ display: "flex", gap: 16 }}>
         <MetricCard
-          label="INSULATED (E0)"
+          label={mode === "plain" ? lex.zoneLabels.E0.toUpperCase() : `${lex.zoneLabels.E0.toUpperCase()} (E0)`}
           value={fmtEmp(data.workers_e0)}
           subtitle={`${pct(data.workers_e0, totalEmp)} of composite workforce`}
           color={ZONE_COLORS.E0}
         />
         <MetricCard
-          label="AUGMENTED (E1)"
+          label={mode === "plain" ? lex.zoneLabels.E1.toUpperCase() : `${lex.zoneLabels.E1.toUpperCase()} (E1)`}
           value={fmtEmp(data.workers_e1)}
           subtitle={`${pct(data.workers_e1, totalEmp)} of composite workforce`}
           color={ZONE_COLORS.E1}
         />
         <MetricCard
-          label={`${ZONE_LABELS.E2.toUpperCase()} (E2)`}
+          label={mode === "plain" ? lex.zoneLabels.E2.toUpperCase() : `${lex.zoneLabels.E2.toUpperCase()} (E2)`}
           value={fmtEmp(data.workers_e2)}
           subtitle={`${pct(data.workers_e2, totalEmp)} of composite workforce`}
           color={ZONE_COLORS.E2}
@@ -351,7 +354,7 @@ function CompositeContent({
 
 // ── Narrative generation ──
 
-function generateNarrative(data: CompositeSectorResponse): string {
+function generateNarrative(data: CompositeSectorResponse, lex: Lexicon, plain: boolean): string {
   const names = data.sector_names;
   const nameStr = names.length <= 2
     ? names.join(" and ")
@@ -360,7 +363,11 @@ function generateNarrative(data: CompositeSectorResponse): string {
   const totalEmp = data.total_employment;
   const beta = data.weighted_eloundou_beta;
   const zone = beta != null
-    ? beta >= 0.85 ? `${ZONE_LABELS.E2} (E2)` : beta >= 0.4 ? `${ZONE_LABELS.E1} (E1)` : `${ZONE_LABELS.E0} (E0)`
+    ? beta >= 0.85
+      ? plain ? lex.zoneLabels.E2 : `${lex.zoneLabels.E2} (E2)`
+      : beta >= 0.4
+        ? plain ? lex.zoneLabels.E1 : `${lex.zoneLabels.E1} (E1)`
+        : plain ? lex.zoneLabels.E0 : `${lex.zoneLabels.E0} (E0)`
     : "undetermined";
 
   // Find occupations that span the most sectors

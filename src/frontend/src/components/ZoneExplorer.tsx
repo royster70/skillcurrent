@@ -21,9 +21,11 @@
 
 import { useState, useEffect, type PointerEvent as ReactPointerEvent } from "react";
 import { Link } from "react-router-dom";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, THEME, TYPE, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { DUR, EASE, prefersReducedMotion, ensureMotionStyles } from "./current/motion";
 import { WaveUnderline } from "./current/CurrentFlow";
+import { ExplainDisclosure } from "./ExplainDisclosure";
 
 const t = THEME.light;
 
@@ -147,6 +149,7 @@ const ROLE_EXAMPLES = [
  * its name riding the current (a wave underline), and a flowing "Compare" row of
  * the other jobs (no boxes) to browse. Picking a job flows the tide to it. */
 function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterline: (v: number) => void }) {
+  const { mode } = useLanguage();
   const [idx, setIdx] = useState(0);
   const count = ROLE_EXAMPLES.length;
   const role = ROLE_EXAMPLES[idx];
@@ -173,7 +176,9 @@ function WorkedExample({ waterline, onWaterline }: { waterline: number; onWaterl
       style={{ marginTop: 16, outline: "none" }}
     >
       <div style={{ fontSize: 12.5, color: t.inkMuted, marginBottom: 14, maxWidth: 520, lineHeight: 1.55 }}>
-        Watch the tide reach a real job — drag the waterline, switch jobs to compare.
+        {mode === "plain"
+          ? "Watch AI capability reach a real job — drag the line, switch jobs to compare."
+          : "Watch the tide reach a real job — drag the waterline, switch jobs to compare."}
       </div>
 
       {/* Focused role — its name rides the current (the wave underline) */}
@@ -245,6 +250,7 @@ function WaterlineTank({
   onChange: (v: number) => void;
   animKey: number;
 }) {
+  const { mode, lex } = useLanguage();
   const yOf = (beta: number) => (beta / BETA_SCALE.max) * TANK_H;
   const y40 = yOf(ZONE_THRESHOLDS.E1);
   const y85 = yOf(ZONE_THRESHOLDS.E2);
@@ -284,9 +290,9 @@ function WaterlineTank({
           live tank and the generic key read as clearly different things. */}
       <div style={{ display: "flex", gap: 14, alignItems: "flex-end", marginBottom: 8 }}>
         <div style={{ flex: "1 1 320px", minWidth: 200, display: "flex", justifyContent: "space-between", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
-          <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>Drag the waterline</span>
+          <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>{lex.tank.drag}</span>
           <span style={{ fontFamily: TYPE.mono, fontSize: 13, fontWeight: 700, color: ZONE_COLORS[wlZone] }}>
-            β {waterline.toFixed(2)} · {timeBelow}% of the day below
+            {lex.fmt.score(waterline)} · {timeBelow}% of the day below
             <span style={{ fontWeight: 400, color: t.inkMuted }}> ({submerged}/{role.tasks.length} tasks)</span>
           </span>
         </div>
@@ -302,7 +308,7 @@ function WaterlineTank({
       <div style={{ display: "flex", gap: 14, alignItems: "stretch" }}>
         <div
           role="slider"
-          aria-label="Waterline"
+          aria-label={lex.tank.ariaSlider}
           aria-orientation="vertical"
           aria-valuemin={BETA_SCALE.min}
           aria-valuemax={BETA_SCALE.max}
@@ -332,8 +338,8 @@ function WaterlineTank({
           <div style={{ position: "absolute", left: 0, right: 0, top: y85, bottom: 0, background: ZONE_BG.E2 }} />
 
           {/* Ground / water captions (the wireframe's "dry ground" / "submerged") */}
-          <span style={{ position: "absolute", left: 8, top: 6, fontSize: 9, color: t.inkMuted }}>human-only · dry</span>
-          <span style={{ position: "absolute", left: 8, bottom: 6, fontSize: 9, color: t.inkMuted }}>automation · submerged</span>
+          <span style={{ position: "absolute", left: 8, top: 6, fontSize: 9, color: t.inkMuted }}>{lex.tank.top}</span>
+          <span style={{ position: "absolute", left: 8, bottom: 6, fontSize: 9, color: t.inkMuted }}>{lex.tank.bottom}</span>
 
           {/* Water — fills from the waterline down; the moving hue (teal) */}
           <div
@@ -400,7 +406,7 @@ function WaterlineTank({
                 tabIndex={0}
                 onClick={() => onChange(zone.sample)}
                 onKeyDown={(e) => e.key === "Enter" && onChange(zone.sample)}
-                title={`Set the waterline into ${ZONE_LABELS[zone.key]}`}
+                title={`Set the ${mode === "plain" ? "line" : "waterline"} into ${lex.zoneLabels[zone.key]}`}
                 style={{
                   position: "absolute", top: band.top, height: band.height, left: 0, right: 0,
                   display: "flex", gap: 8, alignItems: "flex-start",
@@ -423,10 +429,15 @@ function WaterlineTank({
                 />
                 <div style={{ minWidth: 0 }}>
                   <div style={{ display: "flex", alignItems: "baseline", gap: 6, flexWrap: "wrap" }}>
+                    {/* Plain mode drops the raw E-code prefix and β cutoffs —
+                        the band positions carry the scale; the mechanics live
+                        behind the footer disclosure (#79). */}
                     <span style={{ fontSize: 12.5, fontWeight: 600, color: t.ink }}>
-                      {zone.key} — {ZONE_LABELS[zone.key]}
+                      {mode === "plain" ? lex.zoneLabels[zone.key] : `${zone.key} — ${lex.zoneLabels[zone.key]}`}
                     </span>
-                    <span style={{ fontFamily: TYPE.mono, fontSize: 10, color: t.inkMuted }}>{zone.threshold}</span>
+                    {mode === "nautical" && (
+                      <span style={{ fontFamily: TYPE.mono, fontSize: 10, color: t.inkMuted }}>{zone.threshold}</span>
+                    )}
                   </div>
                   <div style={{ fontSize: 12, fontWeight: 600, color: t.ink, marginTop: 2 }}>{zone.headline}</div>
                   <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 2, lineHeight: 1.35 }}>{zone.short}</div>
@@ -447,6 +458,7 @@ function WaterlineTank({
 
 /** The inline explorer — the landing's "READ THE SCALE" instrument. */
 export function ZoneExplorer() {
+  const { mode, lex } = useLanguage();
   // One global "today's AI capability" — the same tide across every job.
   const [waterline, setWaterline] = useState<number>(0.65);
 
@@ -456,12 +468,22 @@ export function ZoneExplorer() {
           and the zone descriptions aligned to the bands beside it. */}
       <WorkedExample waterline={waterline} onWaterline={setWaterline} />
 
-      {/* Honesty footer — includes the plain-words 0–1.5 gloss (the scale max
-          is derived, not arbitrary: a task can score on both questions). */}
+      {/* Honesty footer. Nautical keeps the live formula; plain states the
+          idea in words and puts the mechanics behind the disclosure (#79). */}
       <div style={{ fontSize: 11, color: t.inkMuted, fontStyle: "italic", textAlign: "center", marginTop: 14 }}>
-        β = E1 + 0.5×E2 — direct AI exposure plus half-weighted tool-assisted exposure,
-        so the scale tops out at 1.5 (Eloundou 2024). No job has every task affected —
-        most blend all three zones.
+        {mode === "plain" ? (
+          <>
+            Every task gets one exposure score on a shared 0–1.5 scale. No job has every
+            task affected — most blend all three zones.{" "}
+            <ExplainDisclosure explainer={lex.explainers.beta} trigger="text" label="Explain this score" />
+          </>
+        ) : (
+          <>
+            β = E1 + 0.5×E2 — direct AI exposure plus half-weighted tool-assisted exposure,
+            so the scale tops out at 1.5 (Eloundou 2024). No job has every task affected —
+            most blend all three zones.
+          </>
+        )}
       </div>
     </div>
   );
@@ -470,6 +492,7 @@ export function ZoneExplorer() {
 /** Slim zone legend for data pages — pips + thresholds + a link to the one
  * teaching home (the landing's READ THE SCALE section). */
 export function ZoneLegend() {
+  const { mode, lex } = useLanguage();
   return (
     <div
       style={{
@@ -489,11 +512,11 @@ export function ZoneLegend() {
       {ZONE_DATA.map((zone) => (
         <span key={zone.key} style={{ display: "flex", alignItems: "center", gap: 6 }}>
           <span
-            title={`${zone.key} — ${ZONE_LABELS[zone.key]}`}
+            title={`${zone.key} — ${lex.zoneLabels[zone.key]}`}
             style={{ width: 9, height: 9, borderRadius: "50%", background: ZONE_COLORS[zone.key], flexShrink: 0 }}
           />
-          <span style={{ fontWeight: 600, color: t.ink }}>{ZONE_LABELS[zone.key]}</span>
-          <span style={{ fontFamily: TYPE.mono, fontSize: 11.5 }}>{zone.shortThreshold}</span>
+          <span style={{ fontWeight: 600, color: t.ink }}>{lex.zoneLabels[zone.key]}</span>
+          {mode === "nautical" && <span style={{ fontFamily: TYPE.mono, fontSize: 11.5 }}>{zone.shortThreshold}</span>}
         </span>
       ))}
       <Link

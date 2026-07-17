@@ -16,13 +16,14 @@
 
 import { Link } from "react-router-dom";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 
 const t = THEME.light;
 
 // ── Step visuals — small inline SVGs, ~190×84 viewBox each ──
 
 /** ① One job fanning out into tasks at different heights on the banded scale. */
-function VisJobToTasks() {
+function VisJobToTasks({ top, bottom }: { top: string; bottom: string }) {
   // Band spans on an 84px-tall column (β 0–1.5, thresholds 0.40 / 0.85).
   const H = 84;
   const y40 = (ZONE_THRESHOLDS.E1 / BETA_SCALE.max) * H;
@@ -52,8 +53,8 @@ function VisJobToTasks() {
           <circle cx={158} cy={yOf(d.beta)} r={4} fill={ZONE_COLORS[d.zone]} stroke={t.surface} strokeWidth={1.5} />
         </g>
       ))}
-      <text x={172} y={8} fontSize={7.5} fontFamily={TYPE.mono} fill={t.inkMuted}>dry</text>
-      <text x={172} y={82} fontSize={7.5} fontFamily={TYPE.mono} fill={t.inkMuted}>deep</text>
+      <text x={172} y={8} fontSize={7.5} fontFamily={TYPE.mono} fill={t.inkMuted}>{top}</text>
+      <text x={172} y={82} fontSize={7.5} fontFamily={TYPE.mono} fill={t.inkMuted}>{bottom}</text>
     </svg>
   );
 }
@@ -82,7 +83,7 @@ function VisTwoQuestions() {
 }
 
 /** ③ The reading is a depth — three tasks on the shore, one waterline. */
-function VisDepth() {
+function VisDepth({ labels }: { labels: [string, string, string] }) {
   const wl = 40; // waterline y
   return (
     <svg viewBox="0 0 190 84" width="100%" style={{ display: "block", maxWidth: 210 }} aria-hidden="true">
@@ -95,37 +96,45 @@ function VisDepth() {
       <circle cx={29} cy={18.5} r={4.5} fill={ZONE_COLORS.E0} stroke={t.surface} strokeWidth={1.5} />
       <circle cx={90} cy={46.5} r={4.5} fill={ZONE_COLORS.E1} stroke={t.surface} strokeWidth={1.5} />
       <circle cx={156} cy={68.5} r={4.5} fill={ZONE_COLORS.E2} stroke={t.surface} strokeWidth={1.5} />
-      <text x={29} y={10} textAnchor="middle" fontSize={8} fontFamily={TYPE.mono} fill={t.inkMuted}>dry</text>
-      <text x={90} y={62} textAnchor="middle" fontSize={8} fontFamily={TYPE.mono} fill={t.inkMuted}>at the line</text>
-      <text x={156} y={82} textAnchor="middle" fontSize={8} fontFamily={TYPE.mono} fill={t.inkMuted}>under</text>
+      <text x={29} y={10} textAnchor="middle" fontSize={8} fontFamily={TYPE.mono} fill={t.inkMuted}>{labels[0]}</text>
+      <text x={90} y={62} textAnchor="middle" fontSize={8} fontFamily={TYPE.mono} fill={t.inkMuted}>{labels[1]}</text>
+      <text x={156} y={82} textAnchor="middle" fontSize={8} fontFamily={TYPE.mono} fill={t.inkMuted}>{labels[2]}</text>
     </svg>
   );
 }
 
-// ── The three beats ──
+// ── The three beats — the same arc in either register (#79) ──
 
-const STEPS: { n: string; title: string; body: string; Visual: () => JSX.Element }[] = [
+const stepsFor = (plain: boolean): { n: string; title: string; body: string; visual: JSX.Element }[] => [
   {
     n: "①",
     title: "A job is a bundle of tasks",
-    body: "AI doesn't take jobs whole — it reaches the tasks inside them, one by one. Some sink early; others barely feel it.",
-    Visual: VisJobToTasks,
+    body: plain
+      ? "AI doesn't take jobs whole — it reaches the tasks inside them, one by one. Some are affected early; others barely feel it."
+      : "AI doesn't take jobs whole — it reaches the tasks inside them, one by one. Some sink early; others barely feel it.",
+    visual: plain ? <VisJobToTasks top="low" bottom="high" /> : <VisJobToTasks top="dry" bottom="deep" />,
   },
   {
     n: "②",
     title: "Two questions make the reading",
     body: "Could today's AI meaningfully do this task by itself? Could it with purpose-built tools on top? A task can score on both — which is why the scale runs 0 to 1.5, not 0 to 1.",
-    Visual: VisTwoQuestions,
+    visual: <VisTwoQuestions />,
   },
   {
     n: "③",
-    title: "The reading is a depth",
-    body: "Low readings hold the high ground; high readings sit deeper. The waterline is today's AI capability — one tide, every job. Drag it below and watch a real one.",
-    Visual: VisDepth,
+    title: plain ? "The reading is a level" : "The reading is a depth",
+    body: plain
+      ? "Low scores stay mostly human; high scores are within AI's reach today. The line is today's AI capability — the same for every job. Drag it below and watch a real one."
+      : "Low readings hold the high ground; high readings sit deeper. The waterline is today's AI capability — one tide, every job. Drag it below and watch a real one.",
+    visual: plain
+      ? <VisDepth labels={["mostly human", "AI-assisted", "automatable"]} />
+      : <VisDepth labels={["dry", "at the line", "under"]} />,
   },
 ];
 
 export function ReadingPrimer() {
+  const { mode } = useLanguage();
+  const STEPS = stepsFor(mode === "plain");
   return (
     <div style={{ fontFamily: TYPE.body, color: t.ink, marginBottom: 26 }}>
       <div style={{ display: "flex", flexWrap: "wrap", gap: "20px 28px" }}>
@@ -135,7 +144,7 @@ export function ReadingPrimer() {
               <span style={{ fontFamily: TYPE.mono, fontSize: 15, color: t.brass }}>{s.n}</span>
               <span style={{ fontSize: 14, fontWeight: 600 }}>{s.title}</span>
             </div>
-            <s.Visual />
+            {s.visual}
             <p style={{ fontSize: 12.5, color: t.inkMuted, lineHeight: 1.55, margin: "8px 0 0" }}>{s.body}</p>
           </div>
         ))}

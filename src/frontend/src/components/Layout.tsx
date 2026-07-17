@@ -1,8 +1,10 @@
-import { useEffect, useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { NavLink, Outlet } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { useLanguage } from "../lib/language";
+import type { Lexicon } from "../lib/lexicon";
 import { WaveUnderline } from "./current/CurrentFlow";
 import {
   IconWaterline,
@@ -25,15 +27,18 @@ const NARROW_BREAKPOINT = 768;
 // Two groups for the open-source audiences: EXPLORE = the data views;
 // UNDERSTAND = methodology + sources (primary destinations for researchers
 // and contributors — previously orphan pages reachable only from the landing).
-const NAV_GROUPS = [
+// A function of the lexicon (#79): the two most prominent jargon terms in the
+// app are the "/" and "/tide" nav labels — mode changes the words, never the
+// routes (App.tsx paths and the README route-parity check are untouched).
+const navGroups = (lex: Lexicon) => [
   {
     label: "EXPLORE",
     items: [
-      { to: "/", label: "Waterline", Icon: IconWaterline },
+      { to: "/", label: lex.nav.home, Icon: IconWaterline },
       { to: "/sectors", label: "Sectors", Icon: IconSectors },
       { to: "/search", label: "Role Search", Icon: IconSearch },
       { to: "/occupations", label: "Occupations", Icon: IconOccupations },
-      { to: "/tide", label: "Rising Tide", Icon: IconTide },
+      { to: "/tide", label: lex.nav.tide, Icon: IconTide },
     ],
   },
   {
@@ -47,6 +52,8 @@ const NAV_GROUPS = [
 
 export function Layout() {
   const { data: datasets } = useApi(() => api.datasets(), []);
+  const { mode, setMode, lex } = useLanguage();
+  const groups = useMemo(() => navGroups(lex), [lex]);
   const [userCollapsed, setUserCollapsed] = useState(false);
   const [isNarrow, setIsNarrow] = useState(
     () => typeof window !== "undefined" && window.innerWidth < NARROW_BREAKPOINT,
@@ -135,7 +142,7 @@ export function Layout() {
           </div>
         )}
 
-        {NAV_GROUPS.map((group, gi) => (
+        {groups.map((group, gi) => (
           <div key={group.label} style={{ display: "flex", flexDirection: "column", gap: 3 }}>
             {!collapsed && (
               <div
@@ -206,6 +213,47 @@ export function Layout() {
           <IconTerminal size={collapsed ? 18 : 15} style={{ flexShrink: 0 }} />
           {!collapsed && <span>Open by design — run this yourself</span>}
         </NavLink>
+
+        {/* Language mode (#79) — plain words by default, the nautical brand
+            vocabulary one click away. The toggle IS the language trial. */}
+        {!collapsed ? (
+          <div style={{ marginTop: 12 }}>
+            <div style={{ fontSize: 10.5, color: t.inkMuted, fontWeight: 600, letterSpacing: 1, marginBottom: 6 }}>
+              LANGUAGE
+            </div>
+            <div role="group" aria-label="Language mode" style={{ display: "flex", borderRadius: 8, border: `1px solid ${t.line}`, overflow: "hidden" }}>
+              {(["plain", "nautical"] as const).map((m) => (
+                <button
+                  key={m}
+                  onClick={() => setMode(m)}
+                  aria-pressed={mode === m}
+                  title={m === "plain" ? "Plain language — simple terms lead" : "Nautical language — the chart-room vocabulary"}
+                  style={{
+                    flex: 1, padding: "6px 0", fontSize: 11.5, fontWeight: 600, cursor: "pointer",
+                    border: "none", fontFamily: TYPE.body,
+                    backgroundColor: mode === m ? BRASS_TINT : t.surface,
+                    color: mode === m ? t.brass : t.inkMuted,
+                  }}
+                >
+                  {m === "plain" ? "Plain" : "Nautical"}
+                </button>
+              ))}
+            </div>
+          </div>
+        ) : (
+          <button
+            onClick={() => setMode(mode === "plain" ? "nautical" : "plain")}
+            aria-label={`Language: ${mode}. Switch to ${mode === "plain" ? "nautical" : "plain"}`}
+            title={`Language: ${mode} — click to switch`}
+            style={{
+              marginTop: 12, padding: "6px 0", width: "100%", borderRadius: 6,
+              border: `1px solid ${t.line}`, background: t.surface, cursor: "pointer",
+              fontSize: 11, fontWeight: 700, color: t.inkMuted, fontFamily: TYPE.mono,
+            }}
+          >
+            {mode === "plain" ? "Aa" : "⚓"}
+          </button>
+        )}
 
         {/* Data vintage at bottom */}
         {!collapsed && (

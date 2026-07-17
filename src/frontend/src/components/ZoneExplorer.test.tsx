@@ -1,8 +1,16 @@
 import { render, screen, fireEvent } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { ZoneExplorer, ZoneLegend } from "./ZoneExplorer";
+import { LanguageProvider } from "../lib/language";
+import { LEXICONS } from "../lib/lexicon";
 
+const plainLex = LEXICONS.plain;
+const nauticalLex = LEXICONS.nautical;
+
+// Default render = plain mode (#79): no provider needed — the context default
+// is a working plain lexicon. For nautical, seed localStorage and wrap in the
+// provider (the same path the app takes).
 function renderExplorer() {
   return render(
     <MemoryRouter>
@@ -11,19 +19,44 @@ function renderExplorer() {
   );
 }
 
-describe("ZoneExplorer", () => {
-  it("shows correct zone labels", () => {
+function renderExplorerNautical() {
+  window.localStorage.setItem("sc.languageMode", "nautical");
+  return render(
+    <MemoryRouter>
+      <LanguageProvider>
+        <ZoneExplorer />
+      </LanguageProvider>
+    </MemoryRouter>,
+  );
+}
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
+
+describe("ZoneExplorer (plain mode — the default)", () => {
+  it("shows plain zone labels without raw E-codes", () => {
     renderExplorer();
-    expect(screen.getByText("E0 — Insulated")).toBeInTheDocument();
-    expect(screen.getByText("E1 — Augmented")).toBeInTheDocument();
-    expect(screen.getByText("E2 — High automation potential")).toBeInTheDocument();
+    expect(screen.getByText(plainLex.zoneLabels.E0)).toBeInTheDocument();
+    expect(screen.getByText(plainLex.zoneLabels.E1)).toBeInTheDocument();
+    expect(screen.getByText(plainLex.zoneLabels.E2)).toBeInTheDocument();
+    expect(screen.queryByText(/E0 —/)).not.toBeInTheDocument();
   });
 
-  it("shows threshold ranges", () => {
+  it("hides β threshold ranges (they live behind the disclosure)", () => {
     renderExplorer();
-    expect(screen.getByText("Beta < 0.40")).toBeInTheDocument();
-    expect(screen.getByText(/Beta 0\.40/)).toBeInTheDocument();
-    expect(screen.getByText(/Beta ≥ 0\.85/)).toBeInTheDocument();
+    expect(screen.queryByText("Beta < 0.40")).not.toBeInTheDocument();
+    expect(screen.queryByText(/β = E1/)).not.toBeInTheDocument();
+    // …but the "Explain this score" disclosure is offered instead
+    expect(screen.getByText("Explain this score")).toBeInTheDocument();
+  });
+
+  it("opens the explainer with the formula and a methodology deep link", () => {
+    renderExplorer();
+    fireEvent.click(screen.getByText("Explain this score"));
+    expect(screen.getByText(plainLex.explainers.beta.title)).toBeInTheDocument();
+    const link = screen.getByText("How it works →");
+    expect(link.closest("a")).toHaveAttribute("href", "/methodology#the-formula");
   });
 
   it("shows zone headlines", () => {
@@ -33,23 +66,12 @@ describe("ZoneExplorer", () => {
     expect(screen.getByText("AI performs, human validates")).toBeInTheDocument();
   });
 
-  it("shows the Beta formula and the 0–1.5 scale gloss", () => {
-    renderExplorer();
-    // The footer both states the formula and explains the scale ceiling in
-    // plain words (review item 1 — the 1.5 max is derived, not arbitrary).
-    expect(screen.getByText(/β = E1 \+ 0\.5×E2/)).toBeInTheDocument();
-    expect(screen.getByText(/tops out at 1\.5/)).toBeInTheDocument();
-  });
-
   it("offers every recognizable role to browse, but focuses one at a time", () => {
     renderExplorer();
-    // all role names are reachable (focus title + the browse rail)
     expect(screen.getAllByText("Registered Nurse").length).toBeGreaterThan(0);
     expect(screen.getByText("Cashier")).toBeInTheDocument();
     expect(screen.getByText("Truck Driver")).toBeInTheDocument();
-    // default focus = the first role, so only its tasks are shown…
     expect(screen.getByText(/Chart patient vitals/)).toBeInTheDocument();
-    // …and another role's tasks stay hidden until you pick it
     expect(screen.queryByText(/Scan items and total/)).not.toBeInTheDocument();
   });
 
@@ -57,16 +79,13 @@ describe("ZoneExplorer", () => {
     renderExplorer();
     fireEvent.click(screen.getByText("Cashier"));
     expect(screen.getByText(/Scan items and total/)).toBeInTheDocument();
-    // the previously focused role's tasks are no longer in view
     expect(screen.queryByText(/Chart patient vitals/)).not.toBeInTheDocument();
   });
 
   it("links the focused role to its live per-task page", () => {
     renderExplorer();
-    // the focused role's title (an anchor) — the rail chips are buttons, not links
     const nurseLink = screen.getAllByText("Registered Nurse").find((el) => el.closest("a"));
     expect(nurseLink?.closest("a")).toHaveAttribute("href", "/occupations?selected=29-1141.00");
-    // pick another role from the rail → it becomes the focused, linked role
     fireEvent.click(screen.getByText("Truck Driver"));
     const truckLink = screen.getAllByText("Truck Driver").find((el) => el.closest("a"));
     expect(truckLink?.closest("a")).toHaveAttribute("href", "/occupations?selected=53-3032.00");
@@ -79,9 +98,8 @@ describe("ZoneExplorer", () => {
 
   it("renders the waterline as a vertical aria slider at the global today level", () => {
     renderExplorer();
-    const slider = screen.getByRole("slider", { name: "Waterline" });
+    const slider = screen.getByRole("slider", { name: plainLex.tank.ariaSlider });
     expect(slider).toHaveAttribute("aria-orientation", "vertical");
-    // one global "today's capability" waterline, same for every job
     expect(slider).toHaveAttribute("aria-valuenow", "0.65");
     expect(slider).toHaveAttribute("aria-valuemin", "0");
     expect(slider).toHaveAttribute("aria-valuemax", "1.5");
@@ -89,7 +107,7 @@ describe("ZoneExplorer", () => {
 
   it("keeps the waterline fixed when browsing roles (same tide for every job)", () => {
     renderExplorer();
-    const slider = screen.getByRole("slider", { name: "Waterline" });
+    const slider = screen.getByRole("slider", { name: plainLex.tank.ariaSlider });
     expect(slider).toHaveAttribute("aria-valuenow", "0.65");
     fireEvent.click(screen.getByText("Bookkeeper"));
     expect(slider).toHaveAttribute("aria-valuenow", "0.65"); // unchanged
@@ -97,14 +115,14 @@ describe("ZoneExplorer", () => {
 
   it("sets the waterline when a zone card is clicked", () => {
     renderExplorer();
-    fireEvent.click(screen.getByText("E2 — High automation potential"));
-    const slider = screen.getByRole("slider", { name: "Waterline" });
+    fireEvent.click(screen.getByText(plainLex.zoneLabels.E2));
+    const slider = screen.getByRole("slider", { name: plainLex.tank.ariaSlider });
     expect(slider).toHaveAttribute("aria-valuenow", "1.05");
   });
 
   it("moves the waterline with up/down arrow keys", () => {
     renderExplorer();
-    const slider = screen.getByRole("slider", { name: "Waterline" });
+    const slider = screen.getByRole("slider", { name: plainLex.tank.ariaSlider });
     fireEvent.keyDown(slider, { key: "ArrowDown" });
     expect(slider).toHaveAttribute("aria-valuenow", "0.7");
     fireEvent.keyDown(slider, { key: "ArrowUp" });
@@ -120,8 +138,31 @@ describe("ZoneExplorer", () => {
   });
 });
 
+describe("ZoneExplorer (nautical mode)", () => {
+  it("shows E-coded zone labels with β threshold ranges", () => {
+    renderExplorerNautical();
+    expect(screen.getByText(`E0 — ${nauticalLex.zoneLabels.E0}`)).toBeInTheDocument();
+    expect(screen.getByText(`E1 — ${nauticalLex.zoneLabels.E1}`)).toBeInTheDocument();
+    expect(screen.getByText(`E2 — ${nauticalLex.zoneLabels.E2}`)).toBeInTheDocument();
+    expect(screen.getByText("Beta < 0.40")).toBeInTheDocument();
+    expect(screen.getByText(/Beta 0\.40/)).toBeInTheDocument();
+    expect(screen.getByText(/Beta ≥ 0\.85/)).toBeInTheDocument();
+  });
+
+  it("shows the Beta formula and the 0–1.5 scale gloss in the footer", () => {
+    renderExplorerNautical();
+    expect(screen.getByText(/β = E1 \+ 0\.5×E2/)).toBeInTheDocument();
+    expect(screen.getByText(/tops out at 1\.5/)).toBeInTheDocument();
+  });
+
+  it("names the slider Waterline", () => {
+    renderExplorerNautical();
+    expect(screen.getByRole("slider", { name: "Waterline" })).toBeInTheDocument();
+  });
+});
+
 describe("ZoneLegend", () => {
-  it("shows three zone pips with labels", () => {
+  it("shows three zone pips with plain labels by default, no thresholds", () => {
     const { container } = render(
       <MemoryRouter>
         <ZoneLegend />
@@ -129,9 +170,10 @@ describe("ZoneLegend", () => {
     );
     const pips = container.querySelectorAll('span[title^="E"]');
     expect(pips.length).toBe(3);
-    expect(screen.getByText("Insulated")).toBeInTheDocument();
-    expect(screen.getByText("Augmented")).toBeInTheDocument();
-    expect(screen.getByText("High automation potential")).toBeInTheDocument();
+    expect(screen.getByText(plainLex.zoneLabels.E0)).toBeInTheDocument();
+    expect(screen.getByText(plainLex.zoneLabels.E1)).toBeInTheDocument();
+    expect(screen.getByText(plainLex.zoneLabels.E2)).toBeInTheDocument();
+    expect(screen.queryByText("<0.40")).not.toBeInTheDocument();
   });
 
   it("links to the landing's READ THE SCALE section", () => {
@@ -144,10 +186,13 @@ describe("ZoneLegend", () => {
     expect(link).toHaveAttribute("href", "/#read-the-scale");
   });
 
-  it("shows short thresholds in mono", () => {
+  it("shows short thresholds in mono in nautical mode", () => {
+    window.localStorage.setItem("sc.languageMode", "nautical");
     render(
       <MemoryRouter>
-        <ZoneLegend />
+        <LanguageProvider>
+          <ZoneLegend />
+        </LanguageProvider>
       </MemoryRouter>,
     );
     expect(screen.getByText("<0.40")).toBeInTheDocument();

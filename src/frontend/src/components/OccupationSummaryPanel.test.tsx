@@ -2,6 +2,7 @@ import { render, screen } from "@testing-library/react";
 import { describe, it, expect } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { OccupationSummaryPanel } from "./OccupationSummaryPanel";
+import { LEXICONS } from "../lib/lexicon";
 import type { OccupationDetail, TaskMatrixResponse, TaskMatrixPoint, BearingsResponse } from "../lib/api";
 
 // ── Fixtures ──
@@ -93,7 +94,8 @@ describe("OccupationSummaryPanel", () => {
       makeTask({ task_text: "Coordinate care with the team", eloundou_dwa_beta: 0.15, importance: 5 }),
     ]);
     renderPanel({ occ: makeOcc(), matrixData, bearings: makeBearings() });
-    expect(screen.getByText(/Most of this role's weight already sits on dry ground/)).toBeInTheDocument();
+    // Default mode is plain (#79) — the lead comes from the plain lexicon.
+    expect(screen.getByText(LEXICONS.plain.leads.hold)).toBeInTheDocument();
   });
 
   it("lists the highest-importance at-or-below-waterline tasks under \"Use AI for, now\"", () => {
@@ -110,7 +112,7 @@ describe("OccupationSummaryPanel", () => {
 
   it("shows a loading note under \"Keep human control over\" while bearings is still fetching", () => {
     renderPanel({ occ: makeOcc(), matrixData: makeMatrix([makeTask()]), bearings: null });
-    expect(screen.getByText("Reading the chart…")).toBeInTheDocument();
+    expect(screen.getByText("Loading…")).toBeInTheDocument();
   });
 
   it("lists the bearings endpoint's high-ground DWAs once loaded", () => {
@@ -160,6 +162,6 @@ describe("OccupationSummaryPanel", () => {
     expect(screen.getByText(/reflect today's measured exposure/)).toBeInTheDocument();
     expect(screen.getByText(/reflects rising usage across model eras — a direction, not a certainty/)).toBeInTheDocument();
     const link = screen.getByText("how these are combined →");
-    expect(link.closest("a")).toHaveAttribute("href", "/methodology");
+    expect(link.closest("a")).toHaveAttribute("href", "/methodology#observed-vs-theoretical");
   });
 });

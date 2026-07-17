@@ -18,7 +18,8 @@
 import { useMemo, useState } from "react";
 import { useNavigate } from "react-router-dom";
 import type { SectorSummary } from "../lib/api";
-import { THEME, TYPE, ZONE_COLORS, ZONE_LABELS, SIGNAL_COLORS } from "../lib/constants";
+import { THEME, TYPE, ZONE_COLORS, SIGNAL_COLORS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 
 const t = THEME.light;
 
@@ -162,10 +163,11 @@ function SignalBar({ tag, name, value, max, color }: { tag: string; name: string
 
 /** Occupation counts by zone as one stacked strip — zone hues, fixed meaning. */
 function ZoneStrip({ s }: { s: SectorSummary }) {
+  const { lex } = useLanguage();
   const counts = { E0: s.zone_e0_count, E1: s.zone_e1_count, E2: s.zone_e2_count } as const;
   const total = counts.E0 + counts.E1 + counts.E2;
   const breakdown = (["E0", "E1", "E2"] as const)
-    .map((z) => `${ZONE_LABELS[z]} ${counts[z]}`)
+    .map((z) => `${lex.zoneLabels[z]} ${counts[z]}`)
     .join(" · ") + ` of ${total} occupations`;
   if (total === 0) return <span style={{ color: t.inkMuted }}>—</span>;
   return (

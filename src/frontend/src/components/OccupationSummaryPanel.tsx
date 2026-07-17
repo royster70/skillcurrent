@@ -21,6 +21,7 @@
 import { Link } from "react-router-dom";
 import type { OccupationDetail, TaskMatrixResponse, BearingsResponse } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { Waypoint } from "./Waypoint";
 import { zoneOf, zoneMix, leadFor, type ZoneKey } from "./BearingsPanel";
 
@@ -53,8 +54,9 @@ export function OccupationSummaryPanel({
   matrixData: TaskMatrixResponse;
   bearings: BearingsResponse | null;
 }) {
+  const { mode, lex } = useLanguage();
   const mix = zoneMix(matrixData);
-  const lead = leadFor(mix);
+  const lead = leadFor(mix, lex.leads);
 
   // Use AI for, now — this role's highest-importance tasks already at or
   // below the waterline, deduped by text (a task can repeat across quadrants).
@@ -94,7 +96,9 @@ export function OccupationSummaryPanel({
           <div style={COLUMN_LABEL}>Use AI for, now</div>
           {useAiNow.length === 0 ? (
             <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
-              No task in this role currently sits at or past the waterline.
+              {mode === "plain"
+                ? "No task in this role is meaningfully AI-assistable yet."
+                : "No task in this role currently sits at or past the waterline."}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -110,10 +114,12 @@ export function OccupationSummaryPanel({
         <div style={{ flex: "1 1 220px", minWidth: 0 }}>
           <div style={COLUMN_LABEL}>Keep human control over</div>
           {highGround == null ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Reading the chart…</div>
+            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Loading…</div>
           ) : highGround.length === 0 ? (
             <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
-              No activities in this role sit clearly dry — see Bearings below for the fuller reading.
+              {mode === "plain"
+                ? `No activities in this role are clearly low-exposure — see "${lex.instruments.bearings}" below for the fuller reading.`
+                : "No activities in this role sit clearly dry — see Bearings below for the fuller reading."}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -157,7 +163,7 @@ export function OccupationSummaryPanel({
       <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 6 }}>
         Evidence: {evidence.length > 0 ? evidence.map(([name]) => name).join(", ") : "limited signal for this occupation"}
         {" · "}
-        <Link to="/methodology" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>
+        <Link to="/methodology#observed-vs-theoretical" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>
           how these are combined →
         </Link>
       </div>

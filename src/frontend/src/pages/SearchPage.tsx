@@ -1,7 +1,8 @@
 import { useEffect, useRef, useState } from "react";
 import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, IS_STATIC, type SearchResult } from "../lib/api";
-import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, ZONE_LABELS, ZONE_TITLES, SIGNAL_COLORS } from "../lib/constants";
+import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, SIGNAL_COLORS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { CurrentFlow } from "../components/current/CurrentFlow";
 import { Waypoint } from "../components/Waypoint";
 import { DUR, EASE } from "../components/current/motion";
@@ -292,6 +293,7 @@ export function SearchPage() {
 }
 
 function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
+  const { lex } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const clickable = r.has_tasks;
 
@@ -359,7 +361,7 @@ function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
         {r.aei_exposure != null && <ScorePill label="AEI" value={r.aei_exposure} color={SIGNAL_COLORS.aei} />}
         {r.dominant_zone && (
           <span
-            title={ZONE_TITLES[r.dominant_zone as keyof typeof ZONE_TITLES]}
+            title={lex.zoneTitles[r.dominant_zone as keyof typeof lex.zoneTitles]}
             style={{
               fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16, fontFamily: TYPE.body,
               color: ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || t.inkMuted,
@@ -367,7 +369,7 @@ function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
               border: `1px solid ${(ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] || t.inkMuted)}40`,
             }}
           >
-            {ZONE_LABELS[r.dominant_zone as keyof typeof ZONE_LABELS] || r.dominant_zone}
+            {lex.zoneLabels[r.dominant_zone as keyof typeof lex.zoneLabels] || r.dominant_zone}
           </span>
         )}
         {clickable && hovered && (
