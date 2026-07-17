@@ -23,6 +23,7 @@ import type { OccupationDetail, TaskMatrixResponse, BearingsResponse } from "../
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG } from "../lib/constants";
 import { useLanguage } from "../lib/language";
 import { Waypoint } from "./Waypoint";
+import { ConfidenceBadge } from "./ConfidenceBadge";
 import { zoneOf, zoneMix, leadFor, type ZoneKey } from "./BearingsPanel";
 
 const t = THEME.light;
@@ -157,12 +158,19 @@ export function OccupationSummaryPanel({
         <em>Prepare for next</em> reflects rising usage across model eras — a direction, not a certainty.
       </div>
 
-      {/* Evidence — which independent signals actually cover this role. Not a
-          confidence score (that needs the concordance/bridge work in #73) —
-          just an honest count of what's present. */}
-      <div style={{ fontSize: 11, color: t.inkMuted, marginTop: 6 }}>
-        Evidence: {evidence.length > 0 ? evidence.map(([name]) => name).join(", ") : "limited signal for this occupation"}
-        {" · "}
+      {/* Evidence — which independent signals actually cover this role (#73).
+          The badge derives its confidence word by COUNTING present signals,
+          never by blending confidence values. Falls back to the plain list
+          when the payload predates the signal_coverage field (static builds
+          regenerate on their own cadence). */}
+      <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 11, color: t.inkMuted, marginTop: 8 }}>
+        {occ.signal_coverage ? (
+          <ConfidenceBadge coverage={occ.signal_coverage} />
+        ) : (
+          <span>
+            Evidence: {evidence.length > 0 ? evidence.map(([name]) => name).join(", ") : "limited signal for this occupation"}
+          </span>
+        )}
         <Link to="/methodology#observed-vs-theoretical" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>
           how these are combined →
         </Link>

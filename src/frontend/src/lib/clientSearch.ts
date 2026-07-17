@@ -21,6 +21,9 @@ interface OccInfo {
   total_employment: number | null;
   has_tasks: boolean;
   category: string | null;
+  /** Count of non-null core signals (0–3), from the regenerated occ_index
+   * (#73). Optional: pre-regen artifacts lack it. */
+  signals?: number;
 }
 type OccIndex = Record<string, OccInfo>;
 

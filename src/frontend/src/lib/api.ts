@@ -127,6 +127,18 @@ export interface OccupationDetail {
   aei_era_snapshots: OccupationEraSnapshot[];
   gdpval_task_count: number;
   gdpval_available: boolean;
+  // Evidence coverage (#73). Optional: static payloads built before the
+  // regen lack it — render nothing when absent.
+  signal_coverage?: SignalCoverage | null;
+}
+
+export interface SignalCoverage {
+  eloundou: boolean;
+  microsoft: boolean;
+  aei: boolean;
+  gdpval: boolean;
+  signal_count: number;
+  confidence: "high" | "moderate" | "limited" | string;
 }
 
 export interface TaskWithDrift {
