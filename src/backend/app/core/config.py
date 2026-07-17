@@ -67,6 +67,11 @@ class Settings(BaseSettings):
         return os.environ.get("ASC_DATA_PATH") or self._p("ASC")
 
     @property
+    def jsa_genai_data_path(self) -> str:
+        # JSA "Our Gen AI Transition" (Aug 2025) — AU-native exposure signal
+        return os.environ.get("JSA_GENAI_DATA_PATH") or self._p("JSA-GenAI")
+
+    @property
     def abs_data_path(self) -> str:
         return os.environ.get("ABS_DATA_PATH") or self._p("ABS")
 

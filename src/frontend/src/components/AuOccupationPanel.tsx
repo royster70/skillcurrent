@@ -101,6 +101,43 @@ export function AuOccupationPanel({ oscaCode, onClose }: { oscaCode: string; onC
         </div>
       )}
 
+      {/* JSA "Our Gen AI Transition" — the published AU-NATIVE reading. A
+          separate signal from the bridge-derived exposure above (never blended);
+          augmentation + automation are each on their own 0–1 scale, not a β. */}
+      {data.jsa_native && (
+        <div style={{ marginTop: 14, padding: "12px 14px", borderRadius: 10, background: t.ground, border: `1px solid ${t.line}` }}>
+          <div style={{ fontSize: 10, fontFamily: TYPE.mono, letterSpacing: 0.6, textTransform: "uppercase", color: t.inkMuted, marginBottom: 8 }}>
+            Australian-native reading (Jobs and Skills Australia)
+          </div>
+          <div style={{ display: "flex", gap: 24, flexWrap: "wrap" }}>
+            <div>
+              <div style={{ fontFamily: TYPE.mono, fontSize: 20, fontWeight: 700, color: ZONE_COLORS.E1 }}>
+                {data.jsa_native.augmentation_score != null ? data.jsa_native.augmentation_score.toFixed(2) : "—"}
+              </div>
+              <div style={{ fontSize: 11, color: t.inkMuted }}>Augmentation exposure</div>
+            </div>
+            <div>
+              <div style={{ fontFamily: TYPE.mono, fontSize: 20, fontWeight: 700, color: ZONE_COLORS.E2 }}>
+                {data.jsa_native.automation_score != null ? data.jsa_native.automation_score.toFixed(2) : "—"}
+              </div>
+              <div style={{ fontSize: 11, color: t.inkMuted }}>Automation exposure</div>
+            </div>
+            {data.jsa_native.rate_of_skill_change != null && (
+              <div>
+                <div style={{ fontFamily: TYPE.mono, fontSize: 20, fontWeight: 700, color: t.brass }}>
+                  {data.jsa_native.rate_of_skill_change.toFixed(1)}
+                </div>
+                <div style={{ fontSize: 11, color: t.inkMuted }}>Rate of skill change</div>
+              </div>
+            )}
+          </div>
+          <div style={{ fontSize: 10.5, color: t.inkMuted, fontStyle: "italic", marginTop: 8 }}>
+            {data.jsa_native.source} · ANZSCO {data.jsa_native.source_anzsco}. An independent
+            published reading (0–1 each), shown beside — never blended with — the exposure above.
+          </div>
+        </div>
+      )}
+
       {/* ASC core competencies — the AU "build these skills" (real named skills) */}
       {data.competencies.length > 0 && (
         <div style={{ marginTop: 18 }}>

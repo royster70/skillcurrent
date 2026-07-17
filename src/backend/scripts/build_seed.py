@@ -104,6 +104,8 @@ SEED_TABLES: dict[str, list[str]] = {
     "gdpval_tasks": ["gdpval_tasks"],
     "gdpval_rubric_items": ["gdpval_tasks"],
     "gptval_benchmarks": ["epoch_eci"],
+    # JSA "Our Gen AI Transition" — AU-native exposure signal (CC-BY, redistributable).
+    "jsa_genai_exposure": ["jsa_genai"],
     # Temporal snapshot layer (ADR-012) — the historical readings the delta
     # view diffs. Provenance = the union of every derived source captured.
     "snapshot_runs": ["onet", "eloundou", "aei", "oews", "abs_jsa_employment", "osca", "asc"],

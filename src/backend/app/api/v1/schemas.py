@@ -226,6 +226,29 @@ class AuExposureSummary(BaseModel):
     confidence_basis: str = "semantic DWA-ASC bridge cosine, floored at 0.60 (ADR-011, tier T2)"
 
 
+class JsaNativeExposure(BaseModel):
+    """JSA "Our Gen AI Transition" — the published AU-native exposure reading
+    for this occupation's ANZSCO unit group (jsa_genai_exposure).
+
+    A SEPARATE signal from ``AuExposureSummary`` — augmentation and automation
+    are each on their own 0–1 scale (NOT the platform's β), and are never
+    blended with the bridge-derived au_task_beta (CLAUDE.md invariant). This is
+    the first published Australian-government reading; the other is US exposure
+    imported via the semantic bridge.
+    """
+
+    source_anzsco: str
+    anzsco_title: str | None = None
+    augmentation_score: float | None = None
+    automation_score: float | None = None
+    rate_of_skill_change: float | None = None
+    source: str = "Jobs and Skills Australia — Our Gen AI Transition (Aug 2025)"
+    basis: str = (
+        "Published AU-native augmentation/automation exposure at 4-digit ANZSCO "
+        "grain — an independent reading, not the platform's β"
+    )
+
+
 class AuOccupationIndexEntry(BaseModel):
     """Compact per-OSCA row for discovery/linking (soc_codes let SOC-keyed
     AU sector role rows find their OSCA panel)."""
@@ -250,6 +273,9 @@ class AuOccupationDetail(BaseModel):
     description: str | None = None
     osca_version: str
     exposure: AuExposureSummary | None = None
+    # Published AU-native reading (JSA) — a SEPARATE signal beside `exposure`
+    # (the bridge-derived US-imported β). Never blended.
+    jsa_native: JsaNativeExposure | None = None
     competencies: list[AscCompetencyItem] = []
     # Which ANZSCO key supplied the competencies (exact 6-digit, or the
     # 4-digit unit group) — never averaged across ANZSCO codes.

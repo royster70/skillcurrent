@@ -11,7 +11,7 @@ abs_census,ABS Census 2021 Working Population Profiles,ABS,Industry x occupation
 epoch_eci,Epoch AI Capabilities Index (ECI),Epoch AI,Capability index across model eras,CC BY,true,model-era,https://epoch.ai/,loaded,Redistributable capability trendline
 gdpval_tasks,OpenAI GDPval task set,OpenAI,Real-world knowledge tasks,MIT,true,task,https://github.com/openai/gdpval,loaded,Tasks only; leaderboard scores are not redistributable
 gdpval_evaluations,SkillCurrent GDPval evaluations,SkillCurrent,Own model-era grader scores,CC BY 4.0,true,task,,loaded,Original to this project (public grader on MIT tasks)
-jsa_genai,JSA Our Gen AI Transition,JSA,AU augmentation/automation scores,CC BY,true,occupation,https://www.jobsandskills.gov.au/,acquired,Acquired not yet ingested
+jsa_genai,JSA Our Gen AI Transition,JSA,AU augmentation/automation scores,CC BY,true,occupation,https://www.jobsandskills.gov.au/,loaded,First AU-native exposure signal — jsa_genai_exposure (357 ANZSCO rows, mig 035)
 aei_geographic,AEI geographic release,Anthropic,Country-level usage incl AUS,Pending verification,false,country,https://huggingface.co/datasets/Anthropic/EconomicIndex,acquired,Per-release licence unverified - treat as not-ok until confirmed
 aioe,AIOE Felten Raj Seamans,Felten/Raj/Seamans,AI occupational exposure,Citation-only,false,occupation,,acquired,Redistribution-restricted - cite only
 gdpval_aa,GDPval-AA Artificial Analysis,Artificial Analysis,Elo leaderboard over GDPval,Not openly licensed,false,task,https://artificialanalysis.ai/,consumed_only,Cite only

@@ -21,6 +21,9 @@ from app.models.infrastructure import (
     DatasetVersionDelta,
     TransformationLog,
 )
+from app.models.jsa import (
+    JsaGenaiExposure,
+)
 from app.models.microsoft_ai import (
     MsAiApplicabilityScore,
     MsAiIwaMetric,
@@ -75,6 +78,7 @@ __all__ = [
     "MsAiSocToIwa",
     "IndustryCrosswalk",
     "IndustryOccupationProfile",
+    "JsaGenaiExposure",
     "OEWSEmployment",
     "OnetAlternateTitle",
     "OnetDwaReference",
