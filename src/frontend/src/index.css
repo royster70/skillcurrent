@@ -25,3 +25,19 @@ body {
   background: #D4D4D8;
   border-radius: 3px;
 }
+
+/* Keyboard focus (GitHub #75). The app styles everything inline and had no
+   focus indicator; :focus-visible shows a clear brass ring for keyboard users
+   only (not on mouse click), on every interactive element at once. */
+a:focus-visible,
+button:focus-visible,
+input:focus-visible,
+select:focus-visible,
+textarea:focus-visible,
+[role="button"]:focus-visible,
+[role="slider"]:focus-visible,
+[tabindex]:focus-visible {
+  outline: 2px solid #9c6414;
+  outline-offset: 2px;
+  border-radius: 4px;
+}

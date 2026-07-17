@@ -1,5 +1,5 @@
 import { useEffect, useRef, useState } from "react";
-import { useNavigate, useSearchParams } from "react-router-dom";
+import { Link, useSearchParams } from "react-router-dom";
 import { api, IS_STATIC, type SearchResult } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, SIGNAL_COLORS } from "../lib/constants";
 import { useLanguage } from "../lib/language";
@@ -31,7 +31,6 @@ export function SearchPage() {
   const [failed, setFailed] = useState(false);
   const [mode, setMode] = useState<SearchMode>("semantic");
   const [focused, setFocused] = useState(false);
-  const navigate = useNavigate();
   const [searchParams] = useSearchParams();
 
   // Accepts an explicit term so the suggestion chips can search immediately —
@@ -261,7 +260,7 @@ export function SearchPage() {
           </div>
 
           {results.map((r) => (
-            <ResultRow key={r.soc_code} r={r} onOpen={() => r.has_tasks && navigate(`/occupations?selected=${r.soc_code}`)} />
+            <ResultRow key={r.soc_code} r={r} />
           ))}
         </div>
       )}
@@ -298,26 +297,40 @@ export function SearchPage() {
   );
 }
 
-function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
+function ResultRow({ r }: { r: SearchResult }) {
   const { lex } = useLanguage();
   const [hovered, setHovered] = useState(false);
   const clickable = r.has_tasks;
 
+  // Navigable rows are real <Link>s so middle-click / open-in-new-tab work and
+  // they're keyboard-focusable; non-navigable rows (residual/military, no
+  // tasks) stay inert <div>s (#75).
+  const rowStyle: React.CSSProperties = {
+    background: r.category ? t.ground : t.surface,
+    borderRadius: 10,
+    border: `1.5px solid ${clickable && hovered ? t.brass : t.line}`,
+    padding: 16, cursor: clickable ? "pointer" : "default",
+    display: "flex", justifyContent: "space-between",
+    alignItems: "center", transition: `border-color ${DUR.hover}ms ${EASE}`,
+    opacity: r.category ? 0.8 : 1,
+    textDecoration: "none", color: t.ink,
+  };
+  const Wrapper = ({ children }: { children: React.ReactNode }) =>
+    clickable ? (
+      <Link
+        to={`/occupations?selected=${r.soc_code}`}
+        onMouseEnter={() => setHovered(true)}
+        onMouseLeave={() => setHovered(false)}
+        style={rowStyle}
+      >
+        {children}
+      </Link>
+    ) : (
+      <div style={rowStyle}>{children}</div>
+    );
+
   return (
-    <div
-      onClick={onOpen}
-      onMouseEnter={() => setHovered(true)}
-      onMouseLeave={() => setHovered(false)}
-      style={{
-        background: r.category ? t.ground : t.surface,
-        borderRadius: 10,
-        border: `1.5px solid ${clickable && hovered ? t.brass : t.line}`,
-        padding: 16, cursor: clickable ? "pointer" : "default",
-        display: "flex", justifyContent: "space-between",
-        alignItems: "center", transition: `border-color ${DUR.hover}ms ${EASE}`,
-        opacity: r.category ? 0.8 : 1,
-      }}
-    >
+    <Wrapper>
       <div style={{ flex: 1 }}>
         <div style={{ display: "flex", alignItems: "center", gap: 8 }}>
           <span style={{ fontSize: 16, fontWeight: 600 }}>{r.occupation_title}</span>
@@ -382,7 +395,7 @@ function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
           <CurrentFlow direction="right" length={26} breadth={14} strokes={1} opacity={0.5} speed={2} />
         )}
       </div>
-    </div>
+    </Wrapper>
   );
 }
 
