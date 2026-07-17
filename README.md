@@ -150,6 +150,8 @@ Built with React 18, React Router, and Recharts. On narrow screens the sidebar b
 
 Plus three explainer pages: **How it works** (`/methodology`), **Data & sources** (`/sources`), and **Run this yourself** (`/run`). Frontend dev server: http://localhost:5173.
 
+Any occupation or sector can also be exported as a **one-page brief** — a chrome-free print/PDF view at `/brief/occupation/:soc` and `/brief/sector/:code`, rendered in the reader's active audience lens (Individual / Organisation / Education) and language mode.
+
 ### Data loaded (~602,645 rows across ~40 tables)
 
 | Dataset | Rows | What it provides |

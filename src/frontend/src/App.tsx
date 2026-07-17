@@ -12,6 +12,7 @@ import { CompositeSectorPage } from "./pages/CompositeSectorPage";
 import { OccupationsPage } from "./pages/OccupationsPage";
 import { TidePage } from "./pages/TidePage";
 import { SearchPage } from "./pages/SearchPage";
+import { OccupationBriefPage, SectorBriefPage } from "./pages/BriefPage";
 
 function App() {
   return (
@@ -40,6 +41,9 @@ function App() {
           {/* Old name — keep deep links working */}
           <Route path="/drift" element={<Navigate to="/tide" replace />} />
         </Route>
+        {/* One-page briefs (#85) — OUTSIDE <Layout> so no sidebar/chrome prints. */}
+        <Route path="/brief/occupation/:soc" element={<OccupationBriefPage />} />
+        <Route path="/brief/sector/:code" element={<SectorBriefPage />} />
       </Routes>
       </AudienceProvider>
       </LanguageProvider>

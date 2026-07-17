@@ -4,9 +4,10 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC, type GDPvalTaskDetail } from "../lib/api";
 import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch";
-import { ZONE_COLORS, ZONE_BG, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_COLORS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS } from "../lib/constants";
 import { useLanguage } from "../lib/language";
 import { RegionBadge } from "../components/RegionBadge";
+import { TideChip, ZoneChip } from "../components/OccupationChips";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
 import { SkillsToBuild } from "../components/SkillsToBuild";
@@ -47,43 +48,6 @@ function MiniBetaTrack({ beta, width = 64 }: { beta: number; width?: number }) {
           transform: "translate(-50%, -50%)",
         }}
       />
-    </span>
-  );
-}
-
-// Directional glyph per tide state — the word (MOVEMENT_LABELS) carries the
-// meaning; the arrow is a quick-read echo. Mirrors SectorDetailPage's RoleRow.
-const TIDE_GLYPH: Record<string, string> = {
-  departing: "↑", // Rising — AI usage climbing era over era
-  emerging: "↗", // Surfacing — new tasks appearing
-  enduring: "→", // Holding fast — stable
-  below_threshold: "≈", // At the waterline — about to flip
-  unclassified: "·",
-};
-
-/** Occupation-level direction-of-change indicator for the detail header.
- * Reads the same movement vocabulary as the Tide page and sector role rows:
- * the dominant task movement (drift_classification). The velocity number is
- * jargon — it lives in the tooltip, phrased by the active lexicon (#79).
- * Null when the occupation has no drift signal. */
-function TideChip({ classification, velocity }: { classification: string | null; velocity: number | null }) {
-  const { lex } = useLanguage();
-  if (!classification) return null;
-  const key = classification as keyof typeof lex.movementLabels;
-  const color = MOVEMENT_COLORS[key] ?? theme.inkMuted;
-  const label = lex.movementLabels[key] ?? classification;
-  const glyph = TIDE_GLYPH[classification] ?? TIDE_GLYPH.unclassified;
-  return (
-    <span
-      title={`${lex.headline.direction}: ${label} (${lex.fmt.driftTooltip(velocity)})`}
-      style={{
-        display: "inline-flex", alignItems: "center", gap: 5,
-        fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
-        color, backgroundColor: color + "15", border: `1px solid ${color}40`,
-      }}
-    >
-      <span aria-hidden style={{ fontSize: 13, lineHeight: 1 }}>{glyph}</span>
-      {label}
     </span>
   );
 }
@@ -352,7 +316,6 @@ export function OccupationsPage() {
 }
 
 function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: string | null }) {
-  const { lex } = useLanguage();
   const { data: occ, loading } = useApi(() => api.occupation(soc), [soc]);
   const { data: matrixData } = useApi(() => api.taskMatrix(soc), [soc]);
   // Lifted here (not fetched inside BearingsPanel/OccupationSummaryPanel) —
@@ -376,8 +339,6 @@ function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: 
 
   if (loading) return <div>Loading...</div>;
   if (!occ) return null;
-
-  const zoneColor = occ.dominant_zone ? ZONE_COLORS[occ.dominant_zone as keyof typeof ZONE_COLORS] : theme.inkMuted;
 
   // Sector breakdown for lower section
   const sectorData = (occ.top_sectors || []).slice(0, 6).map((s) => ({
@@ -405,20 +366,23 @@ function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: 
             {/* Occupation detail reads US data (O*NET tasks, OEWS employment)
                 whatever market is selected — never show AU over US data (#74). */}
             <RegionBadge region="US" note="Occupation readings use US O*NET tasks and BLS employment" />
+            {/* One-page brief (#85) — a chrome-free printable, in the active
+                audience + language lens. New tab keeps the user's place. */}
+            <Link
+              to={`/brief/occupation/${occ.soc_code}`}
+              target="_blank"
+              rel="noopener"
+              style={{ fontSize: 11.5, fontWeight: 600, color: theme.brass, textDecoration: "none", border: `1px solid ${theme.brass}55`, borderRadius: 6, padding: "2px 8px" }}
+            >
+              Print brief ↗
+            </Link>
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
           <ContextualScoreCard label="Eloundou" value={occ.eloundou_beta_gpt4} percentile={occ.eloundou_percentile} median={occ.eloundou_median} population={occ.eloundou_population} signalColor={SIGNAL_COLORS.eloundou} sourceKey="eloundou" />
           <ContextualScoreCard label="Microsoft" value={occ.ms_ai_applicability} percentile={occ.ms_ai_percentile} median={occ.ms_ai_median} population={occ.ms_ai_population} signalColor={SIGNAL_COLORS.microsoft} sourceKey="microsoft" />
           <ContextualScoreCard label="AEI" value={occ.aei_exposure} percentile={occ.aei_percentile} median={occ.aei_median} population={occ.aei_population} signalColor={SIGNAL_COLORS.aei} sourceKey="aei" eraSnapshots={occ.aei_era_snapshots} />
-          {occ.dominant_zone && (
-            <span title={lex.zoneTitles[occ.dominant_zone as keyof typeof lex.zoneTitles]} style={{
-              fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
-              backgroundColor: zoneColor + "15", color: zoneColor, border: `1px solid ${zoneColor}40`,
-            }}>
-              {lex.zoneLabels[occ.dominant_zone as keyof typeof lex.zoneLabels] || occ.dominant_zone}
-            </span>
-          )}
+          <ZoneChip zone={occ.dominant_zone} />
           <TideChip classification={occ.drift_classification} velocity={occ.drift_velocity} />
           {occ.gdpval_available && (
             <button
