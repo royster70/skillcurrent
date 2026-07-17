@@ -104,6 +104,10 @@ SEED_TABLES: dict[str, list[str]] = {
     "gdpval_tasks": ["gdpval_tasks"],
     "gdpval_rubric_items": ["gdpval_tasks"],
     "gptval_benchmarks": ["epoch_eci"],
+    # Temporal snapshot layer (ADR-012) — the historical readings the delta
+    # view diffs. Provenance = the union of every derived source captured.
+    "snapshot_runs": ["onet", "eloundou", "aei", "oews", "abs_jsa_employment", "osca", "asc"],
+    "exposure_snapshots": ["onet", "eloundou", "aei", "oews", "abs_jsa_employment", "osca", "asc"],
 }
 
 # Tables deliberately NOT in the seed, with the reason — surfaced in the
