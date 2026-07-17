@@ -28,7 +28,8 @@ detail tables, and the CompanyLookup/ASX tables). `manifest.json` records the
 exact row/byte counts and the source licences actually shipped, generated at
 build time — nothing is silently dropped.
 
-This is the **tiny/committed tier** only (~240k rows, ~9 MB). A full CC-BY
+This is the **tiny/committed tier** only (~313k rows, ~10 MB — includes the
+genesis release snapshot, ADR-012). A full CC-BY
 snapshot as a GitHub Release asset is a separate, larger artifact — see
 `ai_working/release-1.0-backlog.md` P2.
 

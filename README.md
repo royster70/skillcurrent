@@ -80,7 +80,7 @@ Three ways to run this, depending on how much you want to touch:
 
 ### 1. Docker (fastest — recommended)
 
-Builds the backend, frontend, and a pgvector Postgres, and restores the committed [seed dataset](docs/SEED_DATASET.md) (40 tables, 240k rows) automatically on first boot — no data downloads required.
+Builds the backend, frontend, and a pgvector Postgres, and restores the committed [seed dataset](docs/SEED_DATASET.md) (43 tables, ~313k rows, incl. the genesis release snapshot) automatically on first boot — no data downloads required.
 
 ```bash
 git clone https://github.com/royster70/skillcurrent.git
