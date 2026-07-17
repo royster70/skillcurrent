@@ -304,6 +304,32 @@
       "sources": [
         "epoch_eci"
       ]
+    },
+    "snapshot_runs": {
+      "rows": 1,
+      "bytes": 9979,
+      "sources": [
+        "onet",
+        "eloundou",
+        "aei",
+        "oews",
+        "abs_jsa_employment",
+        "osca",
+        "asc"
+      ]
+    },
+    "exposure_snapshots": {
+      "rows": 15513,
+      "bytes": 493355,
+      "sources": [
+        "onet",
+        "eloundou",
+        "aei",
+        "oews",
+        "abs_jsa_employment",
+        "osca",
+        "asc"
+      ]
     }
   },
   "excluded_tables": {
@@ -390,6 +416,6 @@
       "redistribution_ok": true
     }
   ],
-  "total_rows": 297973,
-  "total_bytes": 10431364
+  "total_rows": 313487,
+  "total_bytes": 10934698
 }

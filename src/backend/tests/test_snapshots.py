@@ -21,6 +21,12 @@ async def _has_seed(session: AsyncSession) -> bool:
     return bool(n)
 
 
+async def _reset_snapshots(session: AsyncSession) -> None:
+    """Clear any existing snapshots so a release test has a deterministic
+    baseline (the committed seed ships a genesis release). Rolled back after."""
+    await session.execute(text("DELETE FROM snapshot_runs"))
+
+
 async def test_capture_matches_source_counts(session: AsyncSession):
     """Each entity_type row count equals the live source table it snapshots."""
     if not await _has_seed(session):
@@ -167,6 +173,8 @@ async def test_cut_release_labels_quarter_and_registers_deltas(session: AsyncSes
     if not await _has_seed(session):
         pytest.skip("derived data not populated")
 
+    await _reset_snapshots(session)
+
     # Distinct datasets (they accrue version history — count names, not rows).
     datasets = (
         await session.execute(text("SELECT count(DISTINCT dataset_name) FROM dataset_versions"))
@@ -191,6 +199,8 @@ async def test_release_guard_skips_when_register_unchanged(session: AsyncSession
     if not await _has_seed(session):
         pytest.skip("derived data not populated")
 
+    await _reset_snapshots(session)
+
     await cut_release(session, as_of_iso="2026-07-17")
     again = await cut_release(session, as_of_iso="2026-07-17")
     assert again["skipped"] is True
@@ -204,6 +214,8 @@ async def test_release_detects_a_new_data_version(session: AsyncSession):
     and its delta names exactly the changed dataset."""
     if not await _has_seed(session):
         pytest.skip("derived data not populated")
+
+    await _reset_snapshots(session)
 
     await cut_release(session, as_of_iso="2026-07-17")
     # Simulate a data release: bump one dataset's version (rolled back after).

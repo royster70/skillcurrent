@@ -63,7 +63,15 @@ def _row_dicts(df: pd.DataFrame) -> list[dict[str, Any]]:
     for row in df.to_dict("records"):
         clean = {}
         for key, value in row.items():
-            clean[key] = value.tolist() if hasattr(value, "tolist") else value
+            if hasattr(value, "tolist"):
+                value = value.tolist()
+            # JSONB objects arrive as dicts; asyncpg's jsonb codec needs the
+            # JSON text, not a dict. (Lists are left alone — those are native
+            # Postgres ARRAY columns, which asyncpg binds directly. No shipped
+            # JSONB column holds a top-level array.)
+            if isinstance(value, dict):
+                value = json.dumps(value)
+            clean[key] = value
         records.append(clean)
     return records
 
