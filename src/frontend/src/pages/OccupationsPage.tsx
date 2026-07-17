@@ -106,6 +106,12 @@ export function OccupationsPage() {
   const [selectedSoc, setSelectedSoc] = useState<string | null>(initialSoc);
   const [expandedGroup, setExpandedGroup] = useState<string | null>(null);
   const [gdpvalFilter, setGdpvalFilter] = useState(false);
+  // Filter-as-you-type over the in-memory hierarchy (#77) — the taxonomy
+  // becomes a browse option, not the only discovery mechanism. No endpoint:
+  // api.hierarchy() is already loaded.
+  const [query, setQuery] = useState("");
+  const q = query.trim().toLowerCase();
+  const filtering = q.length >= 2;
 
   // GDPval SOC lookup — both 8-digit and 7-digit forms
   const gdpvalSocs = useMemo(() => {
@@ -127,8 +133,40 @@ export function OccupationsPage() {
     }
   }, [initialSoc, hierarchy]);
 
+  // Groups + children after the GDPval and text filters. A group-title match
+  // keeps all its (gdpval-filtered) children; otherwise children are matched
+  // by occupation title or SOC code.
+  const visibleGroups = useMemo(() => {
+    if (!hierarchy) return [];
+    return hierarchy.hierarchy
+      .map((group) => {
+        let children = group.children;
+        if (gdpvalFilter) children = children.filter((occ) => gdpvalSocs.has(occ.code));
+        const groupMatches = filtering && group.title.toLowerCase().includes(q);
+        if (filtering && !groupMatches) {
+          children = children.filter(
+            (occ) => occ.title.toLowerCase().includes(q) || occ.code.includes(q),
+          );
+        }
+        return { group, children, groupMatches };
+      })
+      .filter(({ children, groupMatches }) =>
+        filtering ? children.length > 0 || groupMatches : !gdpvalFilter || children.length > 0,
+      );
+  }, [hierarchy, gdpvalFilter, gdpvalSocs, filtering, q]);
+
+  const matchCount = filtering
+    ? visibleGroups.reduce((s, g) => s + g.children.length, 0)
+    : null;
+
   if (loading) return <div>Loading occupations...</div>;
   if (!hierarchy) return null;
+
+  // Breadcrumb context for the detail panel (#77) — which family the
+  // selected role belongs to.
+  const selectedGroup = selectedSoc
+    ? hierarchy.hierarchy.find((g) => g.code.startsWith(selectedSoc.substring(0, 2)))
+    : null;
 
   return (
     <div style={{ display: "flex", flexWrap: "wrap", gap: 24, fontFamily: TYPE.body, color: theme.ink }}>
@@ -137,10 +175,14 @@ export function OccupationsPage() {
         <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-end" }}>
           <div>
             <h1 style={{ fontFamily: TYPE.display, fontSize: 28, fontWeight: 600, margin: 0, letterSpacing: -0.5 }}>Occupations</h1>
-            <p style={{ fontSize: 14, color: theme.inkMuted, margin: "4px 0 0" }}>
-              {gdpvalFilter
-                ? `${gdpvalSocs.size / 2} occupations with GDPval benchmarks`
-                : `${hierarchy.total_occupations.toLocaleString()} occupations across ${hierarchy.total_major_groups} groups`}
+            {/* aria-live: screen readers hear the match count change as the
+                visitor types (pre-work for #75). */}
+            <p aria-live="polite" style={{ fontSize: 14, color: theme.inkMuted, margin: "4px 0 0" }}>
+              {filtering
+                ? `${matchCount} occupation${matchCount === 1 ? "" : "s"} matching "${query.trim()}"`
+                : gdpvalFilter
+                  ? `${gdpvalSocs.size / 2} occupations with GDPval benchmarks`
+                  : `${hierarchy.total_occupations.toLocaleString()} occupations across ${hierarchy.total_major_groups} groups`}
             </p>
           </div>
           <button
@@ -156,13 +198,31 @@ export function OccupationsPage() {
           </button>
         </div>
 
+        {/* Search within the taxonomy — the primary discovery mechanism; the
+            tree below becomes the browse option (#77). */}
+        <input
+          type="search"
+          value={query}
+          onChange={(e) => setQuery(e.target.value)}
+          placeholder="Search within occupations… title or SOC code"
+          aria-label="Search within occupations"
+          style={{
+            padding: "10px 14px", fontSize: 14, borderRadius: 10,
+            border: `1.5px solid ${theme.line}`, outline: "none",
+            fontFamily: TYPE.body, color: theme.ink, background: theme.surface,
+          }}
+        />
+
         <div style={{
           background: theme.surface, borderRadius: 12, border: `1.5px solid ${theme.line}`,
           overflow: "auto", maxHeight: "calc(100vh - 200px)",
         }}>
-          {hierarchy.hierarchy.filter((group) =>
-            !gdpvalFilter || group.children.some((occ) => gdpvalSocs.has(occ.code))
-          ).map((group) => (
+          {filtering && matchCount === 0 && (
+            <div style={{ padding: "20px 16px", fontSize: 13, color: theme.inkMuted }}>
+              No occupation titles here match "{query.trim()}".
+            </div>
+          )}
+          {visibleGroups.map(({ group, children }) => (
             <div key={group.code}>
               <div
                 onClick={() => setExpandedGroup(expandedGroup === group.code ? null : group.code)}
@@ -175,10 +235,12 @@ export function OccupationsPage() {
                 <div>
                   <div style={{ fontSize: 14, fontWeight: 600 }}>{group.title}</div>
                   <div style={{ fontSize: 12, color: theme.inkMuted }}>
-                    {gdpvalFilter
-                      ? `${group.children.filter((o) => gdpvalSocs.has(o.code)).length} with GDPval`
-                      : `${group.occupation_count} occupations`}
-                    {!gdpvalFilter && group.total_employment ? ` · ${(group.total_employment / 1_000_000).toFixed(1)}M workers` : ""}
+                    {filtering
+                      ? `${children.length} match${children.length === 1 ? "" : "es"}`
+                      : gdpvalFilter
+                        ? `${children.length} with GDPval`
+                        : `${group.occupation_count} occupations`}
+                    {!filtering && !gdpvalFilter && group.total_employment ? ` · ${(group.total_employment / 1_000_000).toFixed(1)}M workers` : ""}
                   </div>
                 </div>
                 <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
@@ -193,13 +255,15 @@ export function OccupationsPage() {
                       </span>
                     </>
                   )}
-                  <span style={{ fontSize: 14, color: theme.inkMuted }}>{expandedGroup === group.code ? "▼" : "▶"}</span>
+                  <span style={{ fontSize: 14, color: theme.inkMuted }}>
+                    {filtering || expandedGroup === group.code ? "▼" : "▶"}
+                  </span>
                 </div>
               </div>
 
-              {expandedGroup === group.code && group.children.filter((occ) =>
-                !gdpvalFilter || gdpvalSocs.has(occ.code)
-              ).map((occ) => (
+              {/* While filtering, every visible group shows its matches —
+                  the single-expand accordion is browse-mode behaviour. */}
+              {(filtering || expandedGroup === group.code) && children.map((occ) => (
                 <div
                   key={occ.code}
                   onClick={() => setSelectedSoc(occ.code)}
@@ -230,12 +294,24 @@ export function OccupationsPage() {
             </div>
           ))}
         </div>
+
+        {/* Escape hatch (#77): the official taxonomy doesn't know every job
+            title — the semantic search does (66,500+ alternate titles). */}
+        <div style={{ fontSize: 12.5, color: theme.inkMuted }}>
+          Can't find your title?{" "}
+          <Link
+            to={filtering ? `/search?q=${encodeURIComponent(query.trim())}` : "/search"}
+            style={{ color: theme.brass, fontWeight: 600, textDecoration: "none" }}
+          >
+            Try the full role search →
+          </Link>
+        </div>
       </div>
 
       {/* Detail panel */}
       <div style={{ flex: "1 1 360px", minWidth: 0 }}>
         {selectedSoc ? (
-          <OccupationDetailPanel soc={selectedSoc} />
+          <OccupationDetailPanel soc={selectedSoc} groupTitle={selectedGroup?.title ?? null} />
         ) : (
           <div style={{
             display: "flex", flexDirection: "column", alignItems: "center", justifyContent: "center",
@@ -260,7 +336,7 @@ export function OccupationsPage() {
   );
 }
 
-function OccupationDetailPanel({ soc }: { soc: string }) {
+function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: string | null }) {
   const { lex } = useLanguage();
   const { data: occ, loading } = useApi(() => api.occupation(soc), [soc]);
   const { data: matrixData } = useApi(() => api.taskMatrix(soc), [soc]);
@@ -299,6 +375,12 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
       {/* Header — compact */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
+          {/* Breadcrumb (#77): where this role sits in the taxonomy. */}
+          {groupTitle && (
+            <div style={{ fontSize: 11.5, color: theme.inkMuted, marginBottom: 3 }}>
+              Occupations <span aria-hidden>›</span> {groupTitle}
+            </div>
+          )}
           <h2 style={{ fontFamily: TYPE.display, fontSize: 22, fontWeight: 600, margin: 0 }}>{occ.title}</h2>
           <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: theme.inkMuted, marginTop: 2 }}>
             <span>
