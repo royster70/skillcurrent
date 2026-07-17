@@ -12,43 +12,69 @@
 
 [![SkillCurrent — the waterline across sectors](docs/images/skillcurrent-hero.png)](https://royster70.github.io/skillcurrent/)
 
-AI capability is rising like a waterline across the work we do — not evenly, and not all at once. SkillCurrent reads where that line sits today, where it's heading, and which skills stay above it — at the level of individual **tasks**, not whole jobs. It combines the O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI-applicability data (Microsoft, Anthropic), and government employment statistics into workforce-planning intelligence.
+## What SkillCurrent helps you understand
+
+AI capability is rising across the work we do — not evenly, and not all at once. SkillCurrent is an open, evidence-based way to read where it sits **today**, where it's **heading**, and what to **do** about it — at the level of individual **tasks**, not whole jobs.
+
+Every ordinary view answers three questions in plain language:
+
+1. **Current AI exposure** — how much of this work today's AI could do.
+2. **Direction of change** — whether AI usage of it is growing, steady, or newly appearing.
+3. **Recommended response** — the durable skills to build and the roles they open.
+
+It combines the O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI-applicability data (Microsoft, Anthropic), and government employment statistics (US and Australia) into workforce-planning intelligence — sitting between "will AI take my job?" sites and enterprise workforce analytics.
+
+> **Plain or nautical?** The interface ships two vocabularies you can switch between from the sidebar. **Plain** (the default) uses ordinary terms. **Nautical** is the brand vocabulary — a rising *waterline*, the *tide*, your *bearings*, the *high ground* — for those who prefer the metaphor. The measurement jargon (β, the E-codes, drift velocity) always lives behind an "Explain this score" control.
 
 ## How to read it
 
-A **current** is something you read and navigate — read it well, and it carries you forward. SkillCurrent measures where AI capability sits across the work we do, task by task, so you can read the waterline and choose your course.
+SkillCurrent measures where AI capability sits across the work we do, task by task, so you can see the reading and decide what to do.
 
 [![Read the scale — every task gets a reading](docs/images/skillcurrent-read-the-scale.png)](https://royster70.github.io/skillcurrent/#read-the-scale)
 
 Three things to know, then [read it yourself](https://royster70.github.io/skillcurrent/#read-the-scale):
 
-1. **A job is a bundle of tasks.** AI doesn't take jobs whole — it reaches the tasks inside them, one by one. Some sink early; others barely feel it. So the unit of measure is the *task*, not the job.
+1. **A job is a bundle of tasks.** AI doesn't take jobs whole — it reaches the tasks inside them, one by one. Some are affected early; others barely feel it. So the unit of measure is the *task*, not the job.
 2. **Two questions make the reading.** Could today's AI meaningfully do this task by itself? Could it with purpose-built tools on top? A task can score on both — which is why the exposure reading, **β** (beta), runs 0 to 1.5, not 0 to 1:
    > `β = E1 + 0.5·E2` — direct AI exposure (E1) plus half-weighted tool-assisted exposure (E2). From the Eloundou et al. 2024 task-exposure study ("GPTs are GPTs"), cross-checked against measured AI usage from Microsoft and Anthropic.
-3. **The reading is a depth.** Low readings hold the high ground; high readings sit deeper. The waterline is today's AI capability — one tide, every job.
+3. **The reading is a level.** Low readings stay mostly human; high readings are within AI's reach today. The line is today's AI capability — the same for every job.
 
-Each task's β sorts it into one of three **zones** — above the line, at it, or below:
+Each task's β sorts it into one of three **zones**:
 
 | Zone | β range | What it means | What to do |
 |------|---------|---------------|------------|
-| 🟠 **E0 — Insulated** *(dry)* | β < 0.40 | Human-only work | Preserve and invest in these distinctly human skills |
-| 🔵 **E1 — Augmented** *(at the line)* | 0.40 – 0.85 | AI assists, human leads | Upskill people to work alongside AI on the routine parts |
-| 🟢 **E2 — High automation potential** *(submerged)* | β ≥ 0.85 | AI performs, human validates | Redesign the role around oversight and exceptions |
+| 🟠 **Mostly human today** *(E0)* | β < 0.40 | Human-only work | Preserve and invest in these distinctly human skills |
+| 🔵 **AI-assisted** *(E1)* | 0.40 – 0.85 | AI assists, human leads | Upskill people to work alongside AI on the routine parts |
+| 🟢 **Highly automatable** *(E2)* | β ≥ 0.85 | AI can perform much of it | Redesign the role around oversight and exceptions |
 
-*E2 reads capability, not deployment — AI can perform much of the task; whether it actually does depends on tools, controls, regulation and economics.*
+*The top band reads capability, not deployment — AI can perform much of the task; whether it actually does depends on tools, controls, regulation and economics.*
 
-**Why the waterline keeps rising.** An *era* is a model generation — and they now arrive in months, not decades. Each new frontier model lifts the waterline, and work that sat safely above it slips under. That's the current these pages measure — rising an order of magnitude faster than past technological shifts, and never backward. → [See which tasks are rising, era over era](https://royster70.github.io/skillcurrent/tide).
+**Why AI exposure keeps rising.** An *era* is a model generation — and they now arrive in months, not decades. Each new frontier model raises what AI can do, and work that sat safely out of reach becomes automatable. That's the change these pages measure — an order of magnitude faster than past technological shifts, and never backward. → [See which tasks are rising, era over era](https://royster70.github.io/skillcurrent/tide).
 
-> The skills that stay dry — judgment, care, direction — are the high ground. That's where you're headed.
+## Three ways in
 
-## Who this is for
+- **"What's happening to my role?"** — search 66,500+ job titles, get every task placed on the exposure scale, a plain-English "what this means for you" summary, and named **skills to build** (the durable work to deepen, plus skills that bridge to less-exposed roles).
+- **"How exposed is my industry?"** — scan US (NAICS) or Australian (ANZSIC) sectors, drill into priority roles, or blend several sectors into a composite workforce profile. Every result is badged with which **labour market** it reads (US or AU), and your choice persists.
+- **"Where is it all heading?"** — watch which tasks are seeing the fastest growth in AI use, model generation over model generation.
 
-- **Contributors** — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and the quality gate.
-- **Researchers / citers** — the data compilation is CC BY 4.0; see [Licence](#licence) and [docs/data-sources.md](docs/data-sources.md) for per-source attribution.
-- **Self-hosters** — run the full stack locally with one command (below); no external API keys required for the core dashboard.
-- **Visitors** — [explore the live demo](https://royster70.github.io/skillcurrent/): the whole Tier 1 dashboard as a static build on GitHub Pages, no install and no backend. Prefer to run it yourself? See below.
+## Explore it live
 
-## Running it
+**[royster70.github.io/skillcurrent](https://royster70.github.io/skillcurrent/)** — the whole Tier 1 dashboard as a static build on GitHub Pages, no install and no backend. It reaches near-full parity with the Docker build; only the LLM-backed company lookup is dropped.
+
+[![Industry Sectors — the waterline across sectors](docs/images/skillcurrent-sectors.png)](https://royster70.github.io/skillcurrent/sectors)
+
+<sub>*Each sector's workforce split across the exposure scale — the further right, the deeper its people already sit. [See it live →](https://royster70.github.io/skillcurrent/sectors)*</sub>
+
+## Evidence and limitations
+
+SkillCurrent is honest about what it is and isn't:
+
+- **Exposure is capability, not fate.** It measures what AI *could* reach, not what happens to jobs. The recommended moves are task-structure arithmetic (roles sharing a role's least-exposed activities), not career advice.
+- **Evidence coverage is shown, not hidden.** Each occupation says how many independent signals cover it (predicted exposure from research, measured usage from Microsoft Copilot and Anthropic Claude) and a derived confidence word — never a fabricated score.
+- **US and Australian readings are kept separate.** US readings use O\*NET tasks and BLS employment; Australian readings use the OSCA occupation backbone, ASC skills, and ABS employment, on a task-coverage basis. They are never blended, and every result view says which market it's from.
+- **Full methodology and non-claims** are on the site's [How it works](https://royster70.github.io/skillcurrent/methodology) page, and per-source licences in [docs/data-sources.md](docs/data-sources.md).
+
+## Run it locally
 
 Three ways to run this, depending on how much you want to touch:
 
@@ -83,19 +109,9 @@ npm install && npm run dev
 
 Prefer the full, real dataset instead of the seed? See [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) — downloads and ingests every public source from scratch (~602k rows, takes longer, no API keys needed either).
 
-### 3. Add a signal (contributing a new data source)
-
-Every external data source is registered in `signal_source_registry` with a licence and a `redistribution_ok` flag — see [docs/data-sources.md](docs/data-sources.md) for the classification rules and [CONTRIBUTING.md](CONTRIBUTING.md#data-licensing-matters-for-any-new-data-source) for what's required before a new source can ship in the seed or a published export.
-
 ### Static mirror (no backend, no database)
 
-The whole Tier 1 dashboard also runs as a **static site** — a visitor loads it
-in a browser with no server. **It's live at
-[royster70.github.io/skillcurrent](https://royster70.github.io/skillcurrent/).**
-It reaches near-full parity with the Docker build (sectors, occupations,
-composite analysis, drift, task matrix, search, plus a "similar occupations"
-bonus); only the LLM-backed CompanyLookup is dropped. It's deployed to GitHub
-Pages by `.github/workflows/deploy-static.yml`. To build it locally:
+The whole Tier 1 dashboard also runs as a **static site** — a visitor loads it in a browser with no server. It's deployed to GitHub Pages by `.github/workflows/deploy-static.yml`. To build it locally:
 
 ```bash
 cd src/backend && python -m scripts.restore_seed && python -m scripts.build_static_site
@@ -104,13 +120,35 @@ cd ../frontend && VITE_DEPLOYMENT_MODE=cdn npm run build && npm run preview
 
 See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 
-## Architecture
+## Contribute
+
+- **Contributors** — see [CONTRIBUTING.md](CONTRIBUTING.md) for the dev setup and the quality gate (black + ruff + mypy `--strict`, pytest, vitest, Playwright).
+- **Adding a data source** — every external source is registered in `signal_source_registry` with a licence and a `redistribution_ok` flag; see [docs/data-sources.md](docs/data-sources.md) for the classification rules and [CONTRIBUTING.md](CONTRIBUTING.md#data-licensing-matters-for-any-new-data-source) for what's required before a source can ship in the seed or a published export.
+- **Researchers / citers** — the data compilation is CC BY 4.0; see [Licence](#licence) and [docs/data-sources.md](docs/data-sources.md) for per-source attribution.
+
+## Architecture and API reference
 
 **Two-tier design:**
-- **Tier 1 — Industry Intelligence** (public data, no auth): Occupation-level AI exposure analysis, drift tracking, industry profiles. Fully built.
-- **Tier 2 — Organisational Overlay** (requires HRIS upload): Maps client workforce to Tier 1 intelligence with privacy controls. Not yet built.
+- **Tier 1 — Industry Intelligence** (public data, no auth): occupation-level AI exposure analysis, drift tracking, industry profiles, and the AU-native occupation layer. Fully built.
+- **Tier 2 — Organisational Overlay** (requires HRIS upload): maps a client workforce to Tier 1 intelligence with privacy controls. Not yet built.
 
-## Current Status
+The **Tier 1 API (~26 public endpoints)** is a read-only, no-auth REST API. The full catalogue lives in **[docs/API.md](docs/API.md)**; the always-current spec is the OpenAPI docs at http://localhost:8000/docs.
+
+### Dashboard pages
+
+Built with React 18, React Router, and Recharts. On narrow screens the sidebar becomes a top bar + drawer; on wide screens it's a collapsible rail.
+
+| Page | Route | What's there |
+|------|-------|--------------|
+| Overview (landing) | `/` | The narrative explainer: the three headline concepts, the interactive "Read the scale" primer + worked example, and the rising-exposure era chart |
+| Sectors | `/sectors` | Worker-count metric cards, zone split, sector waterline; composite-view builder; US/AU market selector; company type-ahead over ~1,978 ASX companies with AI classification (full build only) |
+| Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards, unified occupation table with multi-sector badges, auto-generated narrative summary |
+| Sector Detail | `/sectors/:code` | Narrative summary, score cards with percentile context, priority-roles ranking with risk badges; role rows open the occupation reading (AU rows with an OSCA match open the Australian panel) |
+| Occupations | `/occupations` | Filter-as-you-type search over the SOC hierarchy, detail panel with the "what this means" summary, task waterline, bearings, **skills to build**, evidence-coverage badge, and GDPval panel |
+| AI Trends | `/tide` | Task drift over model eras — classification split, usage vs velocity, at-the-line alerts, growing/steady lists (`/drift` redirects here) |
+| Role Search | `/search` | Text (`pg_trgm` fuzzy) and semantic (sentence-transformers + pgvector) modes, optional job-description input, results with zone badges and score pills |
+
+Plus three explainer pages: **How it works** (`/methodology`), **Data & sources** (`/sources`), and **Run this yourself** (`/run`). Frontend dev server: http://localhost:5173.
 
 ### Data loaded (~602,645 rows across ~40 tables)
 
@@ -120,8 +158,8 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 | Eloundou 2024 | 18,460 | 923 occupation + 17,537 DWA-level exposure scores |
 | Microsoft "Working with AI" | 34,396 | Empirical Copilot applicability (785 SOCs, 332 IWAs) |
 | AEI (Anthropic) | 35,730 | Empirical Claude usage + 4-era temporal snapshots |
-| BLS OEWS 2024 | 8,573 | US employment by occupation x NAICS sector |
-| ABS/JSA 2025 | 2,743 | AU employment by occupation x ANZSIC division (FR-8.9) |
+| BLS OEWS 2024 | 8,573 | US employment by occupation × NAICS sector |
+| ABS/JSA 2025 | 2,743 | AU employment by occupation × ANZSIC division (FR-8.9) |
 | AU-native task layer (OSCA + ASC) | 63,157 | Australian occupation backbone (OSCA 2024) + skills classification (ASC v3.0): OSCA occupations/tasks, ASC specialist tasks, the semantic DWA↔ASC bridge, and the unified AU task + exposure layer (FR-9.x) |
 | ABS Census 2021 + subdivisions | 1,391 | AU industry × occupation cross-tabs for company/sector classification (FR-8.9) |
 | Derived products | 15,794 | Drift metrics (4,605) + industry profiles (9,025 US+AU) + crosswalk (21) + ANZSCO concordance (491) + AU profiles (1,090 of 9,025) |
@@ -132,92 +170,21 @@ See **[docs/STATIC_SITE.md](docs/STATIC_SITE.md)** for how it works.
 
 *Full per-table breakdown: [CLAUDE.md](CLAUDE.md) "Data Load Status" and [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).*
 
-### Tier 1 API (~24 public endpoints; full spec at `/docs`)
-
-| Endpoint | Description |
-|----------|-------------|
-| `GET /api/v1/sectors?region=US\|AU` | NAICS (US, default) or ANZSIC (AU) sectors with employment-weighted exposure stats (weighted_eloundou_beta, weighted_ms_applicability, weighted_aei_exposure, workers per zone) |
-| `GET /api/v1/sectors/composite?codes=...&region=US\|AU` | Composite multi-sector analysis: blends 2+ sectors into employment-weighted profile with de-duplicated occupations, zone worker counts, and per-occupation sector badges |
-| `GET /api/v1/sectors/{code}/occupations?region=US\|AU` | Occupations within a sector |
-| `GET /api/v1/sectors/{code}/priorities?region=US\|AU` | Priority roles ranked by composite impact score (40% exposure, 30% headcount, 15% location quotient, 15% drift velocity) with risk factor badges |
-| `GET /api/v1/occupations` | Filterable list (?sector, ?zone, ?classification) |
-| `GET /api/v1/occupations/hierarchy` | SOC major group tree (923 occupations, 93 residual/military filtered) |
-| `GET /api/v1/occupations/{soc}` | Three-tier detail + top sectors + drift + GDPval availability (gdpval_task_count, gdpval_available fields) |
-| `GET /api/v1/occupations/{soc}/tasks` | Tasks with per-task drift velocity |
-| `GET /api/v1/occupations/{soc}/matrix` | Task positioning matrix: importance (Y) vs AI capability (Eloundou, X), four quadrants (insulated, augmented, disrupted, routine). Three overlay modes: None, Usage Level (dot size), Usage Trend (rings), plus conditional GDPval overlay strip. Returns era_snapshots[] per task (with automation_pct, augmentation_pct) and available_eras[] for temporal views. Includes gdpval_benchmark_count. |
-| `GET /api/v1/occupations/{soc}/bearings` | Role "bearings": recommended strategic moves given the occupation's zone and drift — insulated roles get "hold the high ground", exposed roles get concrete moves (FR-8.5) |
-| `GET /api/v1/gdpval/summary` | GDPval benchmark overview: total tasks (220), occupations (44), rubric items (10,453), sectors list, per-occupation task counts |
-| `GET /api/v1/gdpval/occupations/{soc_code}` | Full GDPval benchmark detail for one occupation: tasks with prompts + complete rubric items (criterion, score, required flag, tags) |
-| `GET /api/v1/gdpval/waterline` | Waterline-velocity signal: model-capability trajectory across eras (Epoch AI ECI), for "why the waterline keeps rising" (FR-8.7) |
-| `GET /api/v1/drift/summary` | Classification distribution |
-| `GET /api/v1/drift/departing` | Tasks with fastest-growing AI usage |
-| `GET /api/v1/drift/below-threshold` | Highest priority signal (will flip zone soon) |
-| `GET /api/v1/drift/enduring` | Stable/declining AI usage tasks |
-| `GET /api/v1/search?q=...` | Fuzzy search 65,496 O\*NET titles via pg\_trgm trigram similarity (two-pass: exact substring + fuzzy matching, results show similarity percentage) |
-| `POST /api/v1/search/semantic` | Semantic search via sentence-transformers + pgvector HNSW over 66,512 title embeddings. Accepts query text and optional job description. |
-| `GET /api/v1/datasets` | Data vintage for dashboard footers |
-| `GET /api/v1/companies/search?q=...&region=AU` | pg_trgm fuzzy search across ASX companies and LLM classification cache; returns company_name, asx_code, sector names, ANZSIC/NAICS codes |
-| `POST /api/v1/companies/classify` | Claude Haiku classifies any company name into ANZSIC/NAICS sectors; results cached in company_classifications table; returns 503 if ANTHROPIC_API_KEY not set |
-
-Plus internal admin/observability and pipeline-control endpoints (`/admin/*`, `/pipeline/*`; ADR-007). Full, always-current spec at the OpenAPI docs: http://localhost:8000/docs
-
-### Tier 1 Dashboard
-
-Built with React 18, React Router, and Recharts, in the "warm instrument" design system — a light, brass-accented interface organised around the waterline metaphor, with zone colours (E0 insulated, E1 augmented, E2 automated) and a collapsible sidebar (Waterline · Sectors · Role Search · Occupations · Rising Tide).
-
-[![Industry Sectors — the waterline across sectors](docs/images/skillcurrent-sectors.png)](https://royster70.github.io/skillcurrent/sectors)
-
-<sub>*Each sector's workforce split across the exposure scale — the further right, the deeper its people already sit. [See it live →](https://royster70.github.io/skillcurrent/sectors)*</sub>
-
-| Page | Route | What's there |
-|------|-------|--------------|
-| Waterline (landing) | `/` | The narrative explainer: what the current is, the interactive "Read the scale" primer + ZoneExplorer worked example, and the rising-tide era chart |
-| Sectors | `/sectors` | Worker-count metric cards, zone split, sector waterline; SectorChipSelector for building composite multi-sector views; RegionSelector (US/AU) switches all sector data between NAICS and ANZSIC via ?region=; CompanyLookup type-ahead (pg\_trgm) over ~1,978 ASX companies with AI classify (Claude Haiku) |
-| Composite Sector | `/sectors/composite` | Multi-sector blended analysis: employment-weighted metric cards (E0/E1/E2 + composite β), unified occupation table with multi-sector badges, auto-generated narrative summary |
-| Sector Detail | `/sectors/:code` | Narrative summary, ContextualScoreCards with percentile context, priority-roles ranking (composite impact) with risk badges, BearingsPanel; role rows link to `/occupations?selected=SOC`; GDPval coverage indicators + "GDPval Only" filter |
-| Occupations | `/occupations` | SOC hierarchy tree, GDPval filter, detail panel with ContextualScoreCards + TideChip, TaskMatrix quadrant chart with era sparklines (Baseline / By-Era, 3 overlay modes), AEI Task Intelligence panel, GDPval Benchmark panel, similar-occupations |
-| Rising Tide | `/tide` | Task drift over model eras — classification split, usage vs velocity, at-the-waterline alerts, departing/enduring lists (`/drift` redirects here) |
-| Role Search | `/search` | Two modes: Text (pg\_trgm fuzzy) and Semantic (sentence-transformers + pgvector). Optional JD textarea. Results with zone badges, three-tier score pills, click-to-navigate to occupation |
-
-Plus three explainer pages: **How it works** (`/methodology`), **Data & sources** (`/sources`), and **Run this yourself** (`/run`).
-
-Frontend dev server: http://localhost:5173
-
 ### Tests
 
-~370 tests passing (244 backend + 80 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
+~396 tests passing (253 backend + 97 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v                    # 244 backend tests (needs the seeded DB)
+python -m pytest tests/ -v                    # 253 backend tests (needs the seeded DB)
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
-npm run test                                  # 80 component tests (Vitest)
+npm run test                                  # 97 component tests (Vitest)
 npm run test:e2e                              # 46 Playwright E2E tests
 ```
 
-## Key Documentation
-
-| Doc | Purpose |
-|-----|---------|
-| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here** — functional (data-funnel) + solution architecture, with the DWA-pivot crosswalk diagram |
-| [docs/SETUP.md](docs/SETUP.md) | Development environment setup |
-| [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) | Data loading procedure and verification |
-| [docs/SEED_DATASET.md](docs/SEED_DATASET.md) | Committed seed dataset — clone and run without the full ingest pipeline |
-| [docs/STATIC_SITE.md](docs/STATIC_SITE.md) | The no-database static build (P4) — architecture + how to build it |
-| [ai_working/REBUILD_RUNBOOK.md](ai_working/REBUILD_RUNBOOK.md) | Personal-machine disaster-recovery checklist (not a generic setup guide — see CONTRIBUTING.md for that) |
-| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | All database tables, columns, join paths |
-| [docs/data-sources.md](docs/data-sources.md) | Data sources, licences & attribution |
-| [ai_working/decisions/README.md](ai_working/decisions/README.md) | Architecture Decision Records (index) |
-| [docs/TOOLCHAIN.md](docs/TOOLCHAIN.md) | Every tool in the stack with rationale |
-| [docs/domain-model.md](docs/domain-model.md) | Data contracts and invariants |
-| [docs/MICROSOFT_AI_APPLICABILITY.md](docs/MICROSOFT_AI_APPLICABILITY.md) | Microsoft dataset context |
-| [docs/ELOUNDOU_EXPOSURE.md](docs/ELOUNDOU_EXPOSURE.md) | Eloundou scoring methodology |
-| [docs/PRD-v1.1.md](docs/PRD-v1.1.md) | Product requirements |
-| [ai_working/decisions/](ai_working/decisions/) | Architecture Decision Records |
-
-## Tech Stack
+### Tech stack
 
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector, SQLAlchemy 2.x, Alembic
 - **Data/NLP**: pandas, scipy, sentence-transformers (all-MiniLM-L6-v2)
@@ -225,36 +192,21 @@ npm run test:e2e                              # 46 Playwright E2E tests
 - **Dev**: black, ruff, mypy --strict, pytest, vitest, Playwright (E2E)
 - **Deployment**: Docker Compose (pgvector Postgres + backend + nginx-served frontend)
 
-## Project Structure
+### Key documentation
 
-```
-skillcurrent/
-  CLAUDE.md                    # Claude Code project context (auto-loaded)
-  AGENTS.md                    # Agent context for AI-assisted development
-  docker-compose.yml           # Full stack: pgvector Postgres + backend + frontend
-  docs/                        # Architecture docs, data contracts, guides
-  ai_working/decisions/        # Architecture Decision Records (ADRs)
-  src/
-    backend/
-      app/
-        api/v1/                # FastAPI endpoints + Pydantic schemas
-        models/                # SQLAlchemy ORM models (~40 tables)
-        services/              # Ingestion, computation, transformations
-      data/seed/               # Committed seed dataset (docs/SEED_DATASET.md)
-      migrations/versions/     # Alembic migrations
-      scripts/                 # CLI tools: ingestion, doctor.py, build_seed.py/restore_seed.py
-      tests/                   # pytest suite
-      Dockerfile                # API image — migrates + restores the seed on first boot
-    frontend/
-      src/
-        pages/               # LandingPage, SectorsPage, CompositeSectorPage, SectorDetailPage, OccupationsPage, TidePage, SearchPage, + explainers (Methodology, Sources, Run)
-        components/          # Layout (collapsible sidebar), TaskMatrix (redesigned with era sparklines), MetricCard, ContextualScoreCard, RegionSelector (US/AU toggle), CompanyLookup (ASX company search + AI classify)
-        hooks/               # useApi (data fetching)
-        lib/                 # api client, constants
-      e2e/                   # Playwright E2E tests (6 suites, 46 tests)
-      playwright.config.ts   # Playwright configuration
-      Dockerfile             # Static build served behind nginx, proxies /api to the backend
-```
+| Doc | Purpose |
+|-----|---------|
+| [docs/ARCHITECTURE.md](docs/ARCHITECTURE.md) | **Start here** — functional (data-funnel) + solution architecture, with the DWA-pivot crosswalk diagram |
+| [docs/API.md](docs/API.md) | Tier 1 API endpoint catalogue |
+| [docs/SETUP.md](docs/SETUP.md) | Development environment setup |
+| [docs/INGESTION_RUNBOOK.md](docs/INGESTION_RUNBOOK.md) | Data loading procedure and verification |
+| [docs/SEED_DATASET.md](docs/SEED_DATASET.md) | Committed seed dataset — clone and run without the full ingest pipeline |
+| [docs/STATIC_SITE.md](docs/STATIC_SITE.md) | The no-database static build (P4) — architecture + how to build it |
+| [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md) | All database tables, columns, join paths |
+| [docs/data-sources.md](docs/data-sources.md) | Data sources, licences & attribution |
+| [ai_working/decisions/README.md](ai_working/decisions/README.md) | Architecture Decision Records (index) |
+| [docs/domain-model.md](docs/domain-model.md) | Data contracts and invariants |
+| [docs/PRD-v1.1.md](docs/PRD-v1.1.md) | Product requirements |
 
 ## Licence
 
