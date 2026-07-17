@@ -1,8 +1,10 @@
 import { render, screen } from "@testing-library/react";
-import { describe, it, expect } from "vitest";
+import { describe, it, expect, beforeEach } from "vitest";
 import { MemoryRouter } from "react-router-dom";
 import { OccupationSummaryPanel } from "./OccupationSummaryPanel";
 import { LEXICONS } from "../lib/lexicon";
+import { AudienceProvider } from "../lib/audience";
+import { AUDIENCE_LEXICONS } from "../lib/audience-lexicon";
 import type { OccupationDetail, TaskMatrixResponse, TaskMatrixPoint, BearingsResponse } from "../lib/api";
 
 // ── Fixtures ──
@@ -86,6 +88,10 @@ function renderPanel(props: { occ: OccupationDetail; matrixData: TaskMatrixRespo
 }
 
 // ── Tests ──
+
+beforeEach(() => {
+  window.localStorage.clear();
+});
 
 describe("OccupationSummaryPanel", () => {
   it("leads with a mostly-dry reading when the role's weight sits below the waterline", () => {
@@ -186,5 +192,27 @@ describe("OccupationSummaryPanel", () => {
     expect(screen.getByText(/reflects rising usage across model eras — a direction, not a certainty/)).toBeInTheDocument();
     const link = screen.getByText("how these are combined →");
     expect(link.closest("a")).toHaveAttribute("href", "/methodology#observed-vs-theoretical");
+  });
+
+  it("reframes eyebrow, column headings and order for the education audience (#86)", () => {
+    window.localStorage.setItem("sc.audienceMode", "education");
+    render(
+      <MemoryRouter>
+        <AudienceProvider>
+          <OccupationSummaryPanel occ={makeOcc()} matrixData={makeMatrix([makeTask()])} bearings={makeBearings()} />
+        </AudienceProvider>
+      </MemoryRouter>,
+    );
+    // Education eyebrow + relabelled columns
+    expect(screen.getByText(AUDIENCE_LEXICONS.education.summary.eyebrow)).toBeInTheDocument();
+    expect(screen.getByText("Keep teaching deeply")).toBeInTheDocument();
+    expect(screen.getByText("Add to the curriculum")).toBeInTheDocument();
+    // Individual's wording is gone
+    expect(screen.queryByText("Use AI for, now")).not.toBeInTheDocument();
+    // Education leads with the durable-skills column
+    const headings = screen.getAllByText(
+      /Keep teaching deeply|Add to the curriculum|Teach AI-collaboration for/,
+    );
+    expect(headings[0].textContent).toBe("Keep teaching deeply");
   });
 });
