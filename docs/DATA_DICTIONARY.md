@@ -1050,6 +1050,59 @@ Task-weighted AU-native exposure rollup per OSCA occupation, with an honest meas
 
 ---
 
+## Temporal Snapshot Layer (ADR-012)
+
+An append-only history of the platform's *derived verdicts*, captured each pipeline run (and cut as a quarterly release) so "what changed over time" is answerable. The live derived tables stay clear-and-reload; these two capture a compact copy beside them. Mirrors the `aei_task_snapshots` append-only idiom, but snapshots the **verdicts** (β/zone/drift) rather than an upstream signal.
+
+### snapshot_runs
+
+One row per capture — the temporal + provenance anchor every `exposure_snapshots` row hangs off. 1 row in the seed (the genesis `2026-Q3` release).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| as_of_date | DATE | NO | The day the reading represents (deltas are labelled by this) |
+| captured_at | TIMESTAMP | NO | Precise capture instant (server default NOW()) |
+| pipeline_run_id | TEXT | YES | Ties to `transformation_log.pipeline_run_id` (ADR-007); NULL for an ad-hoc/manual capture |
+| label | TEXT | YES | Human label, e.g. `2026-Q3` (auto-derived for a release) |
+| is_release | BOOLEAN | NO | Whether this capture is a labelled data release (default false) |
+| input_versions | JSONB | YES | The `dataset_versions` that produced it (`{name: version_key}`, ADR-002) |
+| onet_version | TEXT | YES | Convenience copy of the O*NET version |
+| notes | TEXT | YES | Free-text |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Indexes**: `ix_snapshot_runs_as_of_date`, `ix_snapshot_runs_is_release`, `ix_snapshot_runs_pipeline_run_id`
+- **Migration**: 034
+- **Populated by**: terminal `snapshot_derived_products` pipeline stage / `python -m scripts.capture_snapshot [--release --label 2026-Q3]`
+
+### exposure_snapshots
+
+The compact per-entity verdicts diffed over time — append-only. 15,513 rows in the seed (the genesis release: 923 US + 960 AU occupations, 9,025 sector-occupations, 4,605 tasks).
+
+| Column | Type | Nullable | Description |
+|--------|------|----------|-------------|
+| id | INTEGER | NO | Auto-increment primary key |
+| snapshot_run_id | INTEGER | NO | FK → `snapshot_runs.id` (ON DELETE CASCADE) |
+| entity_type | TEXT | NO | `occupation` \| `sector_occupation` \| `task` \| `au_occupation` |
+| entity_key | TEXT | NO | Soft key varying by type: `soc` \| `naics:soc` \| `task_text` \| `osca_code` |
+| region | TEXT | NO | `US` \| `AU` \| `GLOBAL` (tasks are platform-global). Default `US` |
+| beta | FLOAT | YES | Exposure β (null for `task` rows) |
+| zone | TEXT | YES | E0/E1/E2, computed on the canonical thresholds |
+| drift_velocity | FLOAT | YES | Drift velocity (sector/task rows) |
+| drift_classification | TEXT | YES | departing/enduring/emerging/below_threshold |
+| extra | JSONB | YES | Type-specific extras (AU divergence/us-β/coverage) |
+| created_at | TIMESTAMP | NO | Server default NOW() |
+
+- **Primary key**: `id`
+- **Foreign keys**: `snapshot_run_id` → `snapshot_runs.id`
+- **Unique constraint**: `(snapshot_run_id, entity_type, entity_key, region)` = `uq_exposure_snapshot`
+- **Indexes**: `ix_exposure_snapshots_run`, `ix_exposure_snapshots_entity` (entity_type, entity_key), `ix_exposure_snapshots_entity_region`
+- **Migration**: 034
+- **Populated by**: same as `snapshot_runs` (written together per capture). Append-only — rows are never mutated or deleted.
+
+---
+
 ## Join Paths
 
 O*NET 8-digit SOC codes are the anchor for the entire data model. Different datasets use different SOC granularities and join strategies.
@@ -1069,6 +1122,18 @@ onet_occupations.onet_soc  (PK, e.g., "11-1011.00")
   <- onet_emerging_tasks.onet_soc (FK)
   <- eloundou_occ_scores.onet_soc (FK)
 ```
+
+### Snapshot diff join (ADR-012)
+
+```
+exposure_snapshots.snapshot_run_id = snapshot_runs.id   (FK)
+
+-- "what changed between two releases" is a self-join of exposure_snapshots
+-- across two snapshot_run_id values, matched on the soft entity key:
+a.entity_type = b.entity_type AND a.entity_key = b.entity_key AND a.region = b.region
+```
+
+`entity_key` is a soft key (no FK); its meaning depends on `entity_type` (`soc` / `naics:soc` / `task_text` / `osca_code`).
 
 ### Prefix match joins (6-digit SOC)
 
@@ -1243,3 +1308,6 @@ US-imported (`au_task.us_imported_beta`) and AU-native (`au_task.au_native_beta`
 | 029 | drop oews_employment→onet_occupations FK — `oews_employment.onet_soc` is a 6-digit BLS SOC, joined to O*NET by prefix (not the 8-digit O*NET-SOC) |
 | 030 | drop industry_occupation_profiles→onet_occupations FK — US rows key by 6-digit SOC (same convention as 029) |
 | 031 | transformation_log.pipeline_run_id (TEXT, nullable, indexed) — batch correlation key for pipeline runs (ADR-007 Phase 3 Rule 2, FR-8.8) |
+| 032 | signal_source_registry — FR-9.5 signal-source registry + redistribution gate |
+| 033 | backfill aei_task_snapshots.onet_soc_codes via the O*NET task bridge |
+| 034 | snapshot_runs, exposure_snapshots — temporal snapshot/release layer (ADR-012) |

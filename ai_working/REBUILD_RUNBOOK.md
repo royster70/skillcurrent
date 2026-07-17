@@ -200,10 +200,10 @@ cd C:\Users\royst\Projects\skillcurrent\src\backend
 # Point the orchestrator at your source data (skip if using the default path)
 # Add to src\backend\.env:  DATA_ROOT=C:\path\to\Data
 
-# Dry run first — prints the 27-stage plan without executing
+# Dry run first — prints the 30-stage plan without executing
 python -m scripts.run_pipeline --stages all --dry-run
 
-# Execute all 27 stages (Tier 1 core + optional AU/Census/ASX/FR-9 OSCA overlay)
+# Execute all 30 stages (Tier 1 core + optional AU/Census/ASX/FR-9 OSCA overlay + terminal snapshot_derived_products, ADR-012)
 python -m scripts.run_pipeline --stages all
 
 # Selective runs:

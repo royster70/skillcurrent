@@ -12,6 +12,7 @@ FR-8.4 OEWS/ABS industry profiles · FR-8.5 Tier 1 dashboard (+ company lookup +
 FR-8.6 GPTVal integration · FR-8.7 Longitudinal waterline tracking
 FR-8.9 Industry crosswalk (NAICS↔ANZSIC)
   ↳ Census WPP (occupation mix) · ANZSIC subdivisions (LLM classify context) · 10-company eval suite
+FR-8.x Temporal snapshot/release layer (ADR-012) — append-only history of the derived *verdicts* (occupation/sector/task/au β·zone·drift) captured each pipeline run into `snapshot_runs` + `exposure_snapshots`, cut as quarterly releases tied to the `dataset_versions` register, so the drift the rest of FR-8 measures is now diffable period-over-period ("what changed since last release"). Distinct from `aei_task_snapshots` (upstream AEI input history) — this snapshots the platform's own output. See ADR-012 + docs/DATA_DICTIONARY.md.
 
 ## Critical Rules (read docs/domain-model.md for full contracts)
 

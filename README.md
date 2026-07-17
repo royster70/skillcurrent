@@ -25,6 +25,8 @@ Every ordinary view answers three questions in plain language:
 It combines the O\*NET occupational taxonomy, theoretical exposure research (Eloundou 2024), empirical AI-applicability data (Microsoft, Anthropic), and government employment statistics (US and Australia) into workforce-planning intelligence — sitting between "will AI take my job?" sites and enterprise workforce analytics.
 
 > **Plain or nautical?** The interface ships two vocabularies you can switch between from the sidebar. **Plain** (the default) uses ordinary terms. **Nautical** is the brand vocabulary — a rising *waterline*, the *tide*, your *bearings*, the *high ground* — for those who prefer the metaphor. The measurement jargon (β, the E-codes, drift velocity) always lives behind an "Explain this score" control.
+>
+> **Who's asking?** A second, orthogonal sidebar toggle picks an **audience lens** — *Individual* ("what do I learn?"), *Organisation* ("where do I invest / redesign?"), or *Education* ("how should the curriculum change?"). It reframes the same reading — the summary's headings, ordering and calls to action — without changing any of the numbers.
 
 ## How to read it
 
@@ -152,7 +154,7 @@ Plus three explainer pages: **How it works** (`/methodology`), **Data & sources*
 
 Any occupation or sector can also be exported as a **one-page brief** — a chrome-free print/PDF view at `/brief/occupation/:soc` and `/brief/sector/:code`, rendered in the reader's active audience lens (Individual / Organisation / Education) and language mode.
 
-### Data loaded (~602,645 rows across ~40 tables)
+### Data loaded (~618,159 rows across ~42 tables)
 
 | Dataset | Rows | What it provides |
 |---------|------|-----------------|
@@ -169,20 +171,21 @@ Any occupation or sector can also be exported as a **one-page brief** — a chro
 | Title embeddings | 66,512 | Layer 2 semantic search (all-MiniLM-L6-v2, pgvector HNSW) |
 | OpenAI GDPval | 10,673 | 220 real-world knowledge tasks + 10,453 rubric items across 44 occupations (FR-8.7) |
 | Epoch AI ECI (GPTVal) | 464 | Longitudinal model-capability benchmarks — the waterline-velocity signal (FR-8.7 P0a) |
+| Snapshot layer | 15,514 | Append-only history of derived verdicts — genesis 2026-Q3 release (ADR-012) |
 
 *Full per-table breakdown: [CLAUDE.md](CLAUDE.md) "Data Load Status" and [docs/DATA_DICTIONARY.md](docs/DATA_DICTIONARY.md).*
 
 ### Tests
 
-~396 tests passing (253 backend + 97 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
+~413 tests passing (261 backend + 106 component + 46 E2E). Component tests via Vitest + @testing-library/react. E2E via Playwright across 6 suites (sectors, search-to-occupation, occupations, drift, composite, company-lookup). Most backend suites need the seeded DB (see `conftest.py`); CI runs the DB-free subset — see `.github/workflows/ci.yml`.
 
 ```powershell
 cd src/backend
-python -m pytest tests/ -v                    # 253 backend tests (needs the seeded DB)
+python -m pytest tests/ -v                    # 261 backend tests (needs the seeded DB)
 python -m pytest tests/ --cov=app             # with coverage
 
 cd src/frontend
-npm run test                                  # 97 component tests (Vitest)
+npm run test                                  # 106 component tests (Vitest)
 npm run test:e2e                              # 46 Playwright E2E tests
 ```
 
