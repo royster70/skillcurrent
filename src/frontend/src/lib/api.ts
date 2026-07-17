@@ -354,6 +354,60 @@ export interface BearingsResponse {
   adjacent: AdjacentRole[];
 }
 
+// ── AU occupations (OSCA-keyed, #73/#78) ──
+
+export interface AscCompetencyItem {
+  name: string;
+  score: number | null;
+  proficiency_level: string | null;
+  anchor_value: string | null;
+}
+
+export interface AnzscoLineageItem {
+  anzsco_code: string;
+  relation_type: string | null;
+  weight: number | null;
+  soc_codes: string[];
+}
+
+export interface AuExposureSummary {
+  au_task_beta: number | null;
+  task_count: number | null;
+  measured_task_count: number | null;
+  coverage_pct: number | null;
+  divergent_task_count: number;
+  beta_scale: string;
+  confidence_basis: string;
+}
+
+export interface AuOccupationDetail {
+  osca_code: string;
+  title: string;
+  description: string | null;
+  osca_version: string;
+  exposure: AuExposureSummary | null;
+  competencies: AscCompetencyItem[];
+  competency_source_anzsco: string | null;
+  main_tasks: string[];
+  anzsco_lineage: AnzscoLineageItem[];
+  total_employment: number | null;
+}
+
+export interface AuOccupationIndexEntry {
+  osca_code: string;
+  title: string;
+  au_task_beta: number | null;
+  coverage_pct: number | null;
+  task_count: number | null;
+  soc_codes: string[];
+}
+
+export interface AuOccupationIndexResponse {
+  occupations: AuOccupationIndexEntry[];
+  total: number;
+  osca_version: string;
+}
+
 // ── Capability waterline (Epoch AI ECI, /gdpval/waterline) ──
 
 export interface WaterlineEraScore {
@@ -483,6 +537,8 @@ export const api = {
   hierarchy: () => get<SocHierarchyResponse>("/occupations/hierarchy"),
   occupation: (soc: string) => get<OccupationDetail>(`/occupations/${soc}`),
   bearings: (soc: string) => get<BearingsResponse>(`/occupations/${soc}/bearings`),
+  auOccupations: () => get<AuOccupationIndexResponse>("/au/occupations"),
+  auOccupation: (osca: string) => get<AuOccupationDetail>(`/au/occupations/${osca}`),
   occupationTasks: (soc: string) => get<OccupationTasksResponse>(`/occupations/${soc}/tasks`),
   taskMatrix: (soc: string) => get<TaskMatrixResponse>(`/occupations/${soc}/matrix`),
   driftSummary: () => get<DriftSummary>("/drift/summary"),
