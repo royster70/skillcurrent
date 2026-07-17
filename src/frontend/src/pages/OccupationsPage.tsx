@@ -223,28 +223,34 @@ export function OccupationsPage() {
               No occupation titles here match "{query.trim()}".
             </div>
           )}
-          {visibleGroups.map(({ group, children }) => (
+          {visibleGroups.map(({ group, children }) => {
+            const expanded = filtering || expandedGroup === group.code;
+            return (
             <div key={group.code}>
-              <div
+              <button
+                type="button"
+                aria-expanded={expanded}
+                aria-controls={`occ-group-${group.code}`}
                 onClick={() => setExpandedGroup(expandedGroup === group.code ? null : group.code)}
                 style={{
+                  width: "100%", textAlign: "left", background: expandedGroup === group.code ? BRASS_TINT : "transparent",
+                  border: "none", borderBottom: `1px solid ${theme.line}`, font: "inherit", color: "inherit",
                   padding: "10px 16px", cursor: "pointer", display: "flex", justifyContent: "space-between",
-                  alignItems: "center", borderBottom: `1px solid ${theme.line}`,
-                  backgroundColor: expandedGroup === group.code ? BRASS_TINT : "transparent",
+                  alignItems: "center",
                 }}
               >
-                <div>
-                  <div style={{ fontSize: 14, fontWeight: 600 }}>{group.title}</div>
-                  <div style={{ fontSize: 12, color: theme.inkMuted }}>
+                <span>
+                  <span style={{ display: "block", fontSize: 14, fontWeight: 600 }}>{group.title}</span>
+                  <span style={{ display: "block", fontSize: 12, color: theme.inkMuted }}>
                     {filtering
                       ? `${children.length} match${children.length === 1 ? "" : "es"}`
                       : gdpvalFilter
                         ? `${children.length} with GDPval`
                         : `${group.occupation_count} occupations`}
                     {!filtering && !gdpvalFilter && group.total_employment ? ` · ${(group.total_employment / 1_000_000).toFixed(1)}M workers` : ""}
-                  </div>
-                </div>
-                <div style={{ display: "flex", gap: 8, alignItems: "center" }}>
+                  </span>
+                </span>
+                <span style={{ display: "flex", gap: 8, alignItems: "center" }}>
                   {group.avg_eloundou_beta != null && (
                     <>
                       <MiniBetaTrack beta={group.avg_eloundou_beta} />
@@ -256,44 +262,52 @@ export function OccupationsPage() {
                       </span>
                     </>
                   )}
-                  <span style={{ fontSize: 14, color: theme.inkMuted }}>
-                    {filtering || expandedGroup === group.code ? "▼" : "▶"}
+                  <span aria-hidden style={{ fontSize: 14, color: theme.inkMuted }}>
+                    {expanded ? "▼" : "▶"}
                   </span>
-                </div>
-              </div>
+                </span>
+              </button>
 
               {/* While filtering, every visible group shows its matches —
                   the single-expand accordion is browse-mode behaviour. */}
-              {(filtering || expandedGroup === group.code) && children.map((occ) => (
-                <div
-                  key={occ.code}
-                  onClick={() => setSelectedSoc(occ.code)}
-                  style={{
-                    padding: "8px 16px 8px 32px", cursor: "pointer",
-                    borderBottom: `1px solid ${theme.line}`,
-                    backgroundColor: selectedSoc === occ.code ? BRASS_TINT : "transparent",
-                    display: "flex", justifyContent: "space-between", alignItems: "center",
-                  }}
-                >
-                  <div>
-                    <div style={{ fontSize: 13, fontWeight: 500 }}>{occ.title}</div>
-                    <div style={{ fontSize: 11, color: theme.inkMuted }}>{occ.code}</div>
-                  </div>
-                  {occ.avg_eloundou_beta != null && (
-                    <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
-                      <MiniBetaTrack beta={occ.avg_eloundou_beta} />
-                      <span style={{
-                        fontFamily: TYPE.mono, fontSize: 11, fontWeight: 600, width: 30, textAlign: "right",
-                        color: ZONE_COLORS[zoneOf(occ.avg_eloundou_beta)],
-                      }}>
-                        {occ.avg_eloundou_beta.toFixed(2)}
+              {expanded && (
+                <div id={`occ-group-${group.code}`}>
+                  {children.map((occ) => (
+                    <button
+                      type="button"
+                      key={occ.code}
+                      aria-pressed={selectedSoc === occ.code}
+                      onClick={() => setSelectedSoc(occ.code)}
+                      style={{
+                        width: "100%", textAlign: "left", font: "inherit", color: "inherit", border: "none",
+                        padding: "8px 16px 8px 32px", cursor: "pointer",
+                        borderBottom: `1px solid ${theme.line}`,
+                        background: selectedSoc === occ.code ? BRASS_TINT : "transparent",
+                        display: "flex", justifyContent: "space-between", alignItems: "center",
+                      }}
+                    >
+                      <span>
+                        <span style={{ display: "block", fontSize: 13, fontWeight: 500 }}>{occ.title}</span>
+                        <span style={{ display: "block", fontSize: 11, color: theme.inkMuted }}>{occ.code}</span>
                       </span>
-                    </span>
-                  )}
+                      {occ.avg_eloundou_beta != null && (
+                        <span style={{ display: "flex", gap: 8, alignItems: "center", flexShrink: 0 }}>
+                          <MiniBetaTrack beta={occ.avg_eloundou_beta} />
+                          <span style={{
+                            fontFamily: TYPE.mono, fontSize: 11, fontWeight: 600, width: 30, textAlign: "right",
+                            color: ZONE_COLORS[zoneOf(occ.avg_eloundou_beta)],
+                          }}>
+                            {occ.avg_eloundou_beta.toFixed(2)}
+                          </span>
+                        </span>
+                      )}
+                    </button>
+                  ))}
                 </div>
-              ))}
+              )}
             </div>
-          ))}
+            );
+          })}
         </div>
 
         {/* Escape hatch (#77): the official taxonomy doesn't know every job
@@ -407,11 +421,14 @@ function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: 
           )}
           <TideChip classification={occ.drift_classification} velocity={occ.drift_velocity} />
           {occ.gdpval_available && (
-            <div
+            <button
+              type="button"
+              aria-expanded={gdpvalExpanded}
+              aria-label={`GDPval benchmarks: ${occ.gdpval_task_count} tasks. ${gdpvalExpanded ? "Hide" : "View"} detail`}
               onClick={() => setGdpvalExpanded(!gdpvalExpanded)}
               style={{
-                display: "flex", flexDirection: "column", gap: 2, padding: "8px 14px",
-                borderRadius: 10, backgroundColor: GDPVAL_COLORS.bg,
+                display: "flex", flexDirection: "column", gap: 2, padding: "8px 14px", textAlign: "left",
+                borderRadius: 10, backgroundColor: GDPVAL_COLORS.bg, font: "inherit",
                 border: `1.5px solid ${GDPVAL_COLORS.border}`,
                 cursor: "pointer", transition: "box-shadow 0.15s",
                 boxShadow: gdpvalExpanded ? `0 0 0 2px ${GDPVAL_COLORS.border}40` : "none",
@@ -420,21 +437,21 @@ function OccupationDetailPanel({ soc, groupTitle }: { soc: string; groupTitle?: 
               <span style={{ fontSize: 10, fontWeight: 600, color: GDPVAL_COLORS.primary, letterSpacing: 0.8 }}>
                 GDPVAL
               </span>
-              <div style={{ display: "flex", gap: 4, alignItems: "baseline" }}>
+              <span style={{ display: "flex", gap: 4, alignItems: "baseline" }}>
                 <span style={{ fontSize: 20, fontWeight: 700, color: GDPVAL_COLORS.primary }}>
                   {occ.gdpval_task_count}
                 </span>
                 <span style={{ fontSize: 11, fontWeight: 500, color: GDPVAL_COLORS.primary }}>tasks</span>
-              </div>
-              <div style={{ display: "flex", gap: 3, alignItems: "center" }}>
+              </span>
+              <span style={{ display: "flex", gap: 3, alignItems: "center" }}>
                 <span style={{ fontSize: 10, color: GDPVAL_COLORS.primary }}>
                   {gdpvalExpanded ? "Hide" : "View"} detail
                 </span>
-                <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={GDPVAL_COLORS.primary} strokeWidth={2.5}>
+                <svg width={10} height={10} viewBox="0 0 24 24" fill="none" stroke={GDPVAL_COLORS.primary} strokeWidth={2.5} aria-hidden>
                   <polyline points="6 9 12 15 18 9" style={{ transform: gdpvalExpanded ? "rotate(180deg)" : "none", transformOrigin: "center", transition: "transform 0.2s" }} />
                 </svg>
-              </div>
-            </div>
+              </span>
+            </button>
           )}
         </div>
       </div>
