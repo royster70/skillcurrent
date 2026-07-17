@@ -81,7 +81,23 @@ PR proved **moot** — `public/data/` is gitignored and rebuilt in CI from the
 committed seed, so #73's coverage field and the AU tree reach the live site
 on the next deploy automatically.
 
-P2 (#81–#86) remains the open backlog.
+### Status — P2 usability pair shipped (2026-07-17)
+
+Progressing P2 on the usability/accessibility axis, per Roy's steer ("one-page
+brief and audience modes … the next logical progression"):
+
+- **#86 audience modes** (PR #99, merged) — Individual / Organisation /
+  Education as a lens toggle mirroring the #79 language context
+  (`lib/audience.tsx` + `lib/audience-lexicon.ts`). Reframes the occupation
+  summary's eyebrow, column headings and column ORDER, plus SkillsToBuild's
+  title. Orthogonal to language (composes, doesn't multiply). Same-data-reframed.
+- **#85 one-page brief** (PR pending) — chrome-free `/brief/occupation/:soc`
+  and `/brief/sector/:code` print/PDF views via `window.print()` + `@media
+  print` (no PDF lib, static-safe). **Faceted by audience**: subject fixed by
+  route, audience lens frames it; masthead states the lens. Reuses the
+  audience-aware panels + shared `TideChip`/`ZoneChip` + `generateNarrative`.
+
+Remaining P2: #81–#84 (share, compare, save, quarterly deltas).
 
 ### Rejected
 
