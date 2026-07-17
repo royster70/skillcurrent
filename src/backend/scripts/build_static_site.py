@@ -43,6 +43,7 @@ from sqlalchemy.ext.asyncio import AsyncSession, async_sessionmaker, create_asyn
 
 sys.path.insert(0, str(Path(__file__).resolve().parent.parent))
 
+from app.api.v1.au_occupations import get_au_occupation, list_au_occupations  # noqa: E402
 from app.api.v1.bearings import get_bearings  # noqa: E402
 from app.api.v1.datasets import list_datasets  # noqa: E402
 from app.api.v1.drift import (  # noqa: E402
@@ -169,6 +170,35 @@ async def _emit_occupations(out: Path, db: AsyncSession) -> int:
         if done % 200 == 0:
             logger.info("occupations: %d/%d", done, len(socs))
     logger.info("occupations: %d rendered (detail + matrix + bearings)", done)
+    return done
+
+
+async def _emit_au_occupations(out: Path, db: AsyncSession) -> int:
+    """Emit AU occupation payloads (GitHub #73/#78) — one file per OSCA code
+    that has an exposure rollup (the only ones the UI links to)."""
+    # The discovery index first — the same endpoint both builds use to map
+    # SOC-keyed AU sector rows to their OSCA panel.
+    await _emit(out, "/au/occupations", await list_au_occupations(db=db))
+    codes = [
+        r[0]
+        for r in (
+            await db.execute(
+                text("SELECT osca_code FROM au_occupation_exposure ORDER BY osca_code")
+            )
+        ).all()
+    ]
+    done = 0
+    for code in codes:
+        try:
+            await _emit(
+                out, f"/au/occupations/{code}", await get_au_occupation(osca_code=code, db=db)
+            )
+            done += 1
+        except HTTPException:
+            continue  # exposure row without an osca_occupations row — not navigable
+        if done % 200 == 0:
+            logger.info("au occupations: %d/%d", done, len(codes))
+    logger.info("au occupations: %d rendered", done)
     return done
 
 
@@ -330,6 +360,7 @@ async def run(out_dir: str | None = None) -> dict[str, Any]:
             await _emit_globals(out, db)
             codes = await _emit_sectors(out, db)
             n_occ = await _emit_occupations(out, db)
+            n_au_occ = await _emit_au_occupations(out, db)
             n_gdpval = await _emit_gdpval(out, db)
             client_counts = await _emit_client_data(out, db)
         n_neighbours = _copy_neighbours(out)
@@ -341,6 +372,7 @@ async def run(out_dir: str | None = None) -> dict[str, Any]:
         "onet_version": settings.onet_version,
         "sectors": {r: len(c) for r, c in codes.items()},
         "occupations_rendered": n_occ,
+        "au_occupations_rendered": n_au_occ,
         "gdpval_occupations": n_gdpval,
         "neighbours": n_neighbours,
         **{f"client_{k}": v for k, v in client_counts.items()},

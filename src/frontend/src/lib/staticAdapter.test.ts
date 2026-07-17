@@ -30,4 +30,11 @@ describe("pathToFile", () => {
     expect(pathToFile("/occupations/15-1252.00")).toBe("occupations/15-1252.00.json");
     expect(pathToFile("/occupations/15-1252.00/matrix")).toBe("occupations/15-1252.00/matrix.json");
   });
+
+  it("maps the AU occupation surface (index + OSCA detail)", () => {
+    // Pins the /au emitters added by the AU endpoint (GitHub #73/#78) to the
+    // same generic algorithm on both sides.
+    expect(pathToFile("/au/occupations")).toBe("au/occupations.json");
+    expect(pathToFile("/au/occupations/261313")).toBe("au/occupations/261313.json");
+  });
 });
