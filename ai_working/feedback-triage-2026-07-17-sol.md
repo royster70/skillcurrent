@@ -59,6 +59,30 @@ One material finding the reviewer missed was added during verification (see V11)
 
 Milestones: **P0 — Immediate user value**, **P1 — Beyond expert audiences**, **P2 — Retention & shareability**. Label: `sol-feedback` (+ `priority:P0/P1/P2`).
 
+### Status — P1 milestone COMPLETE (2026-07-17)
+
+All eight P1 issues (#73–#80) shipped as a single joined-up "communication
+quality" programme, delivered in five themed waves across ten merged PRs
+(#90–#98):
+
+| Wave | Theme | Issues | PRs |
+|---|---|---|---|
+| A | Speak the user's language | #79 | #90 |
+| B | Say what the reading is worth | #74, #73 | #92, #91 |
+| C | Say what to do about it | #78 + new AU occupation endpoint | #93 (backend), #95 (frontend) |
+| D | Reachable by everyone | #77, #76, #75 | #94, #96, #97 |
+| E | Off-product comms | #80 | #98 |
+
+Key decisions realised: vocabulary shipped as a **switchable plain/nautical
+trial** (plain default) rather than a single choice; the **AU occupation
+endpoint** (`GET /api/v1/au/occupations[/{osca}]`) was built this cycle,
+giving the OSCA/ASC layer its first API surface. The planned "static regen"
+PR proved **moot** — `public/data/` is gitignored and rebuilt in CI from the
+committed seed, so #73's coverage field and the AU tree reach the live site
+on the next deploy automatically.
+
+P2 (#81–#86) remains the open backlog.
+
 ### Rejected
 
 Nothing rejected outright. The E2-label question was decided rather than backlogged (qualify now — see fixed-now table).
