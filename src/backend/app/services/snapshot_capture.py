@@ -34,9 +34,14 @@ async def _create_run(
 ) -> int:
     """Insert the snapshot_runs anchor and return its id. Stamps the active
     pipeline_run_id and the current dataset vintages (ADR-002 provenance)."""
+    # Latest version per dataset (datasets accrue history, ADR-002) — must match
+    # _current_register so the release change-guard compares like for like.
     versions = (
         await session.execute(
-            text("SELECT dataset_name, version_key FROM dataset_versions ORDER BY dataset_name")
+            text(
+                "SELECT DISTINCT ON (dataset_name) dataset_name, version_key "
+                "FROM dataset_versions ORDER BY dataset_name, id DESC"
+            )
         )
     ).all()
     input_versions = {name: ver for name, ver in versions}
@@ -186,3 +191,129 @@ async def capture_snapshot(
     """Public entry — capture a snapshot of all derived verdicts. Returns the
     number of exposure_snapshots rows written."""
     return int(await _capture(session, as_of_iso=as_of_iso, label=label, is_release=is_release))
+
+
+# ── Releases (ADR-012) ────────────────────────────────────────────────────────
+# A release is a snapshot cut when a new DATA release lands — tied to the
+# dataset_versions register (ADR-002). Expected rhythm is quarterly; the trigger
+# is a genuine change in the register, not the calendar. Cutting a release also
+# records the dataset-version delta (which sources got new versions) so the
+# release is self-describing: "what data changed" + "what readings changed".
+
+
+def _quarter_label(d: date) -> str:
+    """Calendar-quarter label, e.g. 2026-Q3."""
+    return f"{d.year}-Q{(d.month - 1) // 3 + 1}"
+
+
+async def _current_register(session: AsyncSession) -> dict[str, tuple[str, int]]:
+    """The CURRENT dataset_versions register: {dataset_name: (version_key, id)}.
+    Datasets accrue version history (ADR-002), so take the latest row per name."""
+    rows = (
+        await session.execute(
+            text(
+                "SELECT DISTINCT ON (dataset_name) dataset_name, version_key, id "
+                "FROM dataset_versions ORDER BY dataset_name, id DESC"
+            )
+        )
+    ).all()
+    return {name: (key, vid) for name, key, vid in rows}
+
+
+async def _last_release_versions(session: AsyncSession) -> dict[str, str] | None:
+    """input_versions of the most recent release, or None if none cut yet."""
+    row = (
+        await session.execute(
+            text(
+                "SELECT input_versions FROM snapshot_runs "
+                "WHERE is_release = true ORDER BY id DESC LIMIT 1"
+            )
+        )
+    ).first()
+    if not row or row[0] is None:
+        return None
+    return dict(row[0])
+
+
+async def _resolve_version_id(session: AsyncSession, name: str, key: str) -> int | None:
+    """dataset_versions.id for a (name, version_key), if that row still exists."""
+    row = (
+        await session.execute(
+            text("SELECT id FROM dataset_versions WHERE dataset_name = :n AND version_key = :k"),
+            {"n": name, "k": key},
+        )
+    ).first()
+    return int(row[0]) if row else None
+
+
+async def _record_version_deltas(
+    session: AsyncSession, changed: dict[str, tuple[str | None, str, int]], label: str
+) -> int:
+    """Register each changed dataset as a dataset_version_deltas row (ADR-002).
+    from_version_id resolves when the prior version row survives; the transition
+    is always captured in delta_detail regardless."""
+    for name, (from_key, to_key, to_id) in changed.items():
+        from_id = await _resolve_version_id(session, name, from_key) if from_key else None
+        await session.execute(
+            text(
+                """
+                INSERT INTO dataset_version_deltas
+                    (dataset_name, from_version_id, to_version_id, delta_detail)
+                VALUES (:name, :from_id, :to_id, CAST(:detail AS jsonb))
+                """
+            ),
+            {
+                "name": name,
+                "from_id": from_id,
+                "to_id": to_id,
+                "detail": json.dumps({"from_key": from_key, "to_key": to_key, "release": label}),
+            },
+        )
+    return len(changed)
+
+
+async def cut_release(
+    session: AsyncSession,
+    *,
+    as_of_iso: str | None = None,
+    label: str | None = None,
+    force: bool = False,
+) -> dict[str, object]:
+    """Cut a quarterly data release: a labelled, is_release snapshot plus the
+    dataset-version delta since the last release.
+
+    Guarded: if the dataset register is unchanged since the last release (no new
+    data), the release is SKIPPED unless ``force`` — so re-runs on identical
+    inputs don't mint empty releases. Auto-labels by quarter when no label given.
+    """
+    as_of = date.fromisoformat(as_of_iso) if as_of_iso else date.today()
+    label = label or _quarter_label(as_of)
+    register = await _current_register(session)
+    last = await _last_release_versions(session)
+
+    changed: dict[str, tuple[str | None, str, int]] = {}
+    for name, (key, vid) in register.items():
+        from_key = last.get(name) if last else None
+        if last is None or from_key != key:
+            changed[name] = (from_key, key, vid)
+
+    if last is not None and not changed and not force:
+        logger.warning(
+            "release %s skipped — dataset register unchanged since last release "
+            "(use force to cut anyway)",
+            label,
+        )
+        return {"skipped": True, "label": label, "reason": "no dataset version change"}
+
+    rows = await capture_snapshot(
+        session, as_of_iso=as_of.isoformat(), label=label, is_release=True
+    )
+    deltas = await _record_version_deltas(session, changed, label)
+    logger.info("release %s cut: %s verdict rows, %s dataset-version delta(s)", label, rows, deltas)
+    return {
+        "skipped": False,
+        "label": label,
+        "rows": rows,
+        "dataset_deltas": deltas,
+        "changed": sorted(changed),
+    }

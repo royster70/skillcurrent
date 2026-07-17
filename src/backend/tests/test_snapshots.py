@@ -7,11 +7,13 @@ append-only, so history accumulates and can be diffed. Each runs inside the
 rolled-back session fixture, so captured rows never persist.
 """
 
+from datetime import date
+
 import pytest
 from sqlalchemy import text
 from sqlalchemy.ext.asyncio import AsyncSession
 
-from app.services.snapshot_capture import capture_snapshot
+from app.services.snapshot_capture import _quarter_label, capture_snapshot, cut_release
 
 
 async def _has_seed(session: AsyncSession) -> bool:
@@ -148,3 +150,69 @@ async def test_snapshot_run_carries_provenance(session: AsyncSession):
     assert is_release is True
     assert onet_version  # e.g. "28.1"
     assert input_versions and len(input_versions) > 0
+
+
+# ── Releases ──
+
+
+def test_quarter_label_maps_month_to_quarter():
+    assert _quarter_label(date(2026, 1, 15)) == "2026-Q1"
+    assert _quarter_label(date(2026, 7, 17)) == "2026-Q3"
+    assert _quarter_label(date(2026, 12, 31)) == "2026-Q4"
+
+
+async def test_cut_release_labels_quarter_and_registers_deltas(session: AsyncSession):
+    """The first release auto-labels by quarter, marks is_release, and registers
+    every dataset in the version register as a dataset_version_delta."""
+    if not await _has_seed(session):
+        pytest.skip("derived data not populated")
+
+    # Distinct datasets (they accrue version history — count names, not rows).
+    datasets = (
+        await session.execute(text("SELECT count(DISTINCT dataset_name) FROM dataset_versions"))
+    ).scalar_one()
+    result = await cut_release(session, as_of_iso="2026-07-17")
+
+    assert result["skipped"] is False
+    assert result["label"] == "2026-Q3"
+    assert result["dataset_deltas"] == datasets  # first release → all are "new"
+
+    run = (
+        await session.execute(
+            text("SELECT is_release, label FROM snapshot_runs ORDER BY id DESC LIMIT 1")
+        )
+    ).one()
+    assert run[0] is True and run[1] == "2026-Q3"
+
+
+async def test_release_guard_skips_when_register_unchanged(session: AsyncSession):
+    """A second release with no dataset-version change is skipped (no empty
+    releases), unless forced."""
+    if not await _has_seed(session):
+        pytest.skip("derived data not populated")
+
+    await cut_release(session, as_of_iso="2026-07-17")
+    again = await cut_release(session, as_of_iso="2026-07-17")
+    assert again["skipped"] is True
+
+    forced = await cut_release(session, as_of_iso="2026-07-17", force=True)
+    assert forced["skipped"] is False
+
+
+async def test_release_detects_a_new_data_version(session: AsyncSession):
+    """When a dataset publishes a new version, the next release is not skipped
+    and its delta names exactly the changed dataset."""
+    if not await _has_seed(session):
+        pytest.skip("derived data not populated")
+
+    await cut_release(session, as_of_iso="2026-07-17")
+    # Simulate a data release: bump one dataset's version (rolled back after).
+    await session.execute(
+        text("UPDATE dataset_versions SET version_key = 'test-next' WHERE dataset_name = 'onet'")
+    )
+    nxt = await cut_release(session, as_of_iso="2026-10-01")
+
+    assert nxt["skipped"] is False
+    assert nxt["label"] == "2026-Q4"
+    assert nxt["changed"] == ["onet"]
+    assert nxt["dataset_deltas"] == 1
