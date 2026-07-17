@@ -6,6 +6,7 @@ import { api, IS_STATIC, type GDPvalTaskDetail } from "../lib/api";
 import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch";
 import { ZONE_COLORS, ZONE_BG, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_COLORS } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { RegionBadge } from "../components/RegionBadge";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
 import { OccupationSummaryPanel } from "../components/OccupationSummaryPanel";
@@ -299,9 +300,14 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start" }}>
         <div>
           <h2 style={{ fontFamily: TYPE.display, fontSize: 22, fontWeight: 600, margin: 0 }}>{occ.title}</h2>
-          <div style={{ fontSize: 12, color: theme.inkMuted, marginTop: 2 }}>
-            {occ.soc_code}
-            {occ.total_employment && ` · ${occ.total_employment >= 1_000_000 ? `${(occ.total_employment / 1_000_000).toFixed(1)}M` : `${(occ.total_employment / 1000).toFixed(0)}K`} workers`}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 12, color: theme.inkMuted, marginTop: 2 }}>
+            <span>
+              {occ.soc_code}
+              {occ.total_employment && ` · ${occ.total_employment >= 1_000_000 ? `${(occ.total_employment / 1_000_000).toFixed(1)}M` : `${(occ.total_employment / 1000).toFixed(0)}K`} workers`}
+            </span>
+            {/* Occupation detail reads US data (O*NET tasks, OEWS employment)
+                whatever market is selected — never show AU over US data (#74). */}
+            <RegionBadge region="US" note="Occupation readings use US O*NET tasks and BLS employment" />
           </div>
         </div>
         <div style={{ display: "flex", gap: 8, alignItems: "center" }}>

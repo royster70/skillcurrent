@@ -1,10 +1,12 @@
 import { useState, useMemo } from "react";
-import { useParams, useNavigate, useSearchParams } from "react-router-dom";
+import { useParams, useNavigate } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, MOVEMENT_COLORS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { useRegion } from "../lib/region";
+import { RegionBadge } from "../components/RegionBadge";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
@@ -15,8 +17,7 @@ const t = THEME.light;
 
 export function SectorDetailPage() {
   const { code } = useParams<{ code: string }>();
-  const [searchParams] = useSearchParams();
-  const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
+  const { region } = useRegion();
   const navigate = useNavigate();
   const [showFullMix, setShowFullMix] = useState(false);
   const [gdpvalFilter, setGdpvalFilter] = useState(false);
@@ -87,7 +88,7 @@ export function SectorDetailPage() {
     <div style={{ display: "flex", flexDirection: "column", gap: 24, fontFamily: TYPE.body, color: t.ink }}>
       {/* Header */}
       <div>
-        <button onClick={() => navigate(`/${region === "AU" ? "?region=AU" : ""}`)}
+        <button onClick={() => navigate(`/sectors${region === "AU" ? "?region=AU" : ""}`)}
           style={{ fontSize: 13, color: t.brass, background: "none", border: "none", cursor: "pointer", padding: 0, marginBottom: 8 }}>
           ← Back to Sectors
         </button>
@@ -95,6 +96,7 @@ export function SectorDetailPage() {
         <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
           {region === "AU" ? "ANZSIC" : "NAICS"} {data.naics_code} · {data.occupation_count} occupations
           {data.total_employment ? ` · ${(data.total_employment / 1_000_000).toFixed(1)}M ${region === "AU" ? "AU" : "US"} workers` : ""}
+          {" "}<RegionBadge region={region} />
         </p>
       </div>
 

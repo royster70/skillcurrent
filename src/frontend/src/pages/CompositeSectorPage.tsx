@@ -19,6 +19,8 @@ import {
 } from "../lib/api";
 import { ZONE_COLORS, ZONE_BG, THEME, TYPE, BRASS_TINT } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { useRegion, type Region } from "../lib/region";
+import { RegionBadge } from "../components/RegionBadge";
 import type { Lexicon } from "../lib/lexicon";
 import { MetricCard } from "../components/MetricCard";
 import { ZoneLegend } from "../components/ZoneExplorer";
@@ -36,7 +38,7 @@ export function CompositeSectorPage() {
   const [searchParams] = useSearchParams();
   const navigate = useNavigate();
   const codes = (searchParams.get("codes") || "").split(",").filter(Boolean);
-  const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
+  const { region } = useRegion();
   const company = searchParams.get("company") || undefined;
 
   const { data, loading, error } = useApi(
@@ -87,7 +89,7 @@ function CompositeContent({
 }: {
   data: CompositeSectorResponse;
   navigate: ReturnType<typeof useNavigate>;
-  region?: string;
+  region?: Region;
 }) {
   const { mode, lex } = useLanguage();
   const totalEmp = data.total_employment;
@@ -118,7 +120,8 @@ function CompositeContent({
             </h1>
             <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
               {data.codes.length} sectors · {fmtEmp(totalEmp)} workers
-              · composite AI exposure profile
+              · composite AI exposure profile{" "}
+              <RegionBadge region={region} />
             </p>
           </>
         ) : (
@@ -128,7 +131,8 @@ function CompositeContent({
             </h1>
             <p style={{ fontSize: 14, color: t.inkMuted, margin: "4px 0 0" }}>
               {data.codes.length} sectors combined · {fmtEmp(totalEmp)} workers
-              · employment-weighted exposure profile
+              · employment-weighted exposure profile{" "}
+              <RegionBadge region={region} />
             </p>
           </>
         )}

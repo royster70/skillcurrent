@@ -3,6 +3,7 @@ import { useNavigate, useSearchParams } from "react-router-dom";
 import { api, IS_STATIC, type SearchResult } from "../lib/api";
 import { THEME, TYPE, BRASS_TINT, ZONE_COLORS, SIGNAL_COLORS } from "../lib/constants";
 import { useLanguage } from "../lib/language";
+import { RegionBadge } from "../components/RegionBadge";
 import { CurrentFlow } from "../components/current/CurrentFlow";
 import { Waypoint } from "../components/Waypoint";
 import { DUR, EASE } from "../components/current/motion";
@@ -249,9 +250,14 @@ export function SearchPage() {
 
       {results.length > 0 && (
         <div style={{ display: "flex", flexDirection: "column", gap: 8 }}>
-          <div style={{ fontSize: 13, color: t.inkMuted, marginBottom: 4 }}>
-            {results.length} occupation{results.length !== 1 ? "s" : ""} matching "{query}"
-            {mode === "semantic" && (IS_STATIC ? " (best match)" : " (semantic)")}
+          <div style={{ display: "flex", alignItems: "center", gap: 8, flexWrap: "wrap", fontSize: 13, color: t.inkMuted, marginBottom: 4 }}>
+            <span>
+              {results.length} occupation{results.length !== 1 ? "s" : ""} matching "{query}"
+              {mode === "semantic" && (IS_STATIC ? " (best match)" : " (semantic)")}
+            </span>
+            {/* Search runs over the US O*NET corpus regardless of the selected
+                market — say so rather than silently implying otherwise (#74). */}
+            <RegionBadge region="US" note="Search covers the US O*NET title corpus" />
           </div>
 
           {results.map((r) => (
@@ -349,7 +355,7 @@ function ResultRow({ r, onOpen }: { r: SearchResult; onOpen: () => void }) {
         )}
         {!r.category && r.total_employment && (
           <div style={{ fontSize: 12, color: t.inkMuted, marginTop: 2, fontFamily: TYPE.mono }}>
-            {(r.total_employment / 1000).toFixed(0)}K workers nationally
+            {(r.total_employment / 1000).toFixed(0)}K US workers
           </div>
         )}
       </div>
