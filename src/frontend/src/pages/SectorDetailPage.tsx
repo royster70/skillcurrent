@@ -3,7 +3,8 @@ import { useParams, useNavigate, useSearchParams } from "react-router-dom";
 import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer, Cell, LabelList } from "recharts";
 import { useApi } from "../hooks/useApi";
 import { api, type PriorityRole, type SectorSummary } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, MOVEMENT_COLORS, MOVEMENT_LABELS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, MOVEMENT_COLORS, GDPVAL_COLORS, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { ContextualScoreCard } from "../components/ContextualScoreCard";
 import { ZoneLegend } from "../components/ZoneExplorer";
 import { SubdivisionBarPanel } from "../components/SubdivisionBarPanel";
@@ -321,6 +322,7 @@ function generateNarrative(data: {
 }
 
 function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigate: ReturnType<typeof useNavigate>; hasGdpval?: boolean }) {
+  const { lex } = useLanguage();
   const zoneColor = r.dominant_zone ? ZONE_COLORS[r.dominant_zone as keyof typeof ZONE_COLORS] : t.inkMuted;
   const tideColor = r.drift_classification ? MOVEMENT_COLORS[r.drift_classification as keyof typeof MOVEMENT_COLORS] : t.inkMuted;
 
@@ -364,7 +366,7 @@ function RoleRow({ role: r, navigate, hasGdpval }: { role: PriorityRole; navigat
       <td style={{ ...td, textAlign: "center" }}>
         {r.drift_classification && (
           <span
-            title={MOVEMENT_LABELS[r.drift_classification as keyof typeof MOVEMENT_LABELS] ?? r.drift_classification}
+            title={lex.movementLabels[r.drift_classification as keyof typeof lex.movementLabels] ?? r.drift_classification}
             style={{ fontSize: 11, fontWeight: 500, color: tideColor }}
           >
             {r.drift_classification === "departing" ? "\u2191" : r.drift_classification === "enduring" ? "\u2192" : "\u26A0"}

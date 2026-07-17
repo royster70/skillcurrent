@@ -24,6 +24,8 @@ import { useMemo } from "react";
 import { Link } from "react-router-dom";
 import type { TaskMatrixResponse, BearingsResponse } from "../lib/api";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG, ZONE_THRESHOLDS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
+import type { Lexicon } from "../lib/lexicon";
 
 const t = THEME.light;
 
@@ -52,13 +54,13 @@ export function zoneMix(data: TaskMatrixResponse): Record<ZoneKey, number> {
   return w;
 }
 
-/** The lead sentence — which pattern this role's mix calls for. */
-export function leadFor(mix: Record<ZoneKey, number>): string {
-  if (mix.E0 >= 0.5)
-    return "Most of this role's weight already sits on dry ground — the play is to hold it: deepen the human work below, and watch the tide for change.";
-  if (mix.E2 >= 0.35)
-    return "A significant share of this role's weight is already submerged. The role consolidates around its dry remainder — and the same dry skills open drier doors.";
-  return "Most of this role's weight sits at the line — AI assists, human leads. Being the person who wields the tools on those tasks is the near-term advantage.";
+/** The lead sentence — which pattern this role's mix calls for. The words
+ * come from the active lexicon (#79) so plain and nautical modes tell the
+ * same story in their own register. */
+export function leadFor(mix: Record<ZoneKey, number>, leads: Lexicon["leads"]): string {
+  if (mix.E0 >= 0.5) return leads.hold;
+  if (mix.E2 >= 0.35) return leads.consolidate;
+  return leads.toolUp;
 }
 
 const SECTION: React.CSSProperties = {
@@ -75,6 +77,7 @@ const SECTION: React.CSSProperties = {
  * same /occupations/{soc}/bearings response, so fetching it twice would be
  * a redundant round trip for identical data. */
 export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrixResponse; bearings: BearingsResponse | null }) {
+  const { mode, lex } = useLanguage();
   const mix = useMemo(() => zoneMix(matrixData), [matrixData]);
 
   // Top at-the-line tasks by importance; rising usage first (the current is
@@ -102,8 +105,8 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
   return (
     <div style={{ background: t.surface, borderRadius: 12, border: `1.5px solid ${t.line}`, padding: 20, fontFamily: TYPE.body, color: t.ink }}>
       {/* Header + the mix */}
-      <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>Your bearings</div>
-      <div style={{ fontSize: 12.5, color: t.inkMuted, marginTop: 2, maxWidth: 560, lineHeight: 1.45 }}>{leadFor(mix)}</div>
+      <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>{lex.instruments.bearings}</div>
+      <div style={{ fontSize: 12.5, color: t.inkMuted, marginTop: 2, maxWidth: 560, lineHeight: 1.45 }}>{leadFor(mix, lex.leads)}</div>
 
       {/* The mix strip — importance-weighted zone shares on the shared axis */}
       <div style={{ display: "flex", alignItems: "center", gap: 10, marginTop: 12, marginBottom: 18, maxWidth: 560 }}>
@@ -115,19 +118,21 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
           )}
         </div>
         <span style={{ fontFamily: TYPE.mono, fontSize: 11, color: t.inkMuted, whiteSpace: "nowrap" }}>
-          {pct(mix.E0)} dry · {pct(mix.E1)} at the line · {pct(mix.E2)} under
+          {pct(mix.E0)} {lex.mixTerms.dry} · {pct(mix.E1)} {lex.mixTerms.line} · {pct(mix.E2)} {lex.mixTerms.under}
         </span>
       </div>
 
       <div style={{ display: "flex", flexWrap: "wrap", gap: "20px 28px" }}>
-        {/* Your high ground — the dry skills to deepen */}
+        {/* Your high ground / durable skills — the low-exposure work to deepen */}
         <div style={{ flex: "1 1 250px", minWidth: 0 }}>
-          <div style={SECTION}>Your high ground — deepen these</div>
+          <div style={SECTION}>{lex.instruments.highGround} — deepen these</div>
           {bearings == null ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Reading the chart…</div>
+            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Loading…</div>
           ) : bearings.high_ground.length === 0 ? (
             <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>
-              No activities in this role sit clearly dry — the tooling and repositioning readings matter more here.
+              {mode === "plain"
+                ? "No activities in this role are clearly low-exposure — the tooling and repositioning readings matter more here."
+                : "No activities in this role sit clearly dry — the tooling and repositioning readings matter more here."}
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 6 }}>
@@ -142,16 +147,20 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
           )}
         </div>
 
-        {/* Where the high ground leads — drier roles sharing those skills */}
+        {/* Where those skills lead — less-exposed roles sharing them */}
         <div style={{ flex: "1 1 280px", minWidth: 0 }}>
-          <div style={SECTION}>Where the high ground leads</div>
+          <div style={SECTION}>{mode === "plain" ? "Where these skills lead" : "Where the high ground leads"}</div>
           {bearings == null ? (
-            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Taking bearings…</div>
+            <div style={{ fontSize: 12, color: t.inkMuted, fontStyle: "italic" }}>Loading…</div>
           ) : alreadyDry ? (
             <div style={{ fontSize: 12.5, color: t.inkMuted, lineHeight: 1.5 }}>
-              This role already holds the high ground — there's nowhere meaningfully drier to move.
-              The bearing is to <strong style={{ color: t.ink }}>stay and deepen</strong>, and{" "}
-              <Link to="/tide" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>watch the tide →</Link>
+              {mode === "plain"
+                ? "This role is already among the least exposed — there's nowhere meaningfully less exposed to move. The advice is to "
+                : "This role already holds the high ground — there's nowhere meaningfully drier to move. The bearing is to "}
+              <strong style={{ color: t.ink }}>stay and deepen</strong>, and{" "}
+              <Link to="/tide" style={{ color: t.brass, fontWeight: 600, textDecoration: "none" }}>
+                {mode === "plain" ? "watch the trends →" : "watch the tide →"}
+              </Link>
             </div>
           ) : (
             <div style={{ display: "flex", flexDirection: "column", gap: 10 }}>
@@ -164,7 +173,7 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
                   <div style={{ display: "flex", alignItems: "baseline", gap: 8, flexWrap: "wrap" }}>
                     <span style={{ fontSize: 13, fontWeight: 600, color: t.brass }}>{a.title}</span>
                     <span style={{ fontFamily: TYPE.mono, fontSize: 10.5, color: t.inkMuted, whiteSpace: "nowrap" }}>
-                      β {a.beta.toFixed(2)} · drier by {a.drier_by.toFixed(2)}
+                      {lex.fmt.score(a.beta)} · {lex.fmt.drierBy(a.drier_by)}
                       {a.total_employment != null && ` · ${fmtEmp(a.total_employment)} workers`}
                     </span>
                   </div>
@@ -174,7 +183,9 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
                 </Link>
               ))}
               <div style={{ fontSize: 10.5, color: t.inkMuted, fontStyle: "italic" }}>
-                Ranked by shared dry activities × how much drier the move is.
+                {mode === "plain"
+                  ? "Ranked by shared low-exposure activities × how much lower the move's exposure is."
+                  : "Ranked by shared dry activities × how much drier the move is."}
               </div>
             </div>
           )}
@@ -197,7 +208,7 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
                 </div>
               ))}
               <Link to="/tide" style={{ fontSize: 11.5, color: t.brass, fontWeight: 600, textDecoration: "none" }}>
-                See what the tide reaches next →
+                {mode === "plain" ? "See which tasks are rising next →" : "See what the tide reaches next →"}
               </Link>
             </div>
           </div>
@@ -206,8 +217,9 @@ export function BearingsPanel({ matrixData, bearings }: { matrixData: TaskMatrix
 
       {/* Honesty footer */}
       <div style={{ fontSize: 10.5, color: t.inkMuted, fontStyle: "italic", marginTop: 16 }}>
-        Bearings, not fate — exposure measures what AI could reach, not what happens to jobs.
-        Directions are task-structure arithmetic (roles sharing this role's dry activities), not career advice.
+        {mode === "plain"
+          ? "Guidance, not fate — exposure measures what AI could reach, not what happens to jobs. Directions are task-structure arithmetic (roles sharing this role's least-exposed activities), not career advice."
+          : "Bearings, not fate — exposure measures what AI could reach, not what happens to jobs. Directions are task-structure arithmetic (roles sharing this role's dry activities), not career advice."}
       </div>
     </div>
   );

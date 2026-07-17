@@ -22,6 +22,7 @@ import { useId, useMemo, useState, useEffect, useRef } from "react";
 import { useApi } from "../hooks/useApi";
 import { api, type WaterlineResponse } from "../lib/api";
 import { THEME, TYPE } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { DUR, EASE, prefersReducedMotion } from "./current/motion";
 
 /** Reveal that self-heals: IntersectionObserver drives the rise on scroll, but a
@@ -191,6 +192,8 @@ function submergedEra(eras: EraPoint[], level: number): string | null {
 }
 
 export function EraTide({ compact = false }: { compact?: boolean }) {
+  const { mode } = useLanguage();
+  const plain = mode === "plain";
   const { ref, shown } = useSafeReveal<HTMLDivElement>();
   const { data } = useApi(() => api.waterline(), []);
   const series = useMemo(() => buildSeries(data), [data]);
@@ -270,7 +273,7 @@ export function EraTide({ compact = false }: { compact?: boolean }) {
                   fontFamily={TYPE.mono}
                   fill={under ? t.current : t.inkMuted}
                 >
-                  {under ? `under since ${era}` : "stays dry"}
+                  {under ? (plain ? `within reach since ${era}` : `under since ${era}`) : plain ? "still human-led" : "stays dry"}
                 </text>
               </g>
             );
@@ -390,7 +393,7 @@ export function EraTide({ compact = false }: { compact?: boolean }) {
           >
             <span>← earlier generations</span>
             <span>a generation every few months — not decades</span>
-            <span style={{ color: t.brass }}>the tide only rises →</span>
+            <span style={{ color: t.brass }}>{plain ? "capability only rises →" : "the tide only rises →"}</span>
           </div>
           <div style={{ fontSize: 10, color: t.inkMuted, fontStyle: "italic", marginTop: 6, lineHeight: 1.5 }}>
             {series.real

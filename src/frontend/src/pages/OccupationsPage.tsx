@@ -4,7 +4,8 @@ import { BarChart, Bar, XAxis, YAxis, Tooltip, ResponsiveContainer } from "recha
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC, type GDPvalTaskDetail } from "../lib/api";
 import { similarOccupations, type SimilarOccupation } from "../lib/clientSearch";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, ZONE_TITLES, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_LABELS, MOVEMENT_COLORS } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, SIGNAL_COLORS, THEME, TYPE, BRASS_TINT, BETA_SCALE, ZONE_THRESHOLDS, MOVEMENT_COLORS } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { TaskWaterline } from "../components/TaskMatrix";
 import { BearingsPanel } from "../components/BearingsPanel";
 import { OccupationSummaryPanel } from "../components/OccupationSummaryPanel";
@@ -58,21 +59,21 @@ const TIDE_GLYPH: Record<string, string> = {
   unclassified: "·",
 };
 
-/** Occupation-level tide indicator for the detail header. Reads the same
- * Rising Tide vocabulary as the Tide page and sector role rows: the dominant
- * task movement (drift_classification), with the aggregate drift velocity in
- * the tooltip for transparency. Null when the occupation has no drift signal. */
+/** Occupation-level direction-of-change indicator for the detail header.
+ * Reads the same movement vocabulary as the Tide page and sector role rows:
+ * the dominant task movement (drift_classification). The velocity number is
+ * jargon — it lives in the tooltip, phrased by the active lexicon (#79).
+ * Null when the occupation has no drift signal. */
 function TideChip({ classification, velocity }: { classification: string | null; velocity: number | null }) {
+  const { lex } = useLanguage();
   if (!classification) return null;
-  const key = classification as keyof typeof MOVEMENT_LABELS;
+  const key = classification as keyof typeof lex.movementLabels;
   const color = MOVEMENT_COLORS[key] ?? theme.inkMuted;
-  const label = MOVEMENT_LABELS[key] ?? classification;
+  const label = lex.movementLabels[key] ?? classification;
   const glyph = TIDE_GLYPH[classification] ?? TIDE_GLYPH.unclassified;
-  const drift =
-    velocity != null ? `${velocity >= 0 ? "+" : ""}${velocity.toFixed(4)}/era` : "no velocity";
   return (
     <span
-      title={`Tide — dominant task movement: ${label} (avg drift ${drift})`}
+      title={`${lex.headline.direction}: ${label} (${lex.fmt.driftTooltip(velocity)})`}
       style={{
         display: "inline-flex", alignItems: "center", gap: 5,
         fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
@@ -86,8 +87,19 @@ function TideChip({ classification, velocity }: { classification: string | null;
 }
 
 export function OccupationsPage() {
+  const { mode } = useLanguage();
   const { data: hierarchy, loading } = useApi(() => api.hierarchy(), []);
   const { data: gdpvalData } = useApi(() => api.gdpvalSummary(), []);
+
+  // Empty-state pitch, phrased by the active lexicon (#79).
+  const emptyStateBlurb =
+    mode === "plain"
+      ? "Pick an occupation family on the left, then a role — every one of its tasks is " +
+        "placed on the same AI-exposure scale used across the platform, with rising AI " +
+        "usage marked."
+      : "Pick an occupation family on the left, then a role — every one of its tasks is " +
+        "placed on the same dry→submerged scale the whole platform reads on, with the " +
+        "current marking where AI usage is rising.";
   const [searchParams] = useSearchParams();
   const initialSoc = searchParams.get("selected");
   const [selectedSoc, setSelectedSoc] = useState<string | null>(initialSoc);
@@ -232,9 +244,7 @@ export function OccupationsPage() {
               The live per-task reading
             </div>
             <p style={{ fontSize: 13.5, color: theme.inkMuted, lineHeight: 1.6, maxWidth: 400, margin: "10px 0 0" }}>
-              Pick an occupation family on the left, then a role — every one of its
-              tasks is placed on the same dry→submerged scale the whole platform reads on,
-              with the current marking where AI usage is rising.
+              {emptyStateBlurb}
             </p>
             {/* Router Link, not a raw <a href="/..."> — an absolute href bypasses
                 the router basename and escapes the app when it's served under a
@@ -250,6 +260,7 @@ export function OccupationsPage() {
 }
 
 function OccupationDetailPanel({ soc }: { soc: string }) {
+  const { lex } = useLanguage();
   const { data: occ, loading } = useApi(() => api.occupation(soc), [soc]);
   const { data: matrixData } = useApi(() => api.taskMatrix(soc), [soc]);
   // Lifted here (not fetched inside BearingsPanel/OccupationSummaryPanel) —
@@ -298,11 +309,11 @@ function OccupationDetailPanel({ soc }: { soc: string }) {
           <ContextualScoreCard label="Microsoft" value={occ.ms_ai_applicability} percentile={occ.ms_ai_percentile} median={occ.ms_ai_median} population={occ.ms_ai_population} signalColor={SIGNAL_COLORS.microsoft} sourceKey="microsoft" />
           <ContextualScoreCard label="AEI" value={occ.aei_exposure} percentile={occ.aei_percentile} median={occ.aei_median} population={occ.aei_population} signalColor={SIGNAL_COLORS.aei} sourceKey="aei" eraSnapshots={occ.aei_era_snapshots} />
           {occ.dominant_zone && (
-            <span title={ZONE_TITLES[occ.dominant_zone as keyof typeof ZONE_TITLES]} style={{
+            <span title={lex.zoneTitles[occ.dominant_zone as keyof typeof lex.zoneTitles]} style={{
               fontSize: 12, fontWeight: 600, padding: "4px 12px", borderRadius: 16,
               backgroundColor: zoneColor + "15", color: zoneColor, border: `1px solid ${zoneColor}40`,
             }}>
-              {ZONE_LABELS[occ.dominant_zone as keyof typeof ZONE_LABELS] || occ.dominant_zone}
+              {lex.zoneLabels[occ.dominant_zone as keyof typeof lex.zoneLabels] || occ.dominant_zone}
             </span>
           )}
           <TideChip classification={occ.drift_classification} velocity={occ.drift_velocity} />

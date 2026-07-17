@@ -17,9 +17,10 @@
 import { useMemo, useState } from "react";
 import type { TaskMatrixResponse, TaskMatrixPoint, GDPvalTaskDetail } from "../lib/api";
 import {
-  THEME, TYPE, ZONE_COLORS, ZONE_BG, ZONE_LABELS,
+  THEME, TYPE, ZONE_COLORS, ZONE_BG,
   BETA_SCALE, ZONE_THRESHOLDS, GDPVAL_COLORS,
 } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 
 const t = THEME.light;
 
@@ -67,6 +68,7 @@ interface TaskMatrixProps {
 }
 
 export function TaskWaterline({ data, highlightedTaskId, gdpvalTasks, onRequestGdpval }: TaskMatrixProps) {
+  const { mode, lex } = useLanguage();
   const [sort, setSort] = useState<SortKey>("exposure");
   const [showCurrent, setShowCurrent] = useState(true);
   const [showGdpval, setShowGdpval] = useState(false);
@@ -110,10 +112,11 @@ export function TaskWaterline({ data, highlightedTaskId, gdpvalTasks, onRequestG
       {/* Header */}
       <div style={{ display: "flex", justifyContent: "space-between", alignItems: "flex-start", gap: 12, flexWrap: "wrap", marginBottom: 10 }}>
         <div>
-          <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>Task waterline</div>
+          <div style={{ fontFamily: TYPE.display, fontSize: 18, fontWeight: 600 }}>{lex.instruments.taskChart}</div>
           <div style={{ fontSize: 12.5, color: t.inkMuted, marginTop: 2, maxWidth: 460, lineHeight: 1.4 }}>
-            Every task placed on the exposure scale. What sits below the waterline is
-            already doable by AI; the dry end stays distinctly human.
+            {mode === "plain"
+              ? "Every task placed on the exposure scale. The high end is already doable by AI; the low end stays distinctly human."
+              : "Every task placed on the exposure scale. What sits below the waterline is already doable by AI; the dry end stays distinctly human."}
           </div>
         </div>
         <div style={{ display: "flex", gap: 6, alignItems: "center", flexWrap: "wrap" }}>
@@ -131,7 +134,7 @@ export function TaskWaterline({ data, highlightedTaskId, gdpvalTasks, onRequestG
           }}>
             <span style={{ width: 8, height: 8, borderRadius: "50%", background: ZONE_COLORS[z] }} />
             <span style={{ fontSize: 12, fontWeight: 600, color: ZONE_COLORS[z] }}>{zoneCounts[z]}</span>
-            <span style={{ fontSize: 11.5, color: t.inkMuted }}>{ZONE_LABELS[z]}</span>
+            <span style={{ fontSize: 11.5, color: t.inkMuted }}>{lex.zoneLabels[z]}</span>
           </div>
         ))}
         {hasEras && (
@@ -233,6 +236,7 @@ function SortToggle({ sort, onChange }: { sort: SortKey; onChange: (s: SortKey) 
 const GRID = "1fr clamp(140px, 34%, 260px) 52px";
 
 function ScaleHeader() {
+  const { mode, lex } = useLanguage();
   const e1 = pctOfScale(ZONE_THRESHOLDS.E1);
   const e2 = pctOfScale(ZONE_THRESHOLDS.E2);
   return (
@@ -241,9 +245,9 @@ function ScaleHeader() {
       <div style={{ position: "relative", height: 26 }}>
         {/* band labels */}
         <div style={{ position: "absolute", inset: 0, display: "flex", fontSize: 9.5, fontWeight: 600 }}>
-          <div style={{ width: `${e1}%`, color: ZONE_COLORS.E0 }}>{ZONE_LABELS.E0}</div>
-          <div style={{ width: `${e2 - e1}%`, color: ZONE_COLORS.E1, textAlign: "center" }}>{ZONE_LABELS.E1}</div>
-          <div style={{ width: `${100 - e2}%`, color: ZONE_COLORS.E2, textAlign: "right" }}>{ZONE_LABELS.E2}</div>
+          <div style={{ width: `${e1}%`, color: ZONE_COLORS.E0 }}>{lex.zoneLabels.E0}</div>
+          <div style={{ width: `${e2 - e1}%`, color: ZONE_COLORS.E1, textAlign: "center" }}>{lex.zoneLabels.E1}</div>
+          <div style={{ width: `${100 - e2}%`, color: ZONE_COLORS.E2, textAlign: "right" }}>{lex.zoneLabels.E2}</div>
         </div>
         {/* threshold ticks */}
         <div style={{ position: "absolute", left: `${e1}%`, bottom: 0, fontSize: 9, color: t.inkMuted, transform: "translateX(-50%)", fontFamily: TYPE.mono }}>
@@ -253,7 +257,9 @@ function ScaleHeader() {
           {ZONE_THRESHOLDS.E2.toFixed(2)}
         </div>
       </div>
-      <div style={{ fontSize: 10.5, color: t.inkMuted, textAlign: "right", textTransform: "uppercase", letterSpacing: 0.4 }}>β</div>
+      <div style={{ fontSize: 10.5, color: t.inkMuted, textAlign: "right", textTransform: "uppercase", letterSpacing: 0.4 }}>
+        {mode === "plain" ? "score" : "β"}
+      </div>
     </div>
   );
 }

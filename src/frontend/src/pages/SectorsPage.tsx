@@ -2,7 +2,8 @@ import { useState } from "react";
 import { Link, useSearchParams } from "react-router-dom";
 import { useApi } from "../hooks/useApi";
 import { api, IS_STATIC } from "../lib/api";
-import { ZONE_COLORS, ZONE_BG, ZONE_LABELS, THEME, TYPE } from "../lib/constants";
+import { ZONE_COLORS, ZONE_BG, THEME, TYPE } from "../lib/constants";
+import { useLanguage } from "../lib/language";
 import { MetricCard } from "../components/MetricCard";
 import { CompanyLookup } from "../components/CompanyLookup";
 import { SectorChipSelector } from "../components/SectorChipSelector";
@@ -14,6 +15,7 @@ import { RegionSelector } from "../components/RegionSelector";
 const t = THEME.light;
 
 export function SectorsPage() {
+  const { mode, lex } = useLanguage();
   const [searchParams, setSearchParams] = useSearchParams();
   const region = searchParams.get("region")?.toUpperCase() === "AU" ? "AU" : "US";
   const { data, loading, error } = useApi(() => api.sectors(region), [region]);
@@ -63,16 +65,16 @@ export function SectorsPage() {
 
       {/* Metric cards — workers at risk */}
       <div style={{ display: "flex", gap: 16 }}>
-        <MetricCard label="INSULATED (E0)" value={fmtEmp(workersE0)}
-          subtitle={`workers in ${totalE0} occupations with Beta < 0.40`} color={ZONE_COLORS.E0} />
-        <MetricCard label="AUGMENTED (E1)" value={fmtEmp(workersE1)}
-          subtitle={`workers in ${totalE1} occupations with Beta 0.40–0.85`} color={ZONE_COLORS.E1} />
-        <MetricCard label={`${ZONE_LABELS.E2.toUpperCase()} (E2)`} value={fmtEmp(workersE2)}
-          subtitle={`workers in ${totalE2} occupations with Beta ≥ 0.85`} color={ZONE_COLORS.E2} />
+        <MetricCard label={mode === "plain" ? lex.zoneLabels.E0.toUpperCase() : `${lex.zoneLabels.E0.toUpperCase()} (E0)`} value={fmtEmp(workersE0)}
+          subtitle={mode === "plain" ? `workers in ${totalE0} occupations` : `workers in ${totalE0} occupations with Beta < 0.40`} color={ZONE_COLORS.E0} />
+        <MetricCard label={mode === "plain" ? lex.zoneLabels.E1.toUpperCase() : `${lex.zoneLabels.E1.toUpperCase()} (E1)`} value={fmtEmp(workersE1)}
+          subtitle={mode === "plain" ? `workers in ${totalE1} occupations` : `workers in ${totalE1} occupations with Beta 0.40–0.85`} color={ZONE_COLORS.E1} />
+        <MetricCard label={mode === "plain" ? lex.zoneLabels.E2.toUpperCase() : `${lex.zoneLabels.E2.toUpperCase()} (E2)`} value={fmtEmp(workersE2)}
+          subtitle={mode === "plain" ? `workers in ${totalE2} occupations` : `workers in ${totalE2} occupations with Beta ≥ 0.85`} color={ZONE_COLORS.E2} />
         {/* Unlike the three zone cards, this is Rising-Tide vocabulary — so it
             links there (and uses that page's own label, not raw jargon). */}
         <Link to="/tide" title="See these tasks on Rising Tide →" style={{ flex: 1, display: "flex", textDecoration: "none" }}>
-          <MetricCard label="AT THE WATERLINE" value={String(drift?.below_threshold || 0)}
+          <MetricCard label={lex.movementLabels.below_threshold.toUpperCase()} value={String(drift?.below_threshold || 0)}
             subtitle="the next tasks to flip zones →" color={ZONE_COLORS.alert}
             bgColor={ZONE_BG.alert} borderColor={`${ZONE_COLORS.alert}40`} />
         </Link>

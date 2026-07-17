@@ -20,6 +20,7 @@
 import { Link } from "react-router-dom";
 import { THEME, TYPE, ZONE_COLORS, ZONE_BG, ZONE_LABELS, ZONE_THRESHOLDS, BETA_SCALE } from "../lib/constants";
 import { zoneOf } from "../components/BearingsPanel";
+import { useHashScroll } from "../hooks/useHashScroll";
 
 const t = THEME.light;
 
@@ -73,6 +74,9 @@ const Body = ({ children }: { children: React.ReactNode }) => (
 );
 
 export function MethodologyPage() {
+  // "Explain this score" disclosures deep-link here (#the-formula etc., #79) —
+  // land them scrolled to the right section.
+  useHashScroll();
   const weightedBeta = NURSE_TASKS.reduce((s, task) => s + (task.beta * task.time) / 100, 0);
   const weightedZone = zoneOf(weightedBeta);
 
