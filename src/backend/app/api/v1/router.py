@@ -3,6 +3,7 @@
 from fastapi import APIRouter
 
 from app.api.v1.admin import router as admin_router
+from app.api.v1.au_occupations import router as au_occupations_router
 from app.api.v1.bearings import router as bearings_router
 from app.api.v1.companies import router as companies_router
 from app.api.v1.composite_sector import router as composite_sector_router
@@ -25,6 +26,7 @@ api_router.include_router(composite_sector_router)  # before sectors (literal be
 api_router.include_router(sectors_router)
 api_router.include_router(sector_priorities_router)
 api_router.include_router(occupations_router)
+api_router.include_router(au_occupations_router)  # /au/occupations/{osca}
 api_router.include_router(bearings_router)  # /occupations/{soc}/bearings
 api_router.include_router(task_matrix_router)
 api_router.include_router(drift_router)

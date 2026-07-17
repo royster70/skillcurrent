@@ -184,6 +184,82 @@ class OccupationSectorProfile(BaseModel):
     employment_share: float | None = None
 
 
+# ── AU occupations (OSCA-keyed, FR-9.1/9.2 serving surface — GitHub #73/#78) ──
+
+
+class AscCompetencyItem(BaseModel):
+    """One ASC core competency reading (real named skill, AU-native)."""
+
+    name: str
+    score: float | None = None
+    proficiency_level: str | None = None
+    anchor_value: str | None = None
+
+
+class AnzscoLineageItem(BaseModel):
+    """Legacy ANZSCO key(s) behind an OSCA occupation, with US SOC lineage.
+
+    ``soc_codes`` come from anzsco_soc_concordance (4-digit ANZSCO grain) —
+    provenance only; their confidences are never merged into AU readings.
+    """
+
+    anzsco_code: str
+    relation_type: str | None = None
+    weight: float | None = None
+    soc_codes: list[str] = []
+
+
+class AuExposureSummary(BaseModel):
+    """Task-weighted AU exposure rollup (au_occupation_exposure).
+
+    ``coverage_pct`` is the share of this occupation's ASC tasks with a
+    measured (T2 semantic-bridge) reading — a COVERAGE basis, deliberately
+    distinct from the US 3-signal presence count. Never blend the two.
+    """
+
+    au_task_beta: float | None = None
+    task_count: int | None = None
+    measured_task_count: int | None = None
+    coverage_pct: float | None = None
+    divergent_task_count: int = 0
+    beta_scale: str = "distributed-DWA (directly comparable to the US task matrix)"
+    confidence_basis: str = "semantic DWA-ASC bridge cosine, floored at 0.60 (ADR-011, tier T2)"
+
+
+class AuOccupationIndexEntry(BaseModel):
+    """Compact per-OSCA row for discovery/linking (soc_codes let SOC-keyed
+    AU sector role rows find their OSCA panel)."""
+
+    osca_code: str
+    title: str
+    au_task_beta: float | None = None
+    coverage_pct: float | None = None
+    task_count: int | None = None
+    soc_codes: list[str] = []
+
+
+class AuOccupationIndexResponse(BaseModel):
+    occupations: list[AuOccupationIndexEntry]
+    total: int
+    osca_version: str
+
+
+class AuOccupationDetail(BaseModel):
+    osca_code: str
+    title: str
+    description: str | None = None
+    osca_version: str
+    exposure: AuExposureSummary | None = None
+    competencies: list[AscCompetencyItem] = []
+    # Which ANZSCO key supplied the competencies (exact 6-digit, or the
+    # 4-digit unit group) — never averaged across ANZSCO codes.
+    competency_source_anzsco: str | None = None
+    # OSCA main tasks — descriptor_only by invariant; no exposure attached.
+    main_tasks: list[str] = []
+    anzsco_lineage: list[AnzscoLineageItem] = []
+    total_employment: float | None = None
+
+
 class OccupationsResponse(BaseModel):
     occupations: list[OccupationSummary]
     total: int
