@@ -330,6 +330,18 @@ def _build_pipeline_dag() -> list[PipelineStage]:
             optional=True,
             description="ASX companies (GICS→ANZSIC via crosswalk, classify uses subdivisions)",
         ),
+        # ── Terminal: snapshot the derived readings (ADR-012) ──
+        # Must run LAST, after every derived verdict table is (re)written, so
+        # each pipeline run leaves a durable historical reading to diff against.
+        # Non-optional and captures whatever exists (US always; AU if the
+        # overlay built). Ad-hoc capture (today, unlabelled); a labelled release
+        # is a deliberate `python -m scripts.capture_snapshot --release` call.
+        PipelineStage(
+            "snapshot_derived_products",
+            partial(_call, "capture_snapshot"),
+            depends_on=["compute_drift", "compute_profiles_us"],
+            description="Append a temporal snapshot of derived verdicts (ADR-012)",
+        ),
     ]
 
 

@@ -17,6 +17,7 @@ Numbering note: the first three use `00N-`, the rest `ADR-00N-` (historical; not
 | [009](ADR-009-llm-evaluation-methodology.md) | accepted | LLM classification evaluation methodology |
 | [010](ADR-010-anzsco-osca-employment-apportionment.md) | accepted | **ANZSCO→OSCA employment apportionment** — mirror the ABS convention, apportion by held counts, never invent proportions (FR-9.1) |
 | [011](ADR-011-au-task-exposure-dwa-pivot-ladder.md) | accepted | **AU task-level AI-exposure via a DWA-pivot decision ladder** — semantic bridge is the live measured rung; availability ≠ confidence (FR-9.2) |
+| [012](ADR-012-temporal-snapshot-layer.md) | accepted | **Temporal snapshot layer** — append-only history of derived verdicts captured each pipeline run (β/zone/drift), so "what changed over time" is answerable; live tables untouched (FR-8.x) |
 
 **By theme:**
 - *Data foundations & provenance* — 001, 002, 006

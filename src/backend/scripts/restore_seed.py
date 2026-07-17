@@ -49,7 +49,7 @@ CHUNK_SIZE = 500
 # Tables with a hard FK to another seed table (see the FK graph queried against
 # the live DB) must restore after their parent. Everything else has no
 # DB-enforced FK to another seed table and can follow in any order.
-PARENTS_FIRST = ["onet_occupations", "gdpval_tasks"]
+PARENTS_FIRST = ["onet_occupations", "gdpval_tasks", "snapshot_runs"]
 
 
 def _validate_identifier(name: str) -> None:
