@@ -73,13 +73,36 @@ their clear-and-reload write paths completely untouched.
 
 A terminal, non-optional pipeline stage `snapshot_derived_products` (after every
 derived stage) appends one snapshot per run, tagged with the active
-`pipeline_run_id`. Also callable ad-hoc: `python -m scripts.capture_snapshot
-[--label 2026-Q3 --release]`. Zones are computed on the single canonical
-threshold set (E2 ≥ 0.85, E1 ≥ 0.40, else E0) — never re-derived.
+`pipeline_run_id`. Also callable ad-hoc: `python -m scripts.capture_snapshot`.
+Zones are computed on the single canonical threshold set (E2 ≥ 0.85, E1 ≥ 0.40,
+else E0) — never re-derived.
 
 Because capture is **server-side at recompute time**, the clock starts the day
 this ships: every run not captured is history lost. This is why capture lands
-first (this ADR) and the diff endpoints + `#84` UI follow once ≥2 snapshots exist.
+first (this ADR) and the diff endpoints + `#84` UI follow once ≥2 releases exist.
+
+### Releases — the diffable unit
+
+The unit the product diffs is not "every run" but a **data release**: a snapshot
+cut when a new *dataset version* lands, tied to the `dataset_versions` register
+(ADR-002). The expected rhythm is **quarterly**, but the trigger is a genuine
+change in the register, not the calendar.
+
+`python -m scripts.capture_snapshot --release [--label 2026-Q3] [--force]`:
+- **auto-labels by quarter** from `as_of_date` when no label is given;
+- is **guarded** — if the register is unchanged since the last release (no new
+  data), the release is *skipped* (no empty releases) unless `--force`;
+- **registers the dataset-version delta** — for each dataset whose version
+  changed since the last release, a `dataset_version_deltas` row (ADR-002) records
+  the transition (`from_version_id` when the prior version row survives, else the
+  keys in `delta_detail`). So a release is self-describing: *what data changed*
+  (the version deltas) alongside *what readings changed* (the exposure snapshot).
+
+`_current_register`/`_create_run` take the **latest** version per dataset
+(`DISTINCT ON (dataset_name) … ORDER BY id DESC`) since datasets accrue history,
+so the guard compares like for like. The `#84` diff view then diffs
+**release-over-release** ("what changed since 2026-Q2") — the honest reading of
+"since last quarter".
 
 ## Consequences
 
@@ -105,5 +128,11 @@ Invariant tests (`tests/test_snapshots.py`, seeded-DB integration — the repo's
 first append-only tests): capture counts equal the live source tables per
 entity type; every captured zone agrees with the β thresholds (0 mismatches);
 a second capture adds rows and never mutates the first (append-only), and the
-two runs join cleanly for a diff. Verified against the live compose DB: genesis
-capture wrote 15,513 verdict rows, zone-correct, provenance-stamped.
+two runs join cleanly for a diff. Release tests: quarter auto-labelling; the
+guard skips an unchanged re-cut but `--force` overrides; a simulated new
+dataset version is detected and its delta names exactly the changed dataset.
+
+Verified against the live compose DB: genesis capture wrote 15,513 verdict rows,
+zone-correct, provenance-stamped; a release auto-labelled `2026-Q3` with 14
+dataset-version deltas, the guard skipped an unchanged re-cut, and bumping
+`onet` 28.1→29.0 produced exactly one delta (onet) on the next release.
