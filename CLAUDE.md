@@ -68,10 +68,14 @@ Based on Eloundou Beta scores (E1 + 0.5×E2). Occupation-level data is loaded (9
 **Tier 1 (Industry Intelligence) is complete**: public-data ingestion (O*NET,
 Eloundou, Microsoft, AEI, OEWS/ABS, Epoch AI ECI, GDPval), task drift +
 classification (FR-8.2/8.3), industry profiles (FR-8.4/8.9, US + AU), the
-6-page dashboard (FR-8.5), the GDPval benchmark integration (FR-8.7), the
-AU-native task/exposure layer via OSCA + ASC (FR-9.1/9.2), and the automated
-refresh pipeline (FR-8.8, `scripts/run_pipeline.py`). Observability (ADR-007)
-and the FR-9.5 signal-source registry + redistribution gate are also live.
+dashboard (FR-8.5 — 7 data pages + 3 explainers, plus the audience lens
+[Individual/Organisation/Education] and a chrome-free one-page printable brief),
+the GDPval benchmark integration (FR-8.7), the AU-native task/exposure layer via
+OSCA + ASC (FR-9.1/9.2), and the automated refresh pipeline (FR-8.8,
+`scripts/run_pipeline.py`). Observability (ADR-007), the FR-9.5 signal-source
+registry + redistribution gate, and the ADR-012 temporal snapshot/release layer
+(append-only `snapshot_runs` + `exposure_snapshots`, terminal
+`snapshot_derived_products` pipeline stage, genesis 2026-Q3 release) are also live.
 
 **Tier 2 (Organisational Overlay) is planned, not built**: org hierarchy
 (FR-1) → privacy controls (FR-7) → dashboards (FR-6) is sequential and
@@ -154,7 +158,9 @@ All Tier 1 reference data is ingested. See `docs/INGESTION_RUNBOOK.md` for rebui
 | dwa_asc_bridge | 5,033 | Derived (semantic DWA↔ASC match, top-3, cosine floor 0.60, ADR-011 L2) |
 | au_task | 20,329 | Derived (unified AU task layer, FR-9.2 — 99.97% measured, T2) |
 | au_occupation_exposure | 960 | Derived (task-weighted AU exposure rollup per OSCA, FR-9.2) |
-| **TOTAL** | **~602,645** | |
+| snapshot_runs | 1 | Derived (ADR-012 temporal snapshot layer — genesis 2026-Q3 release) |
+| exposure_snapshots | 15,513 | Derived (ADR-012 — append-only verdict snapshots per run/release) |
+| **TOTAL** | **~618,159** | |
 
 ## Tech Stack
 - **Backend**: Python 3.12, FastAPI, PostgreSQL 16 + pgvector + pg_trgm, Alembic, SQLAlchemy
