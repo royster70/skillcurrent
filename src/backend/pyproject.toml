@@ -17,7 +17,7 @@ requires-python = ">=3.12"
 # imported unconditionally at router load time -- there's no "ml" tier to
 # split out until those become optional/lazily-imported.
 dependencies = [
-    "fastapi>=0.139.0",
+    "fastapi>=0.139.2",
     "uvicorn[standard]>=0.51.0",
     "sqlalchemy[asyncio]>=2.0.51",
     "asyncpg>=0.29",
