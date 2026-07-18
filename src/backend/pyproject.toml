@@ -56,7 +56,7 @@ dev = [
     # If you bump these, bump the `rev:` in .pre-commit-config.yaml in lockstep.
     "black==24.10.0",
     "ruff==0.8.6",
-    "mypy>=1.8",
+    "mypy>=2.3.0",
 ]
 
 # FORMATTER POLICY: black is the sole formatter; ruff is linter-only (no ruff-format hook —
