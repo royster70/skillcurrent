@@ -47,7 +47,7 @@ dev = [
     "skillcurrent-backend[ingest]",
     "pytest>=8.0",
     "pytest-asyncio>=1.4.0",
-    "pytest-cov>=4.0",
+    "pytest-cov>=7.1.0",
     "httpx>=0.28.1",
     # black and ruff are PINNED to match .pre-commit-config.yaml exactly.
     # The pre-commit hooks are the formatting source of truth; a `>=` floor would
